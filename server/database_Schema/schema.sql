@@ -1,4 +1,3 @@
-
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 CREATE EXTENSION IF NOT EXISTS btree_gist;
 
@@ -1115,7 +1114,10 @@ END; $$;
 
 CREATE OR REPLACE FUNCTION validate_payrun_warnings(p_payrun_id UUID)
 RETURNS TABLE(warning_count INTEGER, error_count INTEGER) LANGUAGE plpgsql AS $$
-DECLARE v_warn INTEGER := 0; v_err INTEGER := 0;
+DECLARE 
+    v_warn INTEGER := 0; 
+    v_err INTEGER := 0;
+    v_row_count INTEGER;
 BEGIN
     -- Missing bank details
     INSERT INTO payroll_warnings (payrun_id, employee_id, warning_type, severity, message)
@@ -1124,7 +1126,8 @@ BEGIN
     FROM payrun_employees pe JOIN employees e ON e.id = pe.employee_id
     WHERE pe.payrun_id = p_payrun_id
       AND (e.bank_account_number IS NULL OR e.bank_account_number = '');
-    GET DIAGNOSTICS v_warn = ROW_COUNT;
+    GET DIAGNOSTICS v_row_count = ROW_COUNT;
+    v_warn := v_warn + v_row_count;
 
     -- Duplicate paid payslips for period
     INSERT INTO payroll_warnings (payrun_id, employee_id, warning_type, severity, message)
@@ -1139,7 +1142,8 @@ BEGIN
             AND ps2.period_start = pr.period_start AND ps2.period_end = pr.period_end
             AND ps2.payrun_id <> p_payrun_id
       );
-    GET DIAGNOSTICS v_err = ROW_COUNT;
+    GET DIAGNOSTICS v_row_count = ROW_COUNT;
+    v_err := v_err + v_row_count;
 
     -- No active contract for period
     INSERT INTO payroll_warnings (payrun_id, employee_id, warning_type, severity, message)
@@ -1154,7 +1158,8 @@ BEGIN
             AND c.start_date <= pr.period_end
             AND (c.end_date IS NULL OR c.end_date >= pr.period_start)
       );
-    GET DIAGNOSTICS v_err = v_err + ROW_COUNT;
+    GET DIAGNOSTICS v_row_count = ROW_COUNT;
+    v_err := v_err + v_row_count;
 
     RETURN QUERY SELECT v_warn, v_err;
 END; $$;
@@ -1462,12 +1467,11 @@ ORDER BY CASE pw.severity WHEN 'CRITICAL' THEN 1 WHEN 'ERROR' THEN 2 WHEN 'WARNI
 
 -- =========================================================
 -- SEED: Default Admin User (password: Admin@123)
--- Change immediately after first login!
 -- =========================================================
 
 INSERT INTO users (email, password_hash, first_name, last_name, is_active)
 VALUES (
-    'admin@peoplepay360.com',
+    'sanjibbayen11@gmail.com',
     crypt('Admin@123', gen_salt('bf', 12)),
     'System', 'Administrator', TRUE
 ) ON CONFLICT (email) DO NOTHING;
@@ -1475,7 +1479,7 @@ VALUES (
 DO $$
 DECLARE v_user UUID; v_role UUID;
 BEGIN
-    SELECT id INTO v_user FROM users WHERE email = 'admin@peoplepay360.com';
+    SELECT id INTO v_user FROM users WHERE email = 'sanjibbayen11@gmail.com';
     SELECT id INTO v_role FROM roles WHERE code  = 'ADMIN';
     IF v_user IS NOT NULL AND v_role IS NOT NULL THEN
         INSERT INTO user_roles (user_id, role_id) VALUES (v_user, v_role) ON CONFLICT DO NOTHING;
@@ -1487,4 +1491,4 @@ END $$;
 -- COMPLETE
 -- =========================================================
 
-SELECT 'PeoplePay360 HR & Payroll — database schema applied successfully' AS message;
+SELECT 'PeoplePay HR & Payroll - database schema applied successfully' AS message;
