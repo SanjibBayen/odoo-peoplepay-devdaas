@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
+import useLogout from '../../hooks/useLogout.js';
+import ChangePasswordModal from '../auth/ChangePasswordModal.jsx';
 
 /**
  * Compact, modern AppHeader for PeoplePay dashboards.
@@ -20,10 +22,11 @@ export default function AppHeader({
   onToggleDrawer,
   roleSlug = 'employee',
 }) {
-  const navigate = useNavigate();
+  const logout = useLogout();
   const [searchQuery, setSearchQuery] = useState('');
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const [changePasswordModalOpen, setChangePasswordModalOpen] = useState(false);
 
   const notifications = [
     {
@@ -259,7 +262,7 @@ export default function AppHeader({
                   className='flex items-center gap-2 px-3 py-1.5 text-gray-700 hover:bg-[#FAF8F5] hover:text-[#714B67]'
                   role='menuitem'
                 >
-                  <span>🏠</span> PeoplePay Home
+                  PeoplePay Home
                 </Link>
                 <button
                   type='button'
@@ -270,7 +273,18 @@ export default function AppHeader({
                   className='w-full text-left flex items-center gap-2 px-3 py-1.5 text-gray-700 hover:bg-[#FAF8F5] hover:text-[#714B67]'
                   role='menuitem'
                 >
-                  <span>☰</span> Open Navigation
+                  Open Navigation
+                </button>
+                <button
+                  type='button'
+                  onClick={() => {
+                    setProfileMenuOpen(false);
+                    setChangePasswordModalOpen(true);
+                  }}
+                  className='w-full text-left flex items-center gap-2 px-3 py-1.5 text-gray-700 hover:bg-[#FAF8F5] hover:text-[#714B67] cursor-pointer'
+                  role='menuitem'
+                >
+                  Change Password
                 </button>
               </div>
               <div className='border-t border-gray-100 pt-1'>
@@ -278,12 +292,25 @@ export default function AppHeader({
                   type='button'
                   onClick={() => {
                     setProfileMenuOpen(false);
-                    navigate(`/login/${roleSlug}`);
+                    logout(roleSlug);
                   }}
                   className='w-full text-left flex items-center gap-2 px-3 py-1.5 text-xs font-bold text-rose-600 hover:bg-rose-50 cursor-pointer'
                   role='menuitem'
                 >
-                  <span>🚪</span> Log Out
+                  <svg
+                    className='w-3.5 h-3.5'
+                    fill='none'
+                    stroke='currentColor'
+                    viewBox='0 0 24 24'
+                    strokeWidth='2'
+                  >
+                    <path
+                      strokeLinecap='round'
+                      strokeLinejoin='round'
+                      d='M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1'
+                    />
+                  </svg>
+                  Log Out
                 </button>
               </div>
             </div>
@@ -314,6 +341,11 @@ export default function AppHeader({
           </svg>
         </button>
       </div>
+
+      <ChangePasswordModal
+        isOpen={changePasswordModalOpen}
+        onClose={() => setChangePasswordModalOpen(false)}
+      />
     </header>
   );
 }

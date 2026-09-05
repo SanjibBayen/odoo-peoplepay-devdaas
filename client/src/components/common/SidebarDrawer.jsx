@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import useLogout from '../../hooks/useLogout.js';
 
 /**
  * Accessible, collapsible off-canvas Sidebar Drawer for PeoplePay workspaces.
@@ -20,6 +21,7 @@ export default function SidebarDrawer({
   onNavSelect,
 }) {
   const navigate = useNavigate();
+  const logout = useLogout();
 
   // Close drawer on Escape key
   useEffect(() => {
@@ -323,7 +325,7 @@ export default function SidebarDrawer({
   return (
     <div
       id='sidebar-drawer'
-      className='fixed inset-0 z-50 flex justify-end animate-fadeIn'
+      className='fixed inset-0 z-50 flex justify-start animate-fadeIn'
       role='dialog'
       aria-modal='true'
       aria-label='Navigation Drawer'
@@ -335,9 +337,9 @@ export default function SidebarDrawer({
         aria-hidden='true'
       />
 
-      {/* Drawer Panel (Sliding in from the Right) */}
+      {/* Drawer Panel (Sliding in from the Left) */}
       <div
-        className='relative w-72 max-w-[85vw] h-full bg-white shadow-2xl flex flex-col justify-between border-l border-[#EAE6DF] z-10 transition-transform duration-200'
+        className='relative w-72 max-w-[85vw] h-full bg-white shadow-2xl flex flex-col justify-between border-r border-[#EAE6DF] z-10 transition-transform duration-200'
         onClick={(e) => e.stopPropagation()}
       >
         <div>
@@ -469,7 +471,7 @@ export default function SidebarDrawer({
             type='button'
             onClick={() => {
               onClose();
-              navigate(config.loginRoute);
+              logout(roleId);
             }}
             className='w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-xs font-bold text-rose-600 hover:bg-rose-50 transition-colors text-left cursor-pointer'
           >
