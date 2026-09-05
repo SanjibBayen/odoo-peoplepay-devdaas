@@ -33,7 +33,7 @@ router.post('/reset-password', resetPassword);
 // Refresh Token
 router.post('/refresh-token', refreshToken);
 
-// Magic Link Routes
+// Magic Link Routes (Public - token in body)
 router.post('/verify-magic-link', verifyMagicLink);
 router.post('/set-password-magic-link', setPasswordViaMagicLink);
 

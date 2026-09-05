@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 import User from '../models/user.model.js';
 import Role from '../models/role.model.js';
@@ -15,12 +16,14 @@ import {
   hashPassword,
   comparePassword,
   validatePasswordStrength,
+  generateRandomPassword,
 } from '../utils/password.utils.js';
 import { createOTP, verifyOTP, checkOTPRateLimit } from '../utils/otp.utils.js';
 import {
   welcomeEmailTemplate,
   passwordResetSuccessTemplate,
   passwordChangeTemplate,
+  magicLinkWelcomeEmailTemplate,
 } from '../utils/emailTemplates.js';
 import redis from '../config/redis.config.js';
 import { sequelize } from '../config/database.js';
@@ -36,7 +39,6 @@ export const login = asyncHandler(async (req, res, next) => {
 
   const normalizedEmail = email.toLowerCase().trim();
 
-  // Use unscoped to get passwordHash
   const user = await User.unscoped().findOne({
     where: { email: normalizedEmail },
   });
@@ -49,7 +51,6 @@ export const login = asyncHandler(async (req, res, next) => {
     throw new AppError('Your account has been deactivated. Please contact HR', 403);
   }
 
-  // Check if account is locked
   const lockKey = `lock:${user.id}`;
   const lockData = await redis.get(lockKey);
 
@@ -61,7 +62,6 @@ export const login = asyncHandler(async (req, res, next) => {
     }
   }
 
-  // Verify password
   const isPasswordMatch = await comparePassword(password, user.passwordHash);
 
   if (!isPasswordMatch) {
@@ -74,30 +74,22 @@ export const login = asyncHandler(async (req, res, next) => {
       const lockUntil = new Date(Date.now() + 15 * 60 * 1000);
       await redis.set(
         lockKey,
-        JSON.stringify({
-          attempts,
-          until: lockUntil.toISOString(),
-        }),
+        JSON.stringify({ attempts, until: lockUntil.toISOString() }),
         'EX',
         900
       );
 
       await redis.del(attemptsKey);
-
       throw new AppError('Account locked for 15 minutes due to too many failed attempts', 423);
     }
 
     throw new AppError(`Invalid credentials. ${5 - attempts} attempts remaining`, 401);
   }
 
-  // Clear failed attempts on success
   await redis.del(`login_attempts:${user.id}`);
   await redis.del(lockKey);
 
-  // Check rate limit for OTP
   await checkOTPRateLimit(normalizedEmail, 'login');
-
-  // Generate and send OTP
   await createOTP(normalizedEmail, 'login');
 
   res.status(200).json({
@@ -119,10 +111,8 @@ export const verifyLoginOTP = asyncHandler(async (req, res, next) => {
 
   const normalizedEmail = email.toLowerCase().trim();
 
-  // Verify OTP
   await verifyOTP(normalizedEmail, otp, 'login');
 
-  // Find user
   const user = await User.findOne({
     where: { email: normalizedEmail },
   });
@@ -135,21 +125,17 @@ export const verifyLoginOTP = asyncHandler(async (req, res, next) => {
     throw new AppError('Your account has been deactivated', 403);
   }
 
-  // Update last login
   user.lastLoginAt = new Date();
   await user.save({ hooks: false });
 
-  // Generate tokens (no version)
   const token = generateToken(user.id);
   const refreshToken = generateRefreshToken(user.id);
 
-  // Create session
   await createSession(user.id, token, {
     userAgent: req.headers['user-agent'],
     ipAddress: req.ip,
   });
 
-  // Set refresh token cookie
   res.cookie('refreshToken', refreshToken, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
@@ -157,7 +143,6 @@ export const verifyLoginOTP = asyncHandler(async (req, res, next) => {
     maxAge: 7 * 24 * 60 * 60 * 1000,
   });
 
-  // Get user roles
   const roles = await user.getRoles({
     attributes: ['id', 'name', 'code'],
   });
@@ -179,23 +164,18 @@ export const verifyLoginOTP = asyncHandler(async (req, res, next) => {
   });
 });
 
-// ============ REGISTER USER (Admin Only) ============
+// ============ REGISTER USER (Admin Only) - WITH MAGIC LINK ============
 
 export const register = asyncHandler(async (req, res, next) => {
-  const { email, password, firstName, lastName, roleCodes } = req.body;
+  const { email, firstName, lastName, roleCodes } = req.body;
 
-  if (!email || !password || !firstName || !lastName) {
-    throw new AppError('Please provide email, password, firstName, and lastName', 400);
+  if (!email || !firstName || !lastName) {
+    throw new AppError('Please provide email, firstName, and lastName', 400);
   }
 
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!emailRegex.test(email)) {
     throw new AppError('Please provide a valid email', 400);
-  }
-
-  const validation = validatePasswordStrength(password);
-  if (!validation.isValid) {
-    throw new AppError(validation.errors.join(', '), 400);
   }
 
   const normalizedEmail = email.toLowerCase().trim();
@@ -208,7 +188,13 @@ export const register = asyncHandler(async (req, res, next) => {
     throw new AppError('User with this email already exists', 400);
   }
 
-  const hashedPassword = await hashPassword(password);
+  // Generate magic link token
+  const plainToken = crypto.randomBytes(32).toString('hex');
+  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+
+  // Create user with random temp password
+  const tempPassword = generateRandomPassword();
+  const hashedPassword = await hashPassword(tempPassword);
 
   const user = await User.create({
     email: normalizedEmail,
@@ -216,35 +202,37 @@ export const register = asyncHandler(async (req, res, next) => {
     firstName,
     lastName,
     isActive: true,
+    passwordResetToken: plainToken,
+    passwordResetExpires: expiresAt,
   });
 
+  // Assign roles
   if (roleCodes && roleCodes.length > 0) {
-    const roles = await Role.findAll({
-      where: { code: roleCodes },
-    });
-
+    const roles = await Role.findAll({ where: { code: roleCodes } });
     if (roles.length > 0) {
       await user.setRoles(roles);
     }
   } else {
-    const employeeRole = await Role.findOne({
-      where: { code: 'EMPLOYEE' },
-    });
-
+    const employeeRole = await Role.findOne({ where: { code: 'EMPLOYEE' } });
     if (employeeRole) {
       await user.addRole(employeeRole);
     }
   }
 
+  // Build magic link
+  const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
+  const magicLink = `${clientUrl}/set-password?token=${encodeURIComponent(plainToken)}`;
+
+  // Send magic link email
   sendEmailAsync({
     email: user.email,
-    subject: 'Welcome to PeoplePay',
-    html: welcomeEmailTemplate(user),
+    subject: 'Set Your Password - PeoplePay',
+    html: magicLinkWelcomeEmailTemplate(user, magicLink),
   });
 
   res.status(201).json({
     success: true,
-    message: 'User created successfully',
+    message: 'User created successfully. Magic link sent to email',
     user: {
       id: user.id,
       email: user.email,
@@ -256,12 +244,11 @@ export const register = asyncHandler(async (req, res, next) => {
   });
 });
 
-// ============ REGISTER EMPLOYEE ============
+// ============ REGISTER EMPLOYEE - WITH MAGIC LINK ============
 
 export const registerEmployee = asyncHandler(async (req, res, next) => {
   const {
     email,
-    password,
     firstName,
     lastName,
     employeeCode,
@@ -273,9 +260,9 @@ export const registerEmployee = asyncHandler(async (req, res, next) => {
     roleCodes = ['EMPLOYEE'],
   } = req.body;
 
-  if (!email || !password || !firstName || !lastName || !employeeCode || !joiningDate) {
+  if (!email || !firstName || !lastName || !employeeCode || !joiningDate) {
     throw new AppError(
-      'Please provide email, password, firstName, lastName, employeeCode, and joiningDate',
+      'Please provide email, firstName, lastName, employeeCode, and joiningDate',
       400
     );
   }
@@ -285,25 +272,14 @@ export const registerEmployee = asyncHandler(async (req, res, next) => {
     throw new AppError('Please provide a valid email', 400);
   }
 
-  const validation = validatePasswordStrength(password);
-  if (!validation.isValid) {
-    throw new AppError(validation.errors.join(', '), 400);
-  }
-
   const normalizedEmail = email.toLowerCase().trim();
 
-  const userExists = await User.findOne({
-    where: { email: normalizedEmail },
-  });
-
+  const userExists = await User.findOne({ where: { email: normalizedEmail } });
   if (userExists) {
     throw new AppError('User with this email already exists', 400);
   }
 
-  const employeeExists = await Employee.findOne({
-    where: { employeeCode },
-  });
-
+  const employeeExists = await Employee.findOne({ where: { employeeCode } });
   if (employeeExists) {
     throw new AppError('Employee with this code already exists', 400);
   }
@@ -311,7 +287,13 @@ export const registerEmployee = asyncHandler(async (req, res, next) => {
   const transaction = await sequelize.transaction();
 
   try {
-    const hashedPassword = await hashPassword(password);
+    // Generate magic link token
+    const plainToken = crypto.randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+    // Random temp password
+    const tempPassword = generateRandomPassword();
+    const hashedPassword = await hashPassword(tempPassword);
 
     const user = await User.create(
       {
@@ -320,15 +302,14 @@ export const registerEmployee = asyncHandler(async (req, res, next) => {
         firstName,
         lastName,
         isActive: true,
+        passwordResetToken: plainToken,
+        passwordResetExpires: expiresAt,
       },
       { transaction }
     );
 
     if (roleCodes && roleCodes.length > 0) {
-      const roles = await Role.findAll({
-        where: { code: roleCodes },
-      });
-
+      const roles = await Role.findAll({ where: { code: roleCodes } });
       if (roles.length > 0) {
         await user.setRoles(roles, { transaction });
       }
@@ -353,18 +334,23 @@ export const registerEmployee = asyncHandler(async (req, res, next) => {
 
     await transaction.commit();
 
+    // Build magic link
+    const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
+    const magicLink = `${clientUrl}/set-password?token=${encodeURIComponent(plainToken)}`;
+
+    // Send magic link email
     sendEmailAsync({
       email: user.email,
-      subject: 'Welcome to PeoplePay',
-      html: welcomeEmailTemplate({
-        ...user.toJSON(),
-        employeeCode,
-      }),
+      subject: 'Set Your Password - PeoplePay',
+      html: magicLinkWelcomeEmailTemplate(
+        { ...user.toJSON(), employeeCode },
+        magicLink
+      ),
     });
 
     res.status(201).json({
       success: true,
-      message: 'Employee created successfully',
+      message: 'Employee created successfully. Magic link sent to email',
       user: {
         id: user.id,
         email: user.email,
@@ -382,6 +368,115 @@ export const registerEmployee = asyncHandler(async (req, res, next) => {
     await transaction.rollback();
     throw error;
   }
+});
+
+// ============ VERIFY MAGIC LINK ============
+
+export const verifyMagicLink = asyncHandler(async (req, res, next) => {
+  const token = req.body.token || req.query.token;
+
+  if (!token) {
+    throw new AppError('Please provide a magic link token', 400);
+  }
+
+  const user = await User.unscoped().findOne({
+    where: { passwordResetToken: token },
+  });
+
+  if (!user || !user.passwordResetExpires || user.passwordResetExpires <= new Date()) {
+    throw new AppError('Magic link is invalid or expired', 400);
+  }
+
+  res.status(200).json({
+    success: true,
+    valid: true,
+    user: {
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+    },
+  });
+});
+
+// ============ SET PASSWORD VIA MAGIC LINK ============
+
+export const setPasswordViaMagicLink = asyncHandler(async (req, res, next) => {
+  const { token, newPassword, confirmPassword } = req.body;
+
+  if (!token || !newPassword || !confirmPassword) {
+    throw new AppError('Please provide token, newPassword, and confirmPassword', 400);
+  }
+
+  if (newPassword !== confirmPassword) {
+    throw new AppError('Passwords do not match', 400);
+  }
+
+  const validation = validatePasswordStrength(newPassword);
+  if (!validation.isValid) {
+    throw new AppError(validation.errors.join(', '), 400);
+  }
+
+  const user = await User.unscoped().findOne({
+    where: { passwordResetToken: token },
+  });
+
+  if (!user || !user.passwordResetExpires || user.passwordResetExpires <= new Date()) {
+    throw new AppError('Magic link is invalid or expired', 400);
+  }
+
+  user.passwordHash = await hashPassword(newPassword);
+  user.passwordResetToken = null;
+  user.passwordResetExpires = null;
+  await user.save();
+
+  res.status(200).json({
+    success: true,
+    message: 'Password set successfully. You can now login',
+  });
+});
+
+// ============ RESEND MAGIC LINK ============
+
+export const resendMagicLink = asyncHandler(async (req, res, next) => {
+  const { email, userId } = req.body;
+
+  if (!email && !userId) {
+    throw new AppError('Please provide an email or userId', 400);
+  }
+
+  const user = await User.unscoped().findOne({
+    where: userId ? { id: userId } : { email: email.toLowerCase().trim() },
+  });
+
+  if (!user) {
+    throw new AppError('User not found', 404);
+  }
+
+  if (!user.isActive) {
+    throw new AppError('Your account has been deactivated', 403);
+  }
+
+  // Generate new token
+  const plainToken = crypto.randomBytes(32).toString('hex');
+  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+  user.passwordResetToken = plainToken;
+  user.passwordResetExpires = expiresAt;
+  await user.save({ hooks: false });
+
+  const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
+  const magicLink = `${clientUrl}/set-password?token=${encodeURIComponent(plainToken)}`;
+
+  sendEmailAsync({
+    email: user.email,
+    subject: 'Set Your Password - PeoplePay',
+    html: magicLinkWelcomeEmailTemplate(user, magicLink),
+  });
+
+  res.status(200).json({
+    success: true,
+    message: 'Magic link sent successfully',
+  });
 });
 
 // ============ LOGOUT ============
@@ -438,7 +533,6 @@ export const refreshToken = asyncHandler(async (req, res, next) => {
     const ttl = decoded.exp - Math.floor(Date.now() / 1000);
     await blacklistToken(refreshToken, ttl);
 
-    // Generate new tokens (no version)
     const newToken = generateToken(user.id);
     const newRefreshToken = generateRefreshToken(user.id);
 
@@ -481,7 +575,6 @@ export const changePassword = asyncHandler(async (req, res, next) => {
     throw new AppError('New password must be different from current password', 400);
   }
 
-  // Use unscoped to get passwordHash
   const user = await User.unscoped().findByPk(req.user.id);
   if (!user) {
     throw new AppError('User not found', 404);
@@ -492,9 +585,7 @@ export const changePassword = asyncHandler(async (req, res, next) => {
     throw new AppError('Current password is incorrect', 401);
   }
 
-  const hashedPassword = await hashPassword(newPassword);
-
-  user.passwordHash = hashedPassword;
+  user.passwordHash = await hashPassword(newPassword);
   await user.save();
 
   await destroySession(user.id);
@@ -522,9 +613,7 @@ export const forgotPassword = asyncHandler(async (req, res, next) => {
 
   const normalizedEmail = email.toLowerCase().trim();
 
-  const user = await User.findOne({
-    where: { email: normalizedEmail },
-  });
+  const user = await User.findOne({ where: { email: normalizedEmail } });
 
   if (!user) {
     res.status(200).json({
@@ -539,7 +628,6 @@ export const forgotPassword = asyncHandler(async (req, res, next) => {
   }
 
   await checkOTPRateLimit(normalizedEmail, 'password_reset');
-
   await createOTP(normalizedEmail, 'password_reset');
 
   res.status(200).json({
@@ -566,7 +654,6 @@ export const resetPassword = asyncHandler(async (req, res, next) => {
 
   await verifyOTP(normalizedEmail, otp, 'password_reset');
 
-  // Use unscoped to get passwordHash
   const user = await User.unscoped().findOne({
     where: { email: normalizedEmail },
   });
@@ -575,8 +662,7 @@ export const resetPassword = asyncHandler(async (req, res, next) => {
     throw new AppError('User not found', 404);
   }
 
-  const hashedPassword = await hashPassword(newPassword);
-  user.passwordHash = hashedPassword;
+  user.passwordHash = await hashPassword(newPassword);
   await user.save();
 
   await destroySession(user.id);
@@ -648,9 +734,7 @@ export const resendLoginOTP = asyncHandler(async (req, res, next) => {
 
   const normalizedEmail = email.toLowerCase().trim();
 
-  const user = await User.findOne({
-    where: { email: normalizedEmail },
-  });
+  const user = await User.findOne({ where: { email: normalizedEmail } });
 
   if (!user) {
     throw new AppError('User not found', 404);
