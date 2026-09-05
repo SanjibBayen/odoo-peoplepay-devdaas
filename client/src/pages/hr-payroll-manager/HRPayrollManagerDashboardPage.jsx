@@ -37,7 +37,7 @@ export default function HRPayrollManagerDashboardPage() {
       <PageHeader
         title='Payroll Manager Dashboard'
         subtitle='Executive sign-offs, statutory audit validation, and fund disbursals.'
-        handwrittenNote='Audit-ready & approved 🔒'
+        handwrittenNote='Audit-ready and verified'
         actions={
           <span className='text-[10px] font-bold px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200'>
             ● Disbursal Scheduled: Sep 30

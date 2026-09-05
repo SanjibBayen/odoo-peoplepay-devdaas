@@ -1,25 +1,62 @@
 import express from 'express';
 import cors from 'cors';
+import cookieParser from 'cookie-parser';
+import morgan from 'morgan';
+import { errorHandler, notFound } from './middleware/error.middleware.js';
+import authRoutes from './routes/auth.routes.js';
 
 const app = express();
 
-app.use(cors());
-app.use(express.json());
+// CORS configuration
+app.use(cors({
+  origin: process.env.CLIENT_URL || 'http://localhost:5173',
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 
-// Health check route
+// Body parsing
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Cookie parsing
+app.use(cookieParser());
+
+// Request logging
+if (process.env.NODE_ENV === 'development') {
+  app.use(morgan('dev'));
+} else {
+  app.use(morgan('combined'));
+}
+
+// Health check
 app.get('/api/health', async (req, res) => {
   try {
-    const { testDatabaseConnection } = await import('./config/database.js');
-    const isConnected = await testDatabaseConnection();
+    const { sequelize } = await import('./config/database.js');
+    await sequelize.authenticate();
     
-    if (isConnected) {
-      res.json({ success: true, message: 'Database connected' });
-    } else {
-      res.status(500).json({ success: false, message: 'Database connection failed' });
-    }
+    res.status(200).json({
+      status: 'healthy',
+      database: 'connected',
+      timestamp: new Date().toISOString()
+    });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    res.status(503).json({
+      status: 'unhealthy',
+      database: 'disconnected',
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
   }
 });
+
+// API routes
+app.use('/api/auth', authRoutes);
+
+// 404 handler
+app.use(notFound);
+
+// Error handler
+app.use(errorHandler);
 
 export default app;

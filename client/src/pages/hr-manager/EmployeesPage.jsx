@@ -126,7 +126,7 @@ export default function EmployeesPage() {
       <PageHeader
         title='Employees'
         subtitle='Manage your workforce.'
-        handwrittenNote='People ops in total sync 🚀'
+        handwrittenNote='People ops in total sync'
         actions={
           <button
             type='button'

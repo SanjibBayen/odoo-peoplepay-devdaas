@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import useLogout from '../../hooks/useLogout.js';
 
 /**
  * Accessible, collapsible off-canvas Sidebar Drawer for PeoplePay workspaces.
@@ -20,6 +21,7 @@ export default function SidebarDrawer({
   onNavSelect,
 }) {
   const navigate = useNavigate();
+  const logout = useLogout();
 
   // Close drawer on Escape key
   useEffect(() => {
@@ -93,6 +95,7 @@ export default function SidebarDrawer({
           loginRoute: '/login/hr-payroll-manager',
           navItems: [
             { id: 'dashboard', label: 'Dashboard', icon: 'grid' },
+            { id: 'employees', label: 'Employees', icon: 'users' },
             {
               id: 'salary-structures',
               label: 'Salary Structures',
@@ -114,7 +117,7 @@ export default function SidebarDrawer({
           navItems: [
             { id: 'dashboard', label: 'Dashboard', icon: 'grid' },
             { id: 'employees', label: 'Employees', icon: 'users' },
-            { id: 'users-roles', label: 'Users & Roles', icon: 'users' },
+            { id: 'users', label: 'Users', icon: 'users' },
             { id: 'departments', label: 'Departments', icon: 'building' },
             { id: 'settings', label: 'Settings', icon: 'sliders' },
             { id: 'audit-logs', label: 'Audit Logs', icon: 'shield' },
@@ -160,6 +163,22 @@ export default function SidebarDrawer({
             <rect x='3' y='14' width='7' height='7' rx='1.5' />
           </svg>
         );
+      case 'users':
+        return (
+          <svg
+            className='w-4 h-4'
+            fill='none'
+            stroke='currentColor'
+            viewBox='0 0 24 24'
+            strokeWidth='2'
+          >
+            <path
+              strokeLinecap='round'
+              strokeLinejoin='round'
+              d='M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z'
+            />
+          </svg>
+        );
       case 'user':
         return (
           <svg
@@ -176,49 +195,6 @@ export default function SidebarDrawer({
             />
           </svg>
         );
-      case 'users':
-        return (
-          <svg
-            className='w-4 h-4'
-            fill='none'
-            stroke='currentColor'
-            viewBox='0 0 24 24'
-            strokeWidth='2'
-          >
-            <path
-              strokeLinecap='round'
-              strokeLinejoin='round'
-              d='M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z'
-            />
-          </svg>
-        );
-      case 'clock':
-        return (
-          <svg
-            className='w-4 h-4'
-            fill='none'
-            stroke='currentColor'
-            viewBox='0 0 24 24'
-            strokeWidth='2'
-          >
-            <circle cx='12' cy='12' r='9' />
-            <path strokeLinecap='round' d='M12 6v6l4 2' />
-          </svg>
-        );
-      case 'calendar':
-      case 'calendar-check':
-        return (
-          <svg
-            className='w-4 h-4'
-            fill='none'
-            stroke='currentColor'
-            viewBox='0 0 24 24'
-            strokeWidth='2'
-          >
-            <rect x='3' y='4' width='18' height='18' rx='2.5' />
-            <path strokeLinecap='round' d='M16 2v4M8 2v4M3 10h18' />
-          </svg>
-        );
       case 'shield':
         return (
           <svg
@@ -233,6 +209,35 @@ export default function SidebarDrawer({
               strokeLinejoin='round'
               d='M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z'
             />
+          </svg>
+        );
+      case 'clock':
+        return (
+          <svg
+            className='w-4 h-4'
+            fill='none'
+            stroke='currentColor'
+            viewBox='0 0 24 24'
+            strokeWidth='2'
+          >
+            <circle cx='12' cy='12' r='10' />
+            <polyline points='12 6 12 12 16 14' />
+          </svg>
+        );
+      case 'calendar':
+      case 'calendar-check':
+        return (
+          <svg
+            className='w-4 h-4'
+            fill='none'
+            stroke='currentColor'
+            viewBox='0 0 24 24'
+            strokeWidth='2'
+          >
+            <rect x='3' y='4' width='18' height='18' rx='2' ry='2' />
+            <line x1='16' y1='2' x2='16' y2='6' />
+            <line x1='8' y1='2' x2='8' y2='6' />
+            <line x1='3' y1='10' x2='21' y2='10' />
           </svg>
         );
       case 'document':
@@ -309,8 +314,8 @@ export default function SidebarDrawer({
   const handleNavClick = (itemId) => {
     if (itemId === 'dashboard') {
       navigate(config.dashboardRoute);
-    } else if (itemId === 'employees') {
-      navigate('/employees');
+    } else {
+      navigate(`/${itemId}`);
     }
     if (onNavSelect) {
       onNavSelect(itemId);
@@ -323,7 +328,7 @@ export default function SidebarDrawer({
   return (
     <div
       id='sidebar-drawer'
-      className='fixed inset-0 z-50 flex justify-end animate-fadeIn'
+      className='fixed inset-0 z-50 flex justify-start animate-fadeIn'
       role='dialog'
       aria-modal='true'
       aria-label='Navigation Drawer'
@@ -335,9 +340,9 @@ export default function SidebarDrawer({
         aria-hidden='true'
       />
 
-      {/* Drawer Panel (Sliding in from the Right) */}
+      {/* Drawer Panel (Sliding in from the LEFT) */}
       <div
-        className='relative w-72 max-w-[85vw] h-full bg-white shadow-2xl flex flex-col justify-between border-l border-[#EAE6DF] z-10 transition-transform duration-200'
+        className='relative w-72 max-w-[85vw] h-full bg-white shadow-2xl flex flex-col justify-between border-r border-[#EAE6DF] z-10 transition-transform duration-200'
         onClick={(e) => e.stopPropagation()}
       >
         <div>
@@ -469,7 +474,7 @@ export default function SidebarDrawer({
             type='button'
             onClick={() => {
               onClose();
-              navigate(config.loginRoute);
+              logout(config.roleSlug);
             }}
             className='w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-xs font-bold text-rose-600 hover:bg-rose-50 transition-colors text-left cursor-pointer'
           >

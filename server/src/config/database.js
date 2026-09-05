@@ -1,60 +1,39 @@
-import { Pool } from 'pg';
+import { Sequelize } from 'sequelize';
 import dotenv from 'dotenv';
 
 dotenv.config();
 
-export const pool = new Pool({
-  host: process.env.DB_HOST,
-  port: Number(process.env.DB_PORT),
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  database: process.env.DB_NAME,
-  max: 20,
-  idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 2000,
-});
-
-// Test connection
-pool.connect((err, client, release) => {
-  if (err) {
-    console.error('PostgreSQL connection failed:', err.message);
-  } else {
-    console.log('PostgreSQL connected successfully');
-    release();
+const sequelize = new Sequelize(
+  process.env.DB_NAME,
+  process.env.DB_USER,
+  process.env.DB_PASSWORD,
+  {
+    host: process.env.DB_HOST || 'localhost',
+    port: parseInt(process.env.DB_PORT) || 5432,
+    dialect: 'postgres',
+    logging: process.env.NODE_ENV === 'development' ? console.log : false,
+    pool: {
+      max: 5,
+      min: 0,
+      acquire: 30000,
+      idle: 10000
+    },
+    define: {
+      freezeTableName: true,
+      underscored: true
+    }
   }
-});
+);
 
-// Helper to run queries
-export async function query(sql, params = []) {
-  const client = await pool.connect();
+export const testConnection = async () => {
   try {
-    const result = await client.query(sql, params);
-    return result.rows;
-  } finally {
-    client.release();
-  }
-}
-
-export async function queryOne(sql, params = []) {
-  const rows = await query(sql, params);
-  return rows.length > 0 ? rows[0] : null;
-}
-
-// Helper for transactions
-export async function withTransaction(callback) {
-  const client = await pool.connect();
-  try {
-    await client.query('BEGIN');
-    const result = await callback(client);
-    await client.query('COMMIT');
-    return result;
+    await sequelize.authenticate();
+    return true;
   } catch (error) {
-    await client.query('ROLLBACK');
-    throw error;
-  } finally {
-    client.release();
+    console.error('Database connection error:', error.message);
+    return false;
   }
-}
+};
 
-
-export default pool;
+export { sequelize };
+export default sequelize;

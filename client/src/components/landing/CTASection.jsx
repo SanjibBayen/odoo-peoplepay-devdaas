@@ -25,7 +25,6 @@ export default function CTASection({ onOpenWorkspaceModal }) {
               <span className='font-handwriting text-xl sm:text-2xl font-bold text-teal-800 marker-yellow px-2.5 py-0.5'>
                 Let’s make work simpler.
               </span>
-              <span className='text-lg'>✨</span>
             </div>
 
             {/* Main Heading */}

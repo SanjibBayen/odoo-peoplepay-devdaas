@@ -326,7 +326,7 @@ export default function HowItWorks() {
                 </button>
 
                 <span className='font-handwriting text-xl text-teal-900 font-bold hidden sm:inline select-none -rotate-2'>
-                  No complicated setup required! ✨
+                  No complicated setup required!
                 </span>
               </div>
             </div>

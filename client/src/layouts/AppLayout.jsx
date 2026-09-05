@@ -51,9 +51,9 @@ export default function AppLayout({
         {children || <Outlet />}
       </main>
 
-      {/* Compact Authenticated Footer */}
-      <footer className='py-3 px-5 border-t border-[#EAE6DF] bg-white/60 text-center text-[11px] text-gray-400'>
-        PeoplePay • Enterprise Human Resources & Payroll Workspace
+      {/* Minimal Footer */}
+      <footer className='py-3 px-5 border-t border-[#EAE6DF] bg-white/60 text-center text-xs text-gray-400'>
+        © 2026 PeoplePay. All rights reserved.
       </footer>
     </div>
   );

@@ -2,6 +2,10 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import RoleBadge from './RoleBadge.jsx';
 
+import { useDispatch } from 'react-redux';
+import { setCredentials } from '../../redux/slices/authSlice.js';
+import authApi from '../../services/authApi.js';
+
 /**
  * Reusable, accessible login form component for PeoplePay.
  *
@@ -10,6 +14,7 @@ import RoleBadge from './RoleBadge.jsx';
  */
 export default function LoginForm({ role }) {
   const navigate = useNavigate();
+  const dispatch = useDispatch();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -17,9 +22,16 @@ export default function LoginForm({ role }) {
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState({});
+
+  // Forgot / Reset Password state
   const [forgotModalOpen, setForgotModalOpen] = useState(false);
+  const [forgotStep, setForgotStep] = useState(1); // 1: request OTP, 2: verify & reset, 3: success
   const [forgotEmail, setForgotEmail] = useState('');
-  const [forgotSent, setForgotSent] = useState(false);
+  const [resetOtp, setResetOtp] = useState('');
+  const [resetNewPassword, setResetNewPassword] = useState('');
+  const [forgotLoading, setForgotLoading] = useState(false);
+  const [forgotError, setForgotError] = useState(null);
+  const [forgotSuccessMsg, setForgotSuccessMsg] = useState(null);
 
   const validate = () => {
     const newErrors = {};
@@ -54,14 +66,122 @@ export default function LoginForm({ role }) {
     setErrors({});
     setIsSubmitting(true);
 
-    // Simulate brief asynchronous authentication submission
-    setTimeout(() => {
-      if (typeof window !== 'undefined' && window.sessionStorage) {
-        sessionStorage.setItem('peoplepay_role', role.slug);
+    try {
+      const cleanEmail = email.trim().toLowerCase();
+      const result = await authApi.login({
+        email: cleanEmail,
+        password,
+      });
+
+      if (result.requiresOTP) {
+        navigate('/login/verify-otp', {
+          state: {
+            email: cleanEmail,
+            roleSlug: role.slug,
+            returnUrl: role.dashboardRoute,
+          },
+        });
+        return;
       }
+
+      // If OTP was not required or credentials were returned directly
+      if (result.token) {
+        let authoritativeUser = result.user;
+        try {
+          const meRes = await authApi.getMe();
+          if (meRes?.user) {
+            authoritativeUser = meRes.user;
+          }
+        } catch (meErr) {
+          console.warn('Could not fetch /auth/me on login', meErr.message);
+        }
+
+        dispatch(
+          setCredentials({
+            user: authoritativeUser,
+            token: result.token,
+          })
+        );
+
+        const userRoles = authoritativeUser?.roles || [];
+        const primaryRole = (
+          typeof userRoles[0] === 'string'
+            ? userRoles[0]
+            : userRoles[0]?.code || role.slug
+        )
+          .toLowerCase()
+          .replace('-', '_');
+        const targetSlug = primaryRole.replace('_', '-');
+
+        navigate(`/dashboard/${targetSlug}`);
+      }
+    } catch (err) {
+      const msg =
+        err.response?.data?.message ||
+        err.message ||
+        'Invalid email or password. Please try again.';
+      setErrors({ form: msg });
+    } finally {
       setIsSubmitting(false);
-      navigate(role.dashboardRoute);
-    }, 750);
+    }
+  };
+
+  const handleSendResetOTP = async (e) => {
+    e.preventDefault();
+    if (!forgotEmail.trim()) {
+      setForgotError('Please enter your work email.');
+      return;
+    }
+
+    setForgotLoading(true);
+    setForgotError(null);
+
+    try {
+      const res = await authApi.forgotPassword({
+        email: forgotEmail.trim().toLowerCase(),
+      });
+      setForgotSuccessMsg(res.message || 'Password reset OTP sent to your email.');
+      setForgotStep(2);
+    } catch (err) {
+      setForgotError(
+        err.response?.data?.message || err.message || 'Failed to send reset code.'
+      );
+    } finally {
+      setForgotLoading(false);
+    }
+  };
+
+  const handleResetPassword = async (e) => {
+    e.preventDefault();
+    if (!resetOtp.trim()) {
+      setForgotError('Please enter the OTP verification code.');
+      return;
+    }
+    if (!resetNewPassword || resetNewPassword.length < 8) {
+      setForgotError('Password must be at least 8 characters long.');
+      return;
+    }
+
+    setForgotLoading(true);
+    setForgotError(null);
+
+    try {
+      const res = await authApi.resetPassword({
+        email: forgotEmail.trim().toLowerCase(),
+        otp: resetOtp.trim(),
+        newPassword: resetNewPassword,
+      });
+      setForgotSuccessMsg(
+        res.message || 'Password reset successful. Please sign in with your new password.'
+      );
+      setForgotStep(3);
+    } catch (err) {
+      setForgotError(
+        err.response?.data?.message || err.message || 'Password reset failed.'
+      );
+    } finally {
+      setForgotLoading(false);
+    }
   };
 
   const handleAutofillDemo = () => {
@@ -133,6 +253,28 @@ export default function LoginForm({ role }) {
             </p>
           </div>
         </div>
+
+        {/* Form-level Error Alert */}
+        {errors.form && (
+          <div
+            role='alert'
+            className='mb-4 p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs font-semibold text-rose-700 flex items-center gap-2 animate-fadeIn'
+          >
+            <svg
+              className='w-4 h-4 shrink-0 text-rose-500'
+              fill='currentColor'
+              viewBox='0 0 20 20'
+              aria-hidden='true'
+            >
+              <path
+                fillRule='evenodd'
+                d='M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z'
+                clipRule='evenodd'
+              />
+            </svg>
+            <span>{errors.form}</span>
+          </div>
+        )}
 
         {/* Login Form */}
         <form onSubmit={handleSubmit} noValidate className='space-y-4'>
@@ -349,7 +491,7 @@ export default function LoginForm({ role }) {
                       d='M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z'
                     />
                   </svg>
-                  <span>Authenticating...</span>
+                  <span>Signing in...</span>
                 </>
               ) : (
                 <>
@@ -385,7 +527,7 @@ export default function LoginForm({ role }) {
         </div>
       </div>
 
-      {/* Accessible Forgot Password Dialog Modal */}
+      {/* Accessible Forgot & Reset Password Dialog Modal */}
       {forgotModalOpen && (
         <div
           className='fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs'
@@ -397,64 +539,172 @@ export default function LoginForm({ role }) {
             <div className='flex items-center justify-between'>
               <h3
                 id='forgot-dialog-title'
-                className='text-lg font-bold text-[#1E293B]'
+                className='text-base font-bold text-[#1E293B]'
               >
-                Reset Password
+                {forgotStep === 3
+                  ? 'Password Reset'
+                  : forgotStep === 2
+                  ? 'Enter Verification Code'
+                  : 'Reset Password'}
               </h3>
               <button
                 type='button'
-                onClick={() => setForgotModalOpen(false)}
-                className='p-1 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100'
+                onClick={() => {
+                  setForgotModalOpen(false);
+                  setForgotStep(1);
+                  setForgotError(null);
+                }}
+                className='p-1 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors cursor-pointer'
                 aria-label='Close modal'
               >
                 ✕
               </button>
             </div>
 
-            {forgotSent ? (
-              <div className='space-y-3'>
-                <div className='p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-800 font-medium'>
-                  Password reset link has been dispatched to{' '}
-                  <strong>{forgotEmail || email || 'your email'}</strong>. Check
-                  your inbox.
-                </div>
-                <button
-                  type='button'
-                  onClick={() => setForgotModalOpen(false)}
-                  className='w-full py-2.5 px-4 bg-[#714B67] text-white rounded-xl text-xs font-bold hover:bg-[#5E3E56]'
-                >
-                  Close
-                </button>
+            {forgotError && (
+              <div
+                className='p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700 font-medium'
+                role='alert'
+              >
+                {forgotError}
               </div>
-            ) : (
-              <div className='space-y-3'>
+            )}
+
+            {forgotStep === 1 && (
+              <form onSubmit={handleSendResetOTP} className='space-y-3'>
                 <p className='text-xs text-gray-600'>
-                  Enter your registered work email to receive password recovery
-                  instructions.
+                  Enter your registered work email to receive a 6-digit password recovery code.
                 </p>
-                <input
-                  type='email'
-                  value={forgotEmail}
-                  onChange={(e) => setForgotEmail(e.target.value)}
-                  placeholder='work.email@company.com'
-                  className='w-full px-3 py-2.5 rounded-xl text-xs bg-[#FAF8F5] border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#714B67]'
-                />
+                <div>
+                  <label htmlFor='modal-forgot-email' className='sr-only'>
+                    Work Email
+                  </label>
+                  <input
+                    id='modal-forgot-email'
+                    type='email'
+                    required
+                    value={forgotEmail}
+                    onChange={(e) => {
+                      setForgotEmail(e.target.value);
+                      if (forgotError) setForgotError(null);
+                    }}
+                    placeholder='work.email@company.com'
+                    className='w-full px-3 py-2.5 rounded-xl text-xs bg-[#FAF8F5] border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#714B67]'
+                  />
+                </div>
                 <div className='flex gap-2 pt-2'>
                   <button
                     type='button'
                     onClick={() => setForgotModalOpen(false)}
-                    className='w-1/2 py-2.5 text-xs font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-xl'
+                    className='w-1/2 py-2.5 text-xs font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors cursor-pointer'
                   >
                     Cancel
                   </button>
                   <button
-                    type='button'
-                    onClick={() => setForgotSent(true)}
-                    className='w-1/2 py-2.5 text-xs font-bold text-white bg-[#714B67] hover:bg-[#5E3E56] rounded-xl'
+                    type='submit'
+                    disabled={forgotLoading}
+                    className='w-1/2 py-2.5 text-xs font-bold text-white bg-[#714B67] hover:bg-[#5E3E56] disabled:opacity-70 rounded-xl shadow-xs transition-colors cursor-pointer'
                   >
-                    Send Link
+                    {forgotLoading ? 'Sending...' : 'Send Reset Code'}
                   </button>
                 </div>
+              </form>
+            )}
+
+            {forgotStep === 2 && (
+              <form onSubmit={handleResetPassword} className='space-y-3'>
+                <p className='text-xs text-gray-600'>
+                  We sent a 6-digit code to{' '}
+                  <span className='font-semibold text-gray-800'>{forgotEmail}</span>. Enter it below along with your new password.
+                </p>
+                <div>
+                  <label
+                    htmlFor='modal-reset-otp'
+                    className='block text-xs font-semibold text-gray-700 mb-1'
+                  >
+                    6-Digit Code
+                  </label>
+                  <input
+                    id='modal-reset-otp'
+                    type='text'
+                    maxLength={6}
+                    required
+                    value={resetOtp}
+                    onChange={(e) => {
+                      setResetOtp(e.target.value);
+                      if (forgotError) setForgotError(null);
+                    }}
+                    placeholder='123456'
+                    className='w-full px-3 py-2.5 rounded-xl text-xs font-mono tracking-widest bg-[#FAF8F5] border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#714B67]'
+                  />
+                </div>
+                <div>
+                  <label
+                    htmlFor='modal-reset-new-password'
+                    className='block text-xs font-semibold text-gray-700 mb-1'
+                  >
+                    New Password
+                  </label>
+                  <input
+                    id='modal-reset-new-password'
+                    type='password'
+                    required
+                    minLength={8}
+                    value={resetNewPassword}
+                    onChange={(e) => {
+                      setResetNewPassword(e.target.value);
+                      if (forgotError) setForgotError(null);
+                    }}
+                    placeholder='At least 8 characters'
+                    className='w-full px-3 py-2.5 rounded-xl text-xs bg-[#FAF8F5] border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#714B67]'
+                  />
+                  <p className='text-[10px] text-gray-500 mt-1'>
+                    Must contain uppercase, lowercase, number, and special character.
+                  </p>
+                </div>
+                <div className='flex gap-2 pt-2'>
+                  <button
+                    type='button'
+                    onClick={() => {
+                      setForgotStep(1);
+                      setForgotError(null);
+                    }}
+                    className='w-1/3 py-2.5 text-xs font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors cursor-pointer'
+                  >
+                    Back
+                  </button>
+                  <button
+                    type='submit'
+                    disabled={forgotLoading}
+                    className='w-2/3 py-2.5 text-xs font-bold text-white bg-[#714B67] hover:bg-[#5E3E56] disabled:opacity-70 rounded-xl shadow-xs transition-colors cursor-pointer'
+                  >
+                    {forgotLoading ? 'Resetting...' : 'Reset Password'}
+                  </button>
+                </div>
+              </form>
+            )}
+
+            {forgotStep === 3 && (
+              <div className='space-y-3'>
+                <div
+                  className='p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-800 font-medium'
+                  role='status'
+                >
+                  {forgotSuccessMsg}
+                </div>
+                <button
+                  type='button'
+                  onClick={() => {
+                    setForgotModalOpen(false);
+                    setForgotStep(1);
+                    setResetOtp('');
+                    setResetNewPassword('');
+                    setForgotError(null);
+                  }}
+                  className='w-full py-2.5 px-4 bg-[#714B67] text-white rounded-xl text-xs font-bold hover:bg-[#5E3E56] transition-colors cursor-pointer'
+                >
+                  Close & Sign In
+                </button>
               </div>
             )}
           </div>
