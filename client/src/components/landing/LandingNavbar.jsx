@@ -70,13 +70,13 @@ export default function LandingNavbar({ onOpenWorkspaceModal }) {
           <div className='hidden md:flex items-center gap-5'>
             {/* Playful Handwritten Note with Sun Doodle */}
             <div className='flex items-center gap-1.5 text-right -rotate-2 select-none'>
-              <span className='font-handwriting text-lg text-amber-900/80 leading-none font-semibold'>
+              {/* <span className='font-handwriting text-lg text-amber-900/80 leading-none font-semibold'>
                 Better People
                 <br />
                 Brighter Tomorrow
-              </span>
+              </span> */}
               {/* Sun Doodle SVG */}
-              <svg
+              {/* <svg
                 className='w-5 h-5 text-amber-500 animate-spin-slow'
                 viewBox='0 0 24 24'
                 fill='none'
@@ -88,7 +88,7 @@ export default function LandingNavbar({ onOpenWorkspaceModal }) {
                   strokeLinecap='round'
                   d='M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32l1.41 1.41M2 12h2m16 0h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41'
                 />
-              </svg>
+              </svg> */}
             </div>
 
             {/* Login Button */}

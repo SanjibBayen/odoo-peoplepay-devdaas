@@ -94,9 +94,8 @@ export default function HeroSection({ onOpenWorkspaceModal }) {
                   <path d='M6 25 L 8 19 L 14 21' />
                 </svg>
                 <span className='font-handwriting text-xl text-gray-700 font-semibold'>
-                  Less manual work → More time for people
+                  Less manual work → More time for people   😊
                 </span>
-                <span className='text-xl'>😊</span>
               </div>
             </div>
 
