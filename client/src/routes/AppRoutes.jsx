@@ -1,4 +1,5 @@
 import React from 'react';
+import { useSelector } from 'react-redux';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { ADMIN_DATA } from '../data/adminDashboardData.js';
 import { EMPLOYEE_DATA } from '../data/employeeDashboardData.js';
@@ -6,178 +7,371 @@ import { HR_MANAGER_DATA } from '../data/hrManagerDashboardData.js';
 import { HR_PAYROLL_MANAGER_DATA } from '../data/hrPayrollManagerDashboardData.js';
 import { HR_PAYROLL_USER_DATA } from '../data/hrPayrollUserDashboardData.js';
 import AppLayout from '../layouts/AppLayout.jsx';
-import AdminDashboardPage from '../pages/admin/AdminDashboardPage.jsx';
-import AdminLoginPage from '../pages/auth/AdminLoginPage.jsx';
+import { selectCurrentRole, selectCurrentUser } from '../redux/selectors/authSelectors.js';
+
+// Public & Auth Pages
+import LandingPage from '../pages/public/LandingPage.jsx';
 import EmployeeLoginPage from '../pages/auth/EmployeeLoginPage.jsx';
 import HRManagerLoginPage from '../pages/auth/HRManagerLoginPage.jsx';
-import HRPayrollManagerLoginPage from '../pages/auth/HRPayrollManagerLoginPage.jsx';
 import HRPayrollUserLoginPage from '../pages/auth/HRPayrollUserLoginPage.jsx';
+import HRPayrollManagerLoginPage from '../pages/auth/HRPayrollManagerLoginPage.jsx';
+import AdminLoginPage from '../pages/auth/AdminLoginPage.jsx';
+import LoginOTPPage from '../pages/auth/LoginOTPPage.jsx';
+import AuthSessionProvider from '../components/auth/AuthSessionProvider.jsx';
+
+// Role Dashboards
 import EmployeeDashboardPage from '../pages/employee/EmployeeDashboardPage.jsx';
-import EmployeeDetailPage from '../pages/hr-manager/EmployeeDetailPage.jsx';
-import EmployeesPage from '../pages/hr-manager/EmployeesPage.jsx';
 import HRManagerDashboardPage from '../pages/hr-manager/HRManagerDashboardPage.jsx';
-import HRPayrollManagerDashboardPage from '../pages/hr-payroll-manager/HRPayrollManagerDashboardPage.jsx';
 import HRPayrollUserDashboardPage from '../pages/hr-payroll-user/HRPayrollUserDashboardPage.jsx';
-import LandingPage from '../pages/public/LandingPage.jsx';
+import HRPayrollManagerDashboardPage from '../pages/hr-payroll-manager/HRPayrollManagerDashboardPage.jsx';
+import AdminDashboardPage from '../pages/admin/AdminDashboardPage.jsx';
+
+// Feature Modules
+import EmployeesPage from '../pages/hr-manager/EmployeesPage.jsx';
+import EmployeeDetailPage from '../pages/hr-manager/EmployeeDetailPage.jsx';
+import ContractsPage from '../pages/contracts/ContractsPage.jsx';
+import SchedulesPage from '../pages/schedules/SchedulesPage.jsx';
+import AttendancePage from '../pages/attendance/AttendancePage.jsx';
+import TimeOffPage from '../pages/time-off/TimeOffPage.jsx';
+import SalaryStructuresPage from '../pages/salary/SalaryStructuresPage.jsx';
+import SalaryRulesPage from '../pages/salary/SalaryRulesPage.jsx';
+import PayrunsPage from '../pages/payroll/PayrunsPage.jsx';
+import PayslipsPage from '../pages/payslips/PayslipsPage.jsx';
+import ReportsPage from '../pages/reports/ReportsPage.jsx';
+
+// Admin & Self-Service Pages
+import UsersPage from '../pages/admin/UsersPage.jsx';
+import DepartmentsPage from '../pages/admin/DepartmentsPage.jsx';
+import SettingsPage from '../pages/admin/SettingsPage.jsx';
+import AuditLogsPage from '../pages/admin/AuditLogsPage.jsx';
+import ProfilePage from '../pages/employee/ProfilePage.jsx';
+
+// Guards
 import ProtectedRoute from './ProtectedRoute.jsx';
+import RoleRoute from './RoleRoute.jsx';
 import PublicRoutes from './PublicRoutes.jsx';
 
 /**
- * Shell wrapper for Employee Management module accessible to HR Manager and Admin.
+ * Reusable layout shell connected to active Redux user state.
  */
-function EmployeeManagementShell({ children, title = 'Employees' }) {
-  const activeRole =
-    typeof window !== 'undefined'
-      ? sessionStorage.getItem('peoplepay_role')
-      : null;
+function AppShell({ children, title, activeNav }) {
+  const currentRole = useSelector(selectCurrentRole) || 'employee';
+  const currentUser = useSelector(selectCurrentUser);
+  const normalizedRole = currentRole.replace('_', '-');
 
-  // Strict role check: If authenticated as Employee or Payroll user, redirect to own dashboard
-  if (
-    activeRole &&
-    activeRole !== 'hr-manager' &&
-    activeRole !== 'admin'
-  ) {
-    return <Navigate to={`/dashboard/${activeRole}`} replace />;
-  }
-
-  const roleId = activeRole === 'admin' ? 'admin' : 'hr-manager';
-  const user = roleId === 'admin' ? ADMIN_DATA.user : HR_MANAGER_DATA.user;
-  const portalName =
-    roleId === 'admin' ? 'Administrator Portal' : 'HR Manager Portal';
+  const defaultUser =
+    currentUser ||
+    (normalizedRole === 'admin'
+      ? ADMIN_DATA.user
+      : normalizedRole === 'hr-manager'
+      ? HR_MANAGER_DATA.user
+      : normalizedRole === 'hr-payroll-manager'
+      ? HR_PAYROLL_MANAGER_DATA.user
+      : normalizedRole === 'hr-payroll-user'
+      ? HR_PAYROLL_USER_DATA.user
+      : EMPLOYEE_DATA.user);
 
   return (
     <AppLayout
-      roleId={roleId}
+      roleId={normalizedRole}
       title={title}
-      portalName={portalName}
-      user={user}
-      activeNav='employees'
+      user={defaultUser}
+      activeNav={activeNav}
     >
       {children}
     </AppLayout>
   );
 }
 
-/**
- * Main application routes configuration for PeoplePay.
- */
 export default function AppRoutes() {
   return (
-    <Routes>
-      {/* Public Routes */}
-      <Route element={<PublicRoutes />}>
-        <Route path='/' element={<LandingPage />} />
-        <Route path='/login/employee' element={<EmployeeLoginPage />} />
-        <Route path='/login/hr-manager' element={<HRManagerLoginPage />} />
-        <Route
-          path='/login/hr-payroll-user'
-          element={<HRPayrollUserLoginPage />}
-        />
-        <Route
-          path='/login/hr-payroll-manager'
-          element={<HRPayrollManagerLoginPage />}
-        />
-        <Route path='/login/admin' element={<AdminLoginPage />} />
-      </Route>
+    <AuthSessionProvider>
+      <Routes>
+        {/* Public Landing & Login Pages */}
+        <Route element={<PublicRoutes />}>
+          <Route path='/' element={<LandingPage />} />
+          <Route path='/login/employee' element={<EmployeeLoginPage />} />
+          <Route path='/login/hr-manager' element={<HRManagerLoginPage />} />
+          <Route path='/login/hr-payroll-user' element={<HRPayrollUserLoginPage />} />
+          <Route path='/login/hr-payroll-manager' element={<HRPayrollManagerLoginPage />} />
+          <Route path='/login/admin' element={<AdminLoginPage />} />
+          <Route path='/login/verify-otp' element={<LoginOTPPage />} />
+        </Route>
 
-      {/* Protected Routes (All Five Production-Quality Role Dashboards) */}
-      <Route element={<ProtectedRoute />}>
-        {/* 1. Employee Dashboard */}
-        <Route
-          path='/dashboard/employee'
-          element={
-            <AppLayout
-              roleId='employee'
-              title='Employee Dashboard'
-              portalName='Employee Portal'
-              user={EMPLOYEE_DATA.user}
-            >
-              <EmployeeDashboardPage />
-            </AppLayout>
-          }
-        />
+        {/* Authenticated Routes with ProtectedRoute Guard */}
+        <Route element={<ProtectedRoute />}>
+          {/* 1. Employee Dashboard */}
+          <Route element={<RoleRoute allowedRoles={['employee']} />}>
+            <Route
+              path='/dashboard/employee'
+              element={
+                <AppShell title='Employee Dashboard' activeNav='dashboard'>
+                  <EmployeeDashboardPage />
+                </AppShell>
+              }
+            />
+            <Route
+              path='/profile'
+              element={
+                <AppShell title='My Profile' activeNav='profile'>
+                  <ProfilePage />
+                </AppShell>
+              }
+            />
+          </Route>
 
-        {/* 2. HR Manager Dashboard */}
-        <Route
-          path='/dashboard/hr-manager'
-          element={
-            <AppLayout
-              roleId='hr-manager'
-              title='HR Manager'
-              portalName='HR Manager Portal'
-              user={HR_MANAGER_DATA.user}
-            >
-              <HRManagerDashboardPage />
-            </AppLayout>
-          }
-        />
+          {/* 2. HR Manager Dashboard */}
+          <Route element={<RoleRoute allowedRoles={['hr_manager']} />}>
+            <Route
+              path='/dashboard/hr-manager'
+              element={
+                <AppShell title='HR Manager' activeNav='dashboard'>
+                  <HRManagerDashboardPage />
+                </AppShell>
+              }
+            />
+          </Route>
 
-        {/* 3. HR Payroll User Dashboard */}
-        <Route
-          path='/dashboard/hr-payroll-user'
-          element={
-            <AppLayout
-              roleId='hr-payroll-user'
-              title='Payroll Operations'
-              portalName='Payroll User Portal'
-              user={HR_PAYROLL_USER_DATA.user}
-            >
-              <HRPayrollUserDashboardPage />
-            </AppLayout>
-          }
-        />
+          {/* 3. HR Payroll User Dashboard */}
+          <Route element={<RoleRoute allowedRoles={['hr_payroll_user']} />}>
+            <Route
+              path='/dashboard/hr-payroll-user'
+              element={
+                <AppShell title='Payroll Operations' activeNav='dashboard'>
+                  <HRPayrollUserDashboardPage />
+                </AppShell>
+              }
+            />
+          </Route>
 
-        {/* 4. HR Payroll Manager Dashboard */}
-        <Route
-          path='/dashboard/hr-payroll-manager'
-          element={
-            <AppLayout
-              roleId='hr-payroll-manager'
-              title='Payroll Manager'
-              portalName='Payroll Manager Portal'
-              user={HR_PAYROLL_MANAGER_DATA.user}
-            >
-              <HRPayrollManagerDashboardPage />
-            </AppLayout>
-          }
-        />
+          {/* 4. HR Payroll Manager Dashboard */}
+          <Route element={<RoleRoute allowedRoles={['hr_payroll_manager']} />}>
+            <Route
+              path='/dashboard/hr-payroll-manager'
+              element={
+                <AppShell title='Payroll Manager' activeNav='dashboard'>
+                  <HRPayrollManagerDashboardPage />
+                </AppShell>
+              }
+            />
+          </Route>
 
-        {/* 5. Admin Dashboard */}
-        <Route
-          path='/dashboard/admin'
-          element={
-            <AppLayout
-              roleId='admin'
-              title='Administration'
-              portalName='Administrator Portal'
-              user={ADMIN_DATA.user}
-            >
-              <AdminDashboardPage />
-            </AppLayout>
-          }
-        />
+          {/* 5. Admin Dashboard */}
+          <Route element={<RoleRoute allowedRoles={['admin']} />}>
+            <Route
+              path='/dashboard/admin'
+              element={
+                <AppShell title='Administration' activeNav='dashboard'>
+                  <AdminDashboardPage />
+                </AppShell>
+              }
+            />
+          </Route>
 
-        {/* 6. Employee Management Module (Accessible to HR Manager & Admin) */}
-        <Route
-          path='/employees'
-          element={
-            <EmployeeManagementShell title='Employees'>
-              <EmployeesPage />
-            </EmployeeManagementShell>
-          }
-        />
-        <Route
-          path='/employees/:employeeId'
-          element={
-            <EmployeeManagementShell title='Employee Profile'>
-              <EmployeeDetailPage />
-            </EmployeeManagementShell>
-          }
-        />
-      </Route>
+          {/* 6. Shared Workforce & HR Modules */}
+          <Route element={<RoleRoute allowedRoles={['hr_manager', 'admin']} />}>
+            <Route
+              path='/employees'
+              element={
+                <AppShell title='Employees' activeNav='employees'>
+                  <EmployeesPage />
+                </AppShell>
+              }
+            />
+            <Route
+              path='/employees/:employeeId'
+              element={
+                <AppShell title='Employee Details' activeNav='employees'>
+                  <EmployeeDetailPage />
+                </AppShell>
+              }
+            />
+            <Route
+              path='/schedules'
+              element={
+                <AppShell title='Work Schedules' activeNav='schedules'>
+                  <SchedulesPage />
+                </AppShell>
+              }
+            />
+          </Route>
 
-      {/* Catch-all Fallback */}
-      <Route path='*' element={<Navigate to='/' replace />} />
-    </Routes>
+          {/* Contracts Module */}
+          <Route
+            element={
+              <RoleRoute allowedRoles={['hr_manager', 'admin', 'employee']} />
+            }
+          >
+            <Route
+              path='/contracts'
+              element={
+                <AppShell title='Contracts' activeNav='contracts'>
+                  <ContractsPage />
+                </AppShell>
+              }
+            />
+          </Route>
+
+          {/* Attendance Module */}
+          <Route
+            element={
+              <RoleRoute
+                allowedRoles={[
+                  'employee',
+                  'hr_manager',
+                  'hr_payroll_user',
+                  'admin',
+                ]}
+              />
+            }
+          >
+            <Route
+              path='/attendance'
+              element={
+                <AppShell title='Attendance' activeNav='attendance'>
+                  <AttendancePage />
+                </AppShell>
+              }
+            />
+          </Route>
+
+          {/* Time Off Module */}
+          <Route
+            element={
+              <RoleRoute allowedRoles={['employee', 'hr_manager', 'admin']} />
+            }
+          >
+            <Route
+              path='/time-off'
+              element={
+                <AppShell title='Time Off' activeNav='time-off'>
+                  <TimeOffPage />
+                </AppShell>
+              }
+            />
+          </Route>
+
+          {/* 7. Payroll & Payslips Modules */}
+          <Route
+            element={
+              <RoleRoute
+                allowedRoles={['hr_payroll_user', 'hr_payroll_manager', 'admin']}
+              />
+            }
+          >
+            <Route
+              path='/salary-structures'
+              element={
+                <AppShell title='Salary Structures' activeNav='salary-structures'>
+                  <SalaryStructuresPage />
+                </AppShell>
+              }
+            />
+            <Route
+              path='/salary-rules'
+              element={
+                <AppShell title='Salary Rules' activeNav='salary-rules'>
+                  <SalaryRulesPage />
+                </AppShell>
+              }
+            />
+            <Route
+              path='/payruns'
+              element={
+                <AppShell title='Payroll Runs' activeNav='payruns'>
+                  <PayrunsPage />
+                </AppShell>
+              }
+            />
+          </Route>
+
+          {/* Payslips Module */}
+          <Route
+            element={
+              <RoleRoute
+                allowedRoles={[
+                  'employee',
+                  'hr_payroll_user',
+                  'hr_payroll_manager',
+                  'admin',
+                ]}
+              />
+            }
+          >
+            <Route
+              path='/payslips'
+              element={
+                <AppShell title='Payslips' activeNav='payslips'>
+                  <PayslipsPage />
+                </AppShell>
+              }
+            />
+          </Route>
+
+          {/* Reports Module */}
+          <Route
+            element={
+              <RoleRoute
+                allowedRoles={[
+                  'hr_manager',
+                  'hr_payroll_user',
+                  'hr_payroll_manager',
+                  'admin',
+                ]}
+              />
+            }
+          >
+            <Route
+              path='/reports'
+              element={
+                <AppShell title='Reports & Analytics' activeNav='reports'>
+                  <ReportsPage />
+                </AppShell>
+              }
+            />
+          </Route>
+
+          {/* 8. Administrative Modules */}
+          <Route element={<RoleRoute allowedRoles={['admin']} />}>
+            <Route
+              path='/users'
+              element={
+                <AppShell title='User Management' activeNav='users'>
+                  <UsersPage />
+                </AppShell>
+              }
+            />
+            <Route
+              path='/departments'
+              element={
+                <AppShell title='Departments' activeNav='departments'>
+                  <DepartmentsPage />
+                </AppShell>
+              }
+            />
+            <Route
+              path='/settings'
+              element={
+                <AppShell title='System Settings' activeNav='settings'>
+                  <SettingsPage />
+                </AppShell>
+              }
+            />
+            <Route
+              path='/audit-logs'
+              element={
+                <AppShell title='Audit Logs' activeNav='audit-logs'>
+                  <AuditLogsPage />
+                </AppShell>
+              }
+            />
+          </Route>
+        </Route>
+
+        {/* Catch-all Fallback */}
+        <Route path='*' element={<Navigate to='/' replace />} />
+      </Routes>
+    </AuthSessionProvider>
   );
 }
+
