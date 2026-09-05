@@ -4,14 +4,14 @@ import { logout, setCredentials } from '../redux/slices/authSlice.js';
 
 const baseURL =
   (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL) ||
-  'http://localhost:5000/api';
+  'http://localhost:3000/api';
 
 export const apiClient = axios.create({
   baseURL,
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 15000,
+  timeout: 25000,
   withCredentials: true,
 });
 
