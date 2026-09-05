@@ -5,71 +5,125 @@ import ErrorState from '../../components/common/ErrorState.jsx';
 import EmptyState from '../../components/common/EmptyState.jsx';
 import BackButton from '../../components/common/BackButton.jsx';
 import payrunApi from '../../services/payrunApi.js';
-import { getEmployees } from '../../data/employeeStore.js';
-import { getSalaryStructuresFromStorage } from '../../data/salaryData.js';
-import { getPayrunsFromStorage } from '../../data/payrunsData.js';
+import employeeApi from '../../services/employeeApi.js';
+import salaryStructureApi from '../../services/salaryStructureApi.js';
+import { extractErrorMessage } from '../../services/apiClient.js';
+
+function normalizePayrun(pr) {
+  if (!pr) return null;
+  return {
+    ...pr,
+    id: pr.id,
+    payrunCode: pr.code || `PR-${pr.id.slice(-6)}`,
+    name: pr.name,
+    status: pr.status || 'DRAFT',
+    structureName: pr.salaryStructure?.name || 'Standard Structure',
+    startDate: pr.periodStart,
+    endDate: pr.periodEnd,
+    totalGrossWage: Number(pr.totalGross || pr.totalGrossWage || pr.grossTotal || 0),
+    totalDeductions: Number(pr.totalDeductions || pr.deductionsTotal || 0),
+    totalNetSalary: Number(pr.totalNet || pr.totalNetSalary || pr.netTotal || 0),
+    eligibleEmployeesCount: pr.payslipsCount || pr.employeeCount || 0,
+    paymentReference: pr.paymentReference,
+  };
+}
 
 export default function PayrunsPage() {
-  const [payruns, setPayruns] = useState(() => getPayrunsFromStorage());
-  const [loading, setLoading] = useState(false);
+  const [payruns, setPayruns] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [statusBanner, setStatusBanner] = useState(null);
 
   // Two-Step Creation Modal State
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [createStep, setCreateStep] = useState(1);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Validation details modal
-  const [validationModalPayrun, setValidationModalPayrun] = useState(null);
-
-  const employees = getEmployees();
-  const salaryStructures = getSalaryStructuresFromStorage();
+  // Reference data loaded from APIs
+  const [employees, setEmployees] = useState([]);
+  const [salaryStructures, setSalaryStructures] = useState([]);
 
   // Step 1 Form Data
   const [step1Data, setStep1Data] = useState({
-    name: 'September 2026 Regular Payrun',
-    structureId: 'str-1',
-    month: 'September',
-    year: 2026,
-    startDate: '2026-09-01',
-    endDate: '2026-09-30',
-    scope: 'All', // All, Department
+    name: '',
+    structureId: '',
+    startDate: '',
+    endDate: '',
+    scope: 'All',
     department: 'Engineering',
   });
 
   // Step 2 Form Data (Selected Employee IDs)
   const [selectedEmployeeIds, setSelectedEmployeeIds] = useState([]);
 
-  const loadPayruns = () => {
-    payrunApi
-      .getPayruns()
-      .then((res) => {
-        setPayruns(res.data || []);
-        setLoading(false);
-      })
-      .catch((err) => {
-        setError(err.message || 'Failed to load payruns.');
-        setLoading(false);
-      });
+
+  const loadPayruns = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await payrunApi.getPayruns();
+      const list = res.data || (Array.isArray(res) ? res : []);
+      setPayruns(list.map(normalizePayrun));
+    } catch (err) {
+      setError(extractErrorMessage(err, 'Failed to load payrun batches.'));
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
-    loadPayruns();
+    let active = true;
+    (async () => {
+      try {
+        const [payrunsRes, empRes, strRes] = await Promise.allSettled([
+          payrunApi.getPayruns(),
+          employeeApi.getEmployees({ limit: 100 }),
+          salaryStructureApi.getSalaryStructures(),
+        ]);
+        if (!active) return;
+        if (payrunsRes.status === 'fulfilled') {
+          const res = payrunsRes.value;
+          const list = res.data || (Array.isArray(res) ? res : []);
+          setPayruns(list.map(normalizePayrun));
+        } else {
+          setError(extractErrorMessage(payrunsRes.reason, 'Failed to load payrun batches.'));
+        }
+        if (empRes.status === 'fulfilled') {
+          setEmployees(empRes.value.data || []);
+        }
+        if (strRes.status === 'fulfilled') {
+          setSalaryStructures(strRes.value.data || (Array.isArray(strRes.value) ? strRes.value : []));
+        }
+      } catch (err) {
+        if (!active) return;
+        setError(extractErrorMessage(err, 'Failed to load payrun batches.'));
+      } finally {
+        if (active) setLoading(false);
+      }
+    })();
+    return () => {
+      active = false;
+    };
   }, []);
 
   const handleOpenCreateModal = () => {
     setCreateStep(1);
+    const now = new Date();
+    const curYear = now.getFullYear();
+    const curMonth = String(now.getMonth() + 1).padStart(2, '0');
+    const start = `${curYear}-${curMonth}-01`;
+    const lastDay = new Date(curYear, now.getMonth() + 1, 0).getDate();
+    const end = `${curYear}-${curMonth}-${String(lastDay).padStart(2, '0')}`;
+
     setStep1Data({
-      name: `October 2026 Regular Payrun`,
-      structureId: salaryStructures[0]?.id || 'str-1',
-      month: 'October',
-      year: 2026,
-      startDate: '2026-10-01',
-      endDate: '2026-10-31',
+      name: `${now.toLocaleString('default', { month: 'long' })} ${curYear} Regular Payrun`,
+      structureId: salaryStructures[0]?.id || '',
+      startDate: start,
+      endDate: end,
       scope: 'All',
       department: 'Engineering',
     });
-    setSelectedEmployeeIds(employees.map((e) => e.employeeId));
+    setSelectedEmployeeIds(employees.map((e) => e.id));
     setIsCreateModalOpen(true);
   };
 
@@ -77,11 +131,11 @@ export default function PayrunsPage() {
     e.preventDefault();
     if (step1Data.scope === 'Department') {
       const deptEmployees = employees
-        .filter((e) => e.department === step1Data.department)
-        .map((e) => e.employeeId);
+        .filter((e) => e.department === step1Data.department || e.department?.name === step1Data.department)
+        .map((e) => e.id);
       setSelectedEmployeeIds(deptEmployees);
     } else {
-      setSelectedEmployeeIds(employees.map((e) => e.employeeId));
+      setSelectedEmployeeIds(employees.map((e) => e.id));
     }
     setCreateStep(2);
   };
@@ -98,27 +152,28 @@ export default function PayrunsPage() {
       return;
     }
 
-    const structure = salaryStructures.find((s) => s.id === step1Data.structureId);
-
+    setIsSubmitting(true);
     try {
-      await payrunApi.createPayrun({
+      const res = await payrunApi.createPayrun({
         name: step1Data.name,
-        structureId: step1Data.structureId,
-        structureName: structure ? structure.name : 'Standard Structure',
-        period: {
-          month: step1Data.month,
-          year: step1Data.year,
-          startDate: step1Data.startDate,
-          endDate: step1Data.endDate,
-        },
-        employeeIds: selectedEmployeeIds,
+        salaryStructureId: step1Data.structureId,
+        periodStart: step1Data.startDate,
+        periodEnd: step1Data.endDate,
       });
+
+      const newPayrunId = res.data?.id || res.id;
+      if (newPayrunId && selectedEmployeeIds.length > 0) {
+        await payrunApi.addEmployeesToPayrun(newPayrunId, selectedEmployeeIds);
+      }
+
       setIsCreateModalOpen(false);
       await loadPayruns();
       setStatusBanner({ type: 'success', text: 'Payrun batch created successfully.' });
       setTimeout(() => setStatusBanner(null), 4000);
     } catch (err) {
-      setStatusBanner({ type: 'error', text: err.message || 'Failed to create payrun' });
+      setStatusBanner({ type: 'error', text: extractErrorMessage(err, 'Failed to create payrun') });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -130,7 +185,7 @@ export default function PayrunsPage() {
       setStatusBanner({ type: 'success', text: 'Payrun computation complete.' });
       setTimeout(() => setStatusBanner(null), 4000);
     } catch (err) {
-      setStatusBanner({ type: 'error', text: err.message || 'Computation failed' });
+      setStatusBanner({ type: 'error', text: extractErrorMessage(err, 'Computation failed') });
     }
   };
 
@@ -141,7 +196,7 @@ export default function PayrunsPage() {
       setStatusBanner({ type: 'success', text: 'Payrun validated and approved for disbursal.' });
       setTimeout(() => setStatusBanner(null), 4000);
     } catch (err) {
-      setStatusBanner({ type: 'error', text: err.message || 'Validation failed' });
+      setStatusBanner({ type: 'error', text: extractErrorMessage(err, 'Validation failed') });
     }
   };
 
@@ -152,7 +207,7 @@ export default function PayrunsPage() {
       setStatusBanner({ type: 'success', text: 'Payrun marked as paid.' });
       setTimeout(() => setStatusBanner(null), 4000);
     } catch (err) {
-      setStatusBanner({ type: 'error', text: err.message || 'Failed to mark as paid' });
+      setStatusBanner({ type: 'error', text: extractErrorMessage(err, 'Failed to mark as paid') });
     }
   };
 
@@ -162,7 +217,7 @@ export default function PayrunsPage() {
       setStatusBanner({ type: 'success', text: res.message || 'Payslips dispatched to employees.' });
       setTimeout(() => setStatusBanner(null), 4000);
     } catch (err) {
-      setStatusBanner({ type: 'error', text: err.message || 'Failed to send payslips' });
+      setStatusBanner({ type: 'error', text: extractErrorMessage(err, 'Failed to send payslips') });
     }
   };
 
@@ -178,7 +233,7 @@ export default function PayrunsPage() {
             className='px-4 py-2 text-xs font-bold text-white bg-[#714B67] hover:bg-[#5E3E56] rounded-xl shadow-xs transition-all cursor-pointer flex items-center gap-1'
           >
             <span>+</span>
-            <span>New Payrun</span>
+            <span>New Payrun Batch</span>
           </button>
         }
       />
@@ -203,201 +258,148 @@ export default function PayrunsPage() {
       )}
 
       {loading ? (
-        <LoadingState message='Loading payruns and computation status...' />
+        <LoadingState message='Loading payrun batches...' />
       ) : error ? (
         <ErrorState message={error} onRetry={loadPayruns} />
       ) : payruns.length === 0 ? (
         <EmptyState
-          title='No payruns found'
-          description='Create your first payroll batch.'
-          action={
-            <button
-              type='button'
-              onClick={handleOpenCreateModal}
-              className='px-3.5 py-1.5 rounded-xl bg-[#714B67] text-white text-xs font-bold'
-            >
-              Start Payrun
-            </button>
-          }
+          title='No payruns created yet'
+          description='Initiate your monthly payroll run to calculate gross wages, deductions, and payslips.'
+          actionLabel='+ New Payrun Batch'
+          onAction={handleOpenCreateModal}
         />
       ) : (
         <div className='space-y-4'>
-          {payruns.map((pr) => (
-            <div
-              key={pr.id}
-              className='bg-white rounded-2xl p-5 border border-[#EAE6DF] shadow-2xs space-y-4 hover:border-gray-300 transition-all'
-            >
-              <div className='flex flex-wrap items-start justify-between gap-3'>
-                <div>
+          {payruns.map((pr) => {
+            const isDraft = pr.status === 'DRAFT';
+            const isComputed = pr.status === 'COMPUTED';
+            const isValidated = pr.status === 'VALIDATED';
+            const isPaid = pr.status === 'PAID';
+
+            return (
+              <div
+                key={pr.id}
+                className='bg-white rounded-2xl border border-[#EAE6DF] shadow-2xs p-5 space-y-4 hover:border-gray-300 transition-colors'
+              >
+                <div className='flex flex-wrap items-start justify-between gap-3'>
+                  <div>
+                    <div className='flex items-center gap-2'>
+                      <h4 className='text-sm font-black text-[#1E293B]'>{pr.name}</h4>
+                      <span
+                        className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                          isPaid
+                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                            : isValidated
+                            ? 'bg-blue-50 text-blue-700 border-blue-200'
+                            : isComputed
+                            ? 'bg-purple-50 text-purple-700 border-purple-200'
+                            : 'bg-amber-50 text-amber-700 border-amber-200'
+                        }`}
+                      >
+                        {pr.status}
+                      </span>
+                    </div>
+                    <div className='text-xs text-gray-500 mt-1 font-medium'>
+                      Period: {pr.startDate} → {pr.endDate} • {pr.structureName}
+                    </div>
+                  </div>
+
+                  {/* Financial Summary */}
+                  <div className='flex items-center gap-4 text-xs font-bold'>
+                    <div className='text-right'>
+                      <div className='text-gray-400 text-[10px] uppercase'>Gross Total</div>
+                      <div className='text-gray-900'>₹{pr.totalGrossWage.toLocaleString()}</div>
+                    </div>
+                    <div className='text-right'>
+                      <div className='text-gray-400 text-[10px] uppercase'>Deductions</div>
+                      <div className='text-rose-600'>-₹{pr.totalDeductions.toLocaleString()}</div>
+                    </div>
+                    <div className='text-right pl-3 border-l border-gray-100'>
+                      <div className='text-[#714B67] text-[10px] uppercase'>Net Disbursal</div>
+                      <div className='text-emerald-700 font-black text-sm'>
+                        ₹{pr.totalNetSalary.toLocaleString()}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Lifecycle Toolbar */}
+                <div className='pt-3 border-t border-gray-100 flex flex-wrap items-center justify-between gap-3'>
+                  <div className='text-xs text-gray-500 font-medium'>
+                    Batch Code: <span className='font-mono font-bold text-gray-800'>{pr.payrunCode}</span>
+                  </div>
+
                   <div className='flex items-center gap-2'>
-                    <h3 className='text-base font-black text-[#1E293B]'>
-                      {pr.name}
-                    </h3>
-                    <span
-                      className={`px-2.5 py-0.5 rounded-full text-[10px] font-black tracking-wider uppercase border ${
-                        pr.status === 'PAID'
-                          ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                          : pr.status === 'VALIDATED'
-                          ? 'bg-blue-50 text-blue-700 border-blue-200'
-                          : pr.status === 'COMPUTED'
-                          ? 'bg-purple-50 text-purple-700 border-purple-200'
-                          : 'bg-amber-50 text-amber-700 border-amber-200'
-                      }`}
-                    >
-                      {pr.status}
-                    </span>
-                  </div>
-                  <p className='text-xs text-gray-500 mt-1'>
-                    {pr.payrunCode} • {pr.periodMonth} {pr.periodYear} ({pr.startDate} &rarr; {pr.endDate})
-                  </p>
-                </div>
-
-                {/* Metrics */}
-                <div className='flex items-center gap-6 text-right'>
-                  <div>
-                    <div className='text-[10px] uppercase font-bold text-gray-400'>
-                      Employees
-                    </div>
-                    <div className='text-sm font-bold text-gray-800'>
-                      {pr.eligibleEmployeesCount}
-                    </div>
-                  </div>
-                  <div>
-                    <div className='text-[10px] uppercase font-bold text-gray-400'>
-                      Gross Total
-                    </div>
-                    <div className='text-sm font-bold text-gray-800'>
-                      ₹{pr.totalGrossWage?.toLocaleString()}
-                    </div>
-                  </div>
-                  <div>
-                    <div className='text-[10px] uppercase font-bold text-gray-400'>
-                      Net Disbursal
-                    </div>
-                    <div className='text-base font-black text-[#714B67]'>
-                      ₹{pr.totalNetSalary?.toLocaleString()}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Validation Status Strip */}
-              {pr.validationResults && (
-                <div className='flex items-center justify-between p-2.5 rounded-xl bg-[#FAF8F5] border border-gray-200/80 text-xs'>
-                  <div className='flex items-center gap-3'>
-                    <span className='font-bold text-gray-700'>
-                      Pre-Finalization Checks:
-                    </span>
-                    <span className='text-emerald-700 font-bold'>
-                      {pr.validationResults.checks?.filter((c) => c.status === 'PASS').length} Passed
-                    </span>
-                    {pr.validationResults.warningsCount > 0 && (
-                      <span className='text-amber-700 font-bold'>
-                        {pr.validationResults.warningsCount} Warnings
-                      </span>
-                    )}
-                    {pr.validationResults.errorsCount > 0 && (
-                      <span className='text-rose-600 font-bold'>
-                        {pr.validationResults.errorsCount} Errors
-                      </span>
-                    )}
-                  </div>
-
-                  <button
-                    type='button'
-                    onClick={() => setValidationModalPayrun(pr)}
-                    className='text-[#714B67] font-bold hover:underline cursor-pointer'
-                  >
-                    View Validation Details &rarr;
-                  </button>
-                </div>
-              )}
-
-              {/* Action Buttons per Lifecycle Stage */}
-              <div className='pt-2 border-t border-gray-100 flex items-center justify-between'>
-                <span className='text-[11px] text-gray-400'>
-                  {pr.paymentReference ? `Ref: ${pr.paymentReference}` : `Updated ${pr.updatedAt}`}
-                </span>
-
-                <div className='flex items-center gap-2'>
-                  {pr.status === 'DRAFT' && (
-                    <button
-                      type='button'
-                      onClick={() => handleCompute(pr.id)}
-                      className='px-3.5 py-1.5 text-xs font-bold text-white bg-[#714B67] hover:bg-[#5E3E56] rounded-xl shadow-xs transition-colors cursor-pointer'
-                    >
-                      Compute Payrun
-                    </button>
-                  )}
-
-                  {pr.status === 'COMPUTED' && (
-                    <>
+                    {isDraft && (
                       <button
                         type='button'
                         onClick={() => handleCompute(pr.id)}
-                        className='px-3 py-1.5 text-xs font-bold text-gray-700 hover:bg-gray-100 rounded-xl transition-colors cursor-pointer'
+                        className='px-3.5 py-1.5 text-xs font-bold text-purple-700 bg-purple-50 hover:bg-purple-100 border border-purple-200 rounded-xl transition-colors cursor-pointer'
                       >
-                        Re-Compute
+                        Compute Salary Rules
                       </button>
+                    )}
+
+                    {isComputed && (
                       <button
                         type='button'
                         onClick={() => handleValidate(pr.id)}
-                        className='px-3.5 py-1.5 text-xs font-bold text-white bg-blue-700 hover:bg-blue-800 rounded-xl shadow-xs transition-colors cursor-pointer'
+                        className='px-3.5 py-1.5 text-xs font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-xl transition-colors cursor-pointer'
                       >
                         Validate Payrun
                       </button>
-                    </>
-                  )}
+                    )}
 
-                  {pr.status === 'VALIDATED' && (
-                    <button
-                      type='button'
-                      onClick={() => handleMarkPaid(pr.id)}
-                      className='px-3.5 py-1.5 text-xs font-bold text-white bg-emerald-700 hover:bg-emerald-800 rounded-xl shadow-xs transition-colors cursor-pointer'
-                    >
-                      Mark as Paid & Disburse
-                    </button>
-                  )}
+                    {isValidated && (
+                      <button
+                        type='button'
+                        onClick={() => handleMarkPaid(pr.id)}
+                        className='px-3.5 py-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-xl transition-colors cursor-pointer'
+                      >
+                        Mark as Disbursed
+                      </button>
+                    )}
 
-                  {pr.status === 'PAID' && (
-                    <button
-                      type='button'
-                      onClick={() => handleSendPayslips(pr.id)}
-                      className='px-3.5 py-1.5 text-xs font-bold text-[#714B67] bg-purple-50 hover:bg-purple-100 border border-purple-200 rounded-xl transition-colors cursor-pointer'
-                    >
-                      Send Payslips to All
-                    </button>
-                  )}
+                    {isPaid && (
+                      <button
+                        type='button'
+                        onClick={() => handleSendPayslips(pr.id)}
+                        className='px-3.5 py-1.5 text-xs font-bold text-[#714B67] bg-purple-50 hover:bg-purple-100 border border-purple-200 rounded-xl transition-colors cursor-pointer'
+                      >
+                        Send Payslip Emails
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
-      {/* Two-Step Payrun Creation Modal */}
+      {/* Two-Step Payrun Wizard Modal */}
       {isCreateModalOpen && (
         <div
           className='fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs animate-fadeIn'
           role='dialog'
           aria-modal='true'
         >
-          <div className='bg-white rounded-2xl max-w-lg w-full p-5 sm:p-6 border border-[#EAE6DF] shadow-xl space-y-4 max-h-[90vh] overflow-y-auto'>
+          <div className='bg-white rounded-2xl max-w-lg w-full p-6 border border-[#EAE6DF] shadow-xl space-y-4'>
             <div className='flex items-center justify-between border-b border-gray-100 pb-3'>
               <div>
-                <h3 className='text-base font-black text-[#1E293B]'>
-                  Create Payrun Batch — Step {createStep} of 2
+                <h3 className='text-sm font-black text-[#1E293B]'>
+                  New Payrun Batch • Step {createStep} of 2
                 </h3>
-                <p className='text-xs text-gray-500 mt-0.5'>
+                <p className='text-xs text-gray-500 font-medium'>
                   {createStep === 1
-                    ? 'Configure structure, payroll period, and employee scope.'
-                    : 'Select eligible employees included in this calculation.'}
+                    ? 'Define pay period scope and calculation structure'
+                    : 'Select eligible employee roster for batch calculation'}
                 </p>
               </div>
               <button
                 type='button'
                 onClick={() => setIsCreateModalOpen(false)}
-                className='text-gray-400 font-bold'
+                className='text-gray-400 font-bold hover:text-gray-600'
               >
                 ✕
               </button>
@@ -406,25 +408,20 @@ export default function PayrunsPage() {
             {createStep === 1 ? (
               <form onSubmit={handleStep1Next} className='space-y-3.5 text-xs'>
                 <div>
-                  <label className='block font-bold text-gray-700 mb-1'>
-                    Payrun Batch Name *
-                  </label>
+                  <label className='block font-bold text-gray-700 mb-1'>Batch Title *</label>
                   <input
                     type='text'
                     required
                     value={step1Data.name}
-                    onChange={(e) =>
-                      setStep1Data({ ...step1Data, name: e.target.value })
-                    }
+                    onChange={(e) => setStep1Data({ ...step1Data, name: e.target.value })}
                     className='w-full px-3 py-2 rounded-xl border border-gray-200 bg-[#FAF8F5]'
                   />
                 </div>
 
                 <div>
-                  <label className='block font-bold text-gray-700 mb-1'>
-                    Salary Structure *
-                  </label>
+                  <label className='block font-bold text-gray-700 mb-1'>Salary Structure *</label>
                   <select
+                    required
                     value={step1Data.structureId}
                     onChange={(e) =>
                       setStep1Data({ ...step1Data, structureId: e.target.value })
@@ -441,7 +438,7 @@ export default function PayrunsPage() {
 
                 <div className='grid grid-cols-2 gap-3'>
                   <div>
-                    <label className='block font-bold text-gray-700 mb-1'>Period Start Date *</label>
+                    <label className='block font-bold text-gray-700 mb-1'>Period Start *</label>
                     <input
                       type='date'
                       required
@@ -453,7 +450,7 @@ export default function PayrunsPage() {
                     />
                   </div>
                   <div>
-                    <label className='block font-bold text-gray-700 mb-1'>Period End Date *</label>
+                    <label className='block font-bold text-gray-700 mb-1'>Period End *</label>
                     <input
                       type='date'
                       required
@@ -466,47 +463,13 @@ export default function PayrunsPage() {
                   </div>
                 </div>
 
-                <div className='grid grid-cols-2 gap-3'>
-                  <div>
-                    <label className='block font-bold text-gray-700 mb-1'>Employee Scope</label>
-                    <select
-                      value={step1Data.scope}
-                      onChange={(e) =>
-                        setStep1Data({ ...step1Data, scope: e.target.value })
-                      }
-                      className='w-full px-3 py-2 rounded-xl border border-gray-200 bg-[#FAF8F5]'
-                    >
-                      <option value='All'>All Active Employees</option>
-                      <option value='Department'>By Department</option>
-                    </select>
-                  </div>
-                  {step1Data.scope === 'Department' && (
-                    <div>
-                      <label className='block font-bold text-gray-700 mb-1'>Department</label>
-                      <select
-                        value={step1Data.department}
-                        onChange={(e) =>
-                          setStep1Data({ ...step1Data, department: e.target.value })
-                        }
-                        className='w-full px-3 py-2 rounded-xl border border-gray-200 bg-[#FAF8F5]'
-                      >
-                        <option value='Engineering'>Engineering</option>
-                        <option value='Operations'>Operations</option>
-                        <option value='Sales & BD'>Sales & BD</option>
-                        <option value='Marketing'>Marketing</option>
-                        <option value='Finance & Payroll'>Finance & Payroll</option>
-                      </select>
-                    </div>
-                  )}
-                </div>
-
-                <div className='pt-2 flex items-center justify-end gap-2 border-t border-gray-100'>
+                <div className='pt-2 flex justify-end gap-2 border-t border-gray-100'>
                   <BackButton label='Cancel' onClick={() => setIsCreateModalOpen(false)} />
                   <button
                     type='submit'
-                    className='px-4 py-2 font-bold text-white bg-[#714B67] hover:bg-[#5E3E56] rounded-xl shadow-xs cursor-pointer'
+                    className='px-4 py-1.5 font-bold text-white bg-[#714B67] hover:bg-[#5E3E56] rounded-xl cursor-pointer'
                   >
-                    Next: Select Employees &rarr;
+                    Next: Select Employees →
                   </button>
                 </div>
               </form>
@@ -514,7 +477,7 @@ export default function PayrunsPage() {
               <div className='space-y-4 text-xs'>
                 <div className='flex items-center justify-between'>
                   <span className='font-bold text-gray-700'>
-                    Eligible Employees ({selectedEmployeeIds.length} of {employees.length} selected)
+                    Select Workforce Roster ({selectedEmployeeIds.length} of {employees.length})
                   </span>
                   <button
                     type='button'
@@ -522,117 +485,68 @@ export default function PayrunsPage() {
                       setSelectedEmployeeIds(
                         selectedEmployeeIds.length === employees.length
                           ? []
-                          : employees.map((e) => e.employeeId)
+                          : employees.map((e) => e.id)
                       )
                     }
                     className='text-[#714B67] font-bold hover:underline cursor-pointer'
                   >
-                    Toggle All
+                    {selectedEmployeeIds.length === employees.length ? 'Deselect All' : 'Select All'}
                   </button>
                 </div>
 
-                <div className='max-h-56 overflow-y-auto divide-y divide-gray-100 border border-gray-200 rounded-xl p-2 bg-[#FAF8F5]'>
+                <div className='max-h-56 overflow-y-auto space-y-1.5 border border-gray-100 p-2 rounded-xl bg-[#FAF8F5]'>
                   {employees.map((emp) => {
-                    const isChecked = selectedEmployeeIds.includes(emp.employeeId);
+                    const checked = selectedEmployeeIds.includes(emp.id);
                     return (
-                      <label
+                      <div
                         key={emp.id}
-                        className='flex items-center justify-between p-2 hover:bg-white rounded-lg cursor-pointer'
+                        onClick={() => handleToggleEmployee(emp.id)}
+                        className={`p-2 rounded-xl border flex items-center justify-between cursor-pointer transition-colors ${
+                          checked
+                            ? 'bg-white border-[#714B67]/40 shadow-2xs font-semibold text-gray-900'
+                            : 'border-transparent text-gray-500'
+                        }`}
                       >
                         <div className='flex items-center gap-2'>
                           <input
                             type='checkbox'
-                            checked={isChecked}
-                            onChange={() => handleToggleEmployee(emp.employeeId)}
-                            className='w-3.5 h-3.5 rounded text-[#714B67] accent-[#714B67]'
+                            checked={checked}
+                            onChange={() => {}}
+                            className='rounded text-[#714B67] focus:ring-[#714B67]'
                           />
-                          <div>
-                            <div className='font-bold text-gray-800'>{emp.name}</div>
-                            <div className='text-[10px] text-gray-400'>
-                              {emp.employeeId} • {emp.department}
-                            </div>
-                          </div>
+                          <span>
+                            {emp.firstName ? `${emp.firstName} ${emp.lastName || ''}` : emp.name}
+                          </span>
                         </div>
-                        <span className='text-[11px] font-bold text-gray-600'>
-                          {emp.contractStatus}
+                        <span className='text-[10px] text-gray-400'>
+                          {emp.employeeCode || emp.employeeId}
                         </span>
-                      </label>
+                      </div>
                     );
                   })}
                 </div>
 
-                <div className='pt-2 flex items-center justify-between border-t border-gray-100'>
-                  <BackButton label='Back' onClick={() => setCreateStep(1)} />
+                <div className='pt-2 flex justify-end gap-2 border-t border-gray-100'>
                   <button
                     type='button'
-                    onClick={handleFinalizeCreate}
-                    className='px-4 py-2 font-bold text-white bg-[#714B67] hover:bg-[#5E3E56] rounded-xl shadow-xs cursor-pointer'
+                    onClick={() => setCreateStep(1)}
+                    className='px-3 py-1.5 font-bold text-gray-600 hover:bg-gray-100 rounded-xl cursor-pointer'
                   >
-                    Create Payrun Batch
+                    ← Back
+                  </button>
+                  <button
+                    type='button'
+                    disabled={isSubmitting}
+                    onClick={handleFinalizeCreate}
+                    className={`px-4 py-1.5 font-bold text-white bg-[#714B67] hover:bg-[#5E3E56] rounded-xl cursor-pointer ${
+                      isSubmitting ? 'opacity-60 cursor-not-allowed' : ''
+                    }`}
+                  >
+                    {isSubmitting ? 'Creating...' : 'Finalize & Create Batch'}
                   </button>
                 </div>
               </div>
             )}
-          </div>
-        </div>
-      )}
-
-      {/* Pre-Finalization Check Details Modal */}
-      {validationModalPayrun && (
-        <div
-          className='fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs animate-fadeIn'
-          role='dialog'
-          aria-modal='true'
-        >
-          <div className='bg-white rounded-2xl max-w-md w-full p-5 sm:p-6 border border-[#EAE6DF] shadow-xl space-y-4'>
-            <div className='flex items-center justify-between border-b border-gray-100 pb-3'>
-              <div>
-                <h3 className='text-base font-black text-[#1E293B]'>
-                  Payroll Pre-Validation
-                </h3>
-                <p className='text-xs text-gray-500 mt-0.5'>
-                  {validationModalPayrun.name}
-                </p>
-              </div>
-              <button
-                type='button'
-                onClick={() => setValidationModalPayrun(null)}
-                className='text-gray-400 font-bold'
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className='space-y-2 text-xs'>
-              {validationModalPayrun.validationResults?.checks?.map((chk) => (
-                <div
-                  key={chk.id}
-                  className='p-3 rounded-xl border border-gray-100 flex items-start gap-2.5 bg-[#FAF8F5]'
-                >
-                  <span
-                    className={`font-black text-xs ${
-                      chk.status === 'PASS'
-                        ? 'text-emerald-700'
-                        : chk.status === 'WARN'
-                        ? 'text-amber-700'
-                        : 'text-rose-600'
-                    }`}
-                  >
-                    {chk.status === 'PASS' ? '✓' : chk.status === 'WARN' ? '⚠' : '✕'}
-                  </span>
-                  <div>
-                    <div className='font-bold text-gray-800'>{chk.label}</div>
-                    <div className='text-[11px] text-gray-500 mt-0.5'>
-                      {chk.detail}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <div className='pt-2 flex justify-end border-t border-gray-100'>
-              <BackButton label='Close' onClick={() => setValidationModalPayrun(null)} />
-            </div>
           </div>
         </div>
       )}

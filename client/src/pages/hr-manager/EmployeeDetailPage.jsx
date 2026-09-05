@@ -1,18 +1,86 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import EmployeeDetails from '../../components/employee/EmployeeDetails.jsx';
 import EmployeeForm from '../../components/employee/EmployeeForm.jsx';
-import { getEmployeeById, saveEmployee } from '../../data/employeeStore.js';
+import LoadingState from '../../components/common/LoadingState.jsx';
+import ErrorState from '../../components/common/ErrorState.jsx';
+import employeeApi from '../../services/employeeApi.js';
+import { extractErrorMessage } from '../../services/apiClient.js';
+
+function normalizeEmployee(emp) {
+  if (!emp) return null;
+  const firstName = emp.firstName || '';
+  const lastName = emp.lastName || '';
+  const fullName = emp.name || `${firstName} ${lastName}`.trim() || 'Unnamed';
+  const code = emp.employeeCode || emp.employeeId || emp.id;
+  const dept = emp.department?.name || emp.department || 'General';
+  const pos = emp.jobPosition?.name || emp.jobPosition?.title || emp.jobPosition || 'Staff';
+  const status = emp.status === 'ACTIVE' ? 'Active' : emp.status === 'ON_LEAVE' ? 'On Leave' : (emp.status || 'Active');
+  const contract = emp.contracts?.[0]?.contractType || emp.contractStatus || 'Permanent';
+
+  return {
+    ...emp,
+    id: emp.id,
+    firstName,
+    lastName,
+    name: fullName,
+    employeeId: code,
+    department: dept,
+    departmentId: emp.departmentId,
+    jobPosition: pos,
+    jobPositionId: emp.jobPositionId,
+    status,
+    contractStatus: contract,
+    email: emp.email || '',
+    avatar: firstName.charAt(0) || fullName.charAt(0) || 'E',
+  };
+}
 
 /**
  * Detailed employee profile page at /employees/:employeeId.
+ * Connected directly to real backend API: GET /api/employees/:id.
  */
 export default function EmployeeDetailPage() {
   const { employeeId } = useParams();
   const navigate = useNavigate();
 
-  const [employee, setEmployee] = useState(() => getEmployeeById(employeeId));
+  const [employee, setEmployee] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [isEditOpen, setIsEditOpen] = useState(false);
+  const [toastMessage, setToastMessage] = useState(null);
+
+  const fetchEmployee = React.useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await employeeApi.getEmployeeById(employeeId);
+      setEmployee(normalizeEmployee(res.data));
+    } catch (err) {
+      setError(extractErrorMessage(err, 'Failed to load employee details.'));
+    } finally {
+      setLoading(false);
+    }
+  }, [employeeId]);
+
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const res = await employeeApi.getEmployeeById(employeeId);
+        if (!active) return;
+        setEmployee(normalizeEmployee(res.data));
+      } catch (err) {
+        if (!active) return;
+        setError(extractErrorMessage(err, 'Failed to load employee details.'));
+      } finally {
+        if (active) setLoading(false);
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [employeeId]);
 
   const handleBack = () => {
     navigate('/employees');
@@ -22,11 +90,43 @@ export default function EmployeeDetailPage() {
     setIsEditOpen(true);
   };
 
-  const handleSave = (savedData) => {
-    saveEmployee(savedData);
-    setEmployee(savedData);
-    setIsEditOpen(false);
+  const handleSave = async (savedData) => {
+    try {
+      await employeeApi.updateEmployee(employee.id, {
+        firstName: savedData.firstName,
+        lastName: savedData.lastName,
+        email: savedData.email,
+        phone: savedData.phone,
+        departmentId: savedData.departmentId,
+        jobPositionId: savedData.jobPositionId,
+        status: savedData.status === 'Active' ? 'ACTIVE' : savedData.status === 'On Leave' ? 'ON_LEAVE' : savedData.status,
+        joiningDate: savedData.joiningDate,
+        address: savedData.address,
+      });
+      setIsEditOpen(false);
+      fetchEmployee();
+      setToastMessage('Employee profile updated successfully.');
+      setTimeout(() => setToastMessage(null), 4000);
+    } catch (err) {
+      setToastMessage(extractErrorMessage(err, 'Failed to update employee profile.'));
+    }
   };
+
+  if (loading) {
+    return (
+      <div className='py-12'>
+        <LoadingState message='Loading employee profile...' />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className='py-12'>
+        <ErrorState message={error} onRetry={fetchEmployee} />
+      </div>
+    );
+  }
 
   return (
     <div className='space-y-6'>
@@ -45,6 +145,13 @@ export default function EmployeeDetailPage() {
           onSave={handleSave}
           initialData={employee}
         />
+      )}
+
+      {/* Toast Notification */}
+      {toastMessage && (
+        <div className='fixed bottom-6 right-6 z-50 bg-[#1E293B] text-white text-xs px-4 py-3 rounded-2xl shadow-xl flex items-center gap-2 animate-fadeIn'>
+          <span>{toastMessage}</span>
+        </div>
       )}
     </div>
   );

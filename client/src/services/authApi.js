@@ -138,6 +138,41 @@ export const authApi = {
     const response = await apiClient.post('/auth/register-employee', data);
     return response.data;
   },
+
+  /**
+   * Verify magic link token
+   * @param {string} token
+   * @returns {Promise<Object>}
+   */
+  async verifyMagicLink(token) {
+    const response = await apiClient.post('/auth/verify-magic-link', { token });
+    return response.data;
+  },
+
+  /**
+   * Set password via magic link
+   * @param {Object} data - { token, newPassword, password, confirmPassword }
+   * @returns {Promise<Object>}
+   */
+  async setPasswordViaMagicLink({ token, newPassword, password, confirmPassword }) {
+    const pwd = newPassword || password;
+    const response = await apiClient.post('/auth/set-password-magic-link', {
+      token,
+      newPassword: pwd,
+      confirmPassword: confirmPassword || pwd,
+    });
+    return response.data;
+  },
+
+  /**
+   * Resend magic link (Admin/HR)
+   * @param {Object} data - { email }
+   * @returns {Promise<Object>}
+   */
+  async resendMagicLink({ email }) {
+    const response = await apiClient.post('/auth/resend-magic-link', { email });
+    return response.data;
+  },
 };
 
 export default authApi;

@@ -1,70 +1,44 @@
 import apiClient from './apiClient.js';
-import {
-  getSalaryStructuresFromStorage,
-  saveSalaryStructuresToStorage,
-} from '../data/salaryData.js';
 
 export const salaryStructureApi = {
-  async getSalaryStructures() {
-    try {
-      const response = await apiClient.get('/salary-structures');
-      return response.data;
-    } catch (error) {
-      console.warn('Backend /salary-structures unavailable', error.message);
-      const data = getSalaryStructuresFromStorage();
-      return { success: true, data };
-    }
+  async getSalaryStructures(params = {}) {
+    const response = await apiClient.get('/salary-structures', { params });
+    return response.data;
   },
 
   async getSalaryStructureById(id) {
-    try {
-      const response = await apiClient.get(`/salary-structures/${id}`);
-      return response.data;
-    } catch (error) {
-      console.warn(`Backend /salary-structures/${id} unavailable`, error.message);
-      const all = getSalaryStructuresFromStorage();
-      const found = all.find((s) => s.id === id);
-      return { success: true, data: found || null };
-    }
+    const response = await apiClient.get(`/salary-structures/${id}`);
+    return response.data;
   },
 
-  async createSalaryStructure(structureData) {
-    try {
-      const response = await apiClient.post('/salary-structures', structureData);
-      return response.data;
-    } catch (error) {
-      console.warn('Backend POST /salary-structures unavailable', error.message);
-      const current = getSalaryStructuresFromStorage();
-      const newStructure = {
-        ...structureData,
-        id: `str-${Date.now()}`,
-        status: structureData.status || 'Active',
-        updatedAt: new Date().toISOString().split('T')[0],
-      };
-      saveSalaryStructuresToStorage([newStructure, ...current]);
-      return { success: true, data: newStructure };
-    }
+  async createSalaryStructure(data) {
+    const response = await apiClient.post('/salary-structures', data);
+    return response.data;
   },
 
-  async updateSalaryStructure(id, structureData) {
-    try {
-      const response = await apiClient.put(`/salary-structures/${id}`, structureData);
-      return response.data;
-    } catch (error) {
-      console.warn(`Backend PUT /salary-structures/${id} unavailable`, error.message);
-      const current = getSalaryStructuresFromStorage();
-      const index = current.findIndex((s) => s.id === id);
-      if (index >= 0) {
-        current[index] = {
-          ...current[index],
-          ...structureData,
-          updatedAt: new Date().toISOString().split('T')[0],
-        };
-        saveSalaryStructuresToStorage(current);
-        return { success: true, data: current[index] };
-      }
-      return { success: false, message: 'Structure not found' };
-    }
+  async updateSalaryStructure(id, data) {
+    const response = await apiClient.put(`/salary-structures/${id}`, data);
+    return response.data;
+  },
+
+  async deleteSalaryStructure(id) {
+    const response = await apiClient.delete(`/salary-structures/${id}`);
+    return response.data;
+  },
+
+  async addRulesToStructure(id, ruleIds) {
+    const response = await apiClient.post(`/salary-structures/${id}/rules`, { ruleIds });
+    return response.data;
+  },
+
+  async reorderStructureRules(id, rules) {
+    const response = await apiClient.put(`/salary-structures/${id}/rules/reorder`, { rules });
+    return response.data;
+  },
+
+  async removeRuleFromStructure(id, ruleId) {
+    const response = await apiClient.delete(`/salary-structures/${id}/rules/${ruleId}`);
+    return response.data;
   },
 };
 

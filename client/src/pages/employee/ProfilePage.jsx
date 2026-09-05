@@ -1,30 +1,88 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { useSelector } from 'react-redux';
 import PageHeader from '../../components/common/PageHeader.jsx';
 import EmployeeDetails from '../../components/employee/EmployeeDetails.jsx';
 import ChangePasswordModal from '../../components/auth/ChangePasswordModal.jsx';
-import { getEmployees } from '../../data/employeeStore.js';
+import LoadingState from '../../components/common/LoadingState.jsx';
+import { selectCurrentUser } from '../../redux/selectors/authSelectors.js';
+import employeeApi from '../../services/employeeApi.js';
+
+function normalizeEmployee(emp) {
+  if (!emp) return null;
+  const firstName = emp.firstName || '';
+  const lastName = emp.lastName || '';
+  const fullName = emp.name || `${firstName} ${lastName}`.trim() || 'Employee';
+  const code = emp.employeeCode || emp.employeeId || emp.id;
+  const dept = emp.department?.name || emp.department || 'General';
+  const pos = emp.jobPosition?.name || emp.jobPosition?.title || emp.jobPosition || 'Staff';
+  const status = emp.status === 'ACTIVE' ? 'Active' : emp.status === 'ON_LEAVE' ? 'On Leave' : (emp.status || 'Active');
+  const contract = emp.contracts?.[0]?.contractType || emp.contractStatus || 'Permanent';
+
+  return {
+    ...emp,
+    id: emp.id,
+    firstName,
+    lastName,
+    name: fullName,
+    employeeId: code,
+    department: dept,
+    departmentId: emp.departmentId,
+    jobPosition: pos,
+    jobPositionId: emp.jobPositionId,
+    status,
+    contractStatus: contract,
+    email: emp.email || '',
+    avatar: firstName.charAt(0) || fullName.charAt(0) || 'E',
+  };
+}
 
 export default function ProfilePage() {
+  const currentUser = useSelector(selectCurrentUser);
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
   const [hrNotice, setHrNotice] = useState(null);
-  const employees = getEmployees();
-  const currentEmployee = employees[0] || {
-    id: 'emp-1',
-    employeeId: 'EMP-2024-001',
-    name: 'Ayush Sharma',
-    email: 'ayush.sharma@peoplepay.internal',
-    phone: '+91 98450 12345',
-    dateOfBirth: '1996-08-14',
-    joiningDate: '2024-03-15',
-    department: 'Engineering',
-    jobPosition: 'Senior Full Stack Engineer',
+  const [profile, setProfile] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let isMounted = true;
+    employeeApi
+      .getEmployees({ limit: 1 })
+      .then((res) => {
+        if (isMounted) {
+          const list = res.data || [];
+          if (list.length > 0) {
+            setProfile(normalizeEmployee(list[0]));
+          } else if (currentUser) {
+            setProfile(normalizeEmployee(currentUser));
+          }
+          setLoading(false);
+        }
+      })
+      .catch(() => {
+        if (isMounted) {
+          if (currentUser) {
+            setProfile(normalizeEmployee(currentUser));
+          }
+          setLoading(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [currentUser]);
+
+  const currentEmployee = profile || {
+    id: currentUser?.id || 'emp-current',
+    employeeId: currentUser?.employeeCode || 'EMP-2024-001',
+    name: currentUser ? `${currentUser.firstName || ''} ${currentUser.lastName || ''}`.trim() : 'Employee Profile',
+    email: currentUser?.email || 'user@peoplepay.internal',
+    phone: currentUser?.phone || '--',
+    department: 'General',
+    jobPosition: 'Staff',
     status: 'Active',
     contractStatus: 'Permanent',
-    workLocation: 'HQ Campus • Floor 3',
-    manager: 'Sarah Jenkins',
-    emergencyContact: '+91 98450 99999 (Father)',
-    address: '42 Orchid Residency, Indiranagar, Bengaluru, Karnataka 560038',
-    avatar: 'AS',
+    avatar: currentUser?.firstName?.charAt(0) || 'E',
   };
 
   return (
@@ -69,14 +127,18 @@ export default function ProfilePage() {
         </div>
       )}
 
-      <EmployeeDetails
-        employee={currentEmployee}
-        onBack={() => window.history.back()}
-        onEdit={() => {
-          setHrNotice('To update official employment records or bank details, please contact your assigned HR Manager.');
-          setTimeout(() => setHrNotice(null), 6000);
-        }}
-      />
+      {loading ? (
+        <LoadingState message='Loading employee profile...' />
+      ) : (
+        <EmployeeDetails
+          employee={currentEmployee}
+          onBack={() => window.history.back()}
+          onEdit={() => {
+            setHrNotice('To update official employment records or bank details, please contact your assigned HR Manager.');
+            setTimeout(() => setHrNotice(null), 6000);
+          }}
+        />
+      )}
 
       <ChangePasswordModal
         isOpen={changePasswordOpen}

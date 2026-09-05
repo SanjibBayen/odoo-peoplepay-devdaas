@@ -6,11 +6,37 @@ import EmptyState from '../../components/common/EmptyState.jsx';
 import Pagination from '../../components/common/Pagination.jsx';
 import BackButton from '../../components/common/BackButton.jsx';
 import payslipApi from '../../services/payslipApi.js';
-import { getPayslipsFromStorage } from '../../data/payslipsData.js';
+import { extractErrorMessage } from '../../services/apiClient.js';
+
+function normalizePayslip(slip) {
+  if (!slip) return null;
+  const emp = slip.employee || {};
+  const empName = emp.firstName
+    ? `${emp.firstName} ${emp.lastName || ''}`.trim()
+    : slip.employeeName || 'Employee';
+  const empCode = emp.employeeCode || slip.employeeId || '';
+  const period = slip.periodStart
+    ? `${slip.periodStart} → ${slip.periodEnd}`
+    : slip.period || 'Current Period';
+
+  return {
+    ...slip,
+    id: slip.id,
+    slipNumber: slip.payslipNumber || slip.slipNumber || `PS-${slip.id.slice(-6)}`,
+    employeeName: empName,
+    employeeId: empCode,
+    period,
+    grossSalary: Number(slip.grossSalary || 0),
+    totalDeductions: Number(slip.totalDeductions || 0),
+    netSalary: Number(slip.netSalary || 0),
+    bankAccount: slip.bankAccountNumber || slip.bankAccount || 'Salary Account',
+    status: slip.status || 'COMPLETED',
+  };
+}
 
 export default function PayslipsPage() {
-  const [payslips, setPayslips] = useState(() => getPayslipsFromStorage());
-  const [loading, setLoading] = useState(false);
+  const [payslips, setPayslips] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [statusBanner, setStatusBanner] = useState(null);
 
@@ -23,20 +49,41 @@ export default function PayslipsPage() {
   const [selectedPayslip, setSelectedPayslip] = useState(null);
 
   const loadPayslips = () => {
-    payslipApi
+    setLoading(true);
+    setError(null);
+    return payslipApi
       .getPayslips()
       .then((res) => {
-        setPayslips(res.data || []);
-        setLoading(false);
+        const list = res.data || (Array.isArray(res) ? res : []);
+        setPayslips(list.map(normalizePayslip));
       })
       .catch((err) => {
-        setError(err.message || 'Failed to load payslips.');
+        setError(extractErrorMessage(err, 'Failed to load payslips.'));
+      })
+      .finally(() => {
         setLoading(false);
       });
   };
 
   useEffect(() => {
-    loadPayslips();
+    let active = true;
+    payslipApi
+      .getPayslips()
+      .then((res) => {
+        if (!active) return;
+        const list = res.data || (Array.isArray(res) ? res : []);
+        setPayslips(list.map(normalizePayslip));
+      })
+      .catch((err) => {
+        if (!active) return;
+        setError(extractErrorMessage(err, 'Failed to load payslips.'));
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
   }, []);
 
   const handleDownload = async (id) => {

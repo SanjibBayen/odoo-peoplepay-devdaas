@@ -1,143 +1,128 @@
 import apiClient from './apiClient.js';
-import {
-  getAllocationsFromStorage,
-  INITIAL_LEAVE_TYPES,
-  getTimeOffRequestsFromStorage,
-  saveAllocationsToStorage,
-  saveTimeOffRequestsToStorage,
-} from '../data/timeOffData.js';
 
 export const timeOffApi = {
+  // ============ TIME OFF TYPES ============
+  async getTimeOffTypes() {
+    const response = await apiClient.get('/time-off-types');
+    return response.data;
+  },
+
+  async getTimeOffTypeById(id) {
+    const response = await apiClient.get(`/time-off-types/${id}`);
+    return response.data;
+  },
+
+  async createTimeOffType(data) {
+    const response = await apiClient.post('/time-off-types', data);
+    return response.data;
+  },
+
+  async updateTimeOffType(id, data) {
+    const response = await apiClient.put(`/time-off-types/${id}`, data);
+    return response.data;
+  },
+
+  async deleteTimeOffType(id) {
+    const response = await apiClient.delete(`/time-off-types/${id}`);
+    return response.data;
+  },
+
+  // Alias for compatibility
   async getLeaveTypes() {
-    try {
-      const response = await apiClient.get('/time-off/leave-types');
-      return response.data;
-    } catch (error) {
-      console.warn('Backend /time-off/leave-types unavailable', error.message);
-      return { success: true, data: INITIAL_LEAVE_TYPES };
-    }
+    return this.getTimeOffTypes();
   },
 
+  // ============ ALLOCATIONS ============
   async getAllocations(params = {}) {
-    try {
-      const response = await apiClient.get('/time-off/allocations', { params });
-      return response.data;
-    } catch (error) {
-      console.warn('Backend /time-off/allocations unavailable', error.message);
-      let data = getAllocationsFromStorage();
-      if (params.employeeId) {
-        data = data.filter((a) => a.employeeId === params.employeeId);
-      }
-      return { success: true, data };
-    }
+    const response = await apiClient.get('/time-off-allocations', { params });
+    return response.data;
   },
 
+  async getAllocationById(id) {
+    const response = await apiClient.get(`/time-off-allocations/${id}`);
+    return response.data;
+  },
+
+  async getEmployeeBalances(employeeId) {
+    const response = await apiClient.get(`/time-off-allocations/employee/${employeeId}`);
+    return response.data;
+  },
+
+  async createAllocation(data) {
+    const response = await apiClient.post('/time-off-allocations', data);
+    return response.data;
+  },
+
+  async updateAllocation(id, data) {
+    const response = await apiClient.put(`/time-off-allocations/${id}`, data);
+    return response.data;
+  },
+
+  async approveAllocation(id) {
+    const response = await apiClient.put(`/time-off-allocations/${id}/approve`);
+    return response.data;
+  },
+
+  async refuseAllocation(id) {
+    const response = await apiClient.put(`/time-off-allocations/${id}/refuse`);
+    return response.data;
+  },
+
+  async deleteAllocation(id) {
+    const response = await apiClient.delete(`/time-off-allocations/${id}`);
+    return response.data;
+  },
+
+  // ============ REQUESTS ============
   async getRequests(params = {}) {
-    try {
-      const response = await apiClient.get('/time-off/requests', { params });
-      return response.data;
-    } catch (error) {
-      console.warn('Backend /time-off/requests unavailable', error.message);
-      let data = getTimeOffRequestsFromStorage();
-      if (params.employeeId) {
-        data = data.filter((r) => r.employeeId === params.employeeId);
-      }
-      if (params.status && params.status !== 'All') {
-        data = data.filter((r) => r.status === params.status);
-      }
-      return { success: true, data, total: data.length };
-    }
+    const response = await apiClient.get('/time-off-requests', { params });
+    return response.data;
   },
 
-  async createRequest(requestData) {
-    const allocations = getAllocationsFromStorage();
-    const alloc = allocations.find(
-      (a) =>
-        a.employeeId === requestData.employeeId &&
-        a.leaveTypeId === requestData.leaveTypeId
-    );
-
-    const remaining = alloc ? alloc.allocatedDays - alloc.approvedUsedDays : 5;
-    if (alloc && requestData.days > remaining) {
-      throw new Error(
-        `Insufficient leave balance. Requested ${requestData.days} days, but only ${remaining} days remain available.`
-      );
-    }
-
-    try {
-      const response = await apiClient.post('/time-off/requests', requestData);
-      return response.data;
-    } catch (error) {
-      console.warn('Backend POST /time-off/requests unavailable, saving locally.', error.message);
-      const current = getTimeOffRequestsFromStorage();
-      const newRequest = {
-        ...requestData,
-        id: `req-${Date.now()}`,
-        requestId: `REQ-2026-${String(Math.floor(Math.random() * 900) + 100)}`,
-        status: 'Pending',
-        createdAt: new Date().toISOString().split('T')[0],
-      };
-      saveTimeOffRequestsToStorage([newRequest, ...current]);
-      return { success: true, data: newRequest };
-    }
+  async getMyRequests(params = {}) {
+    const response = await apiClient.get('/time-off-requests/my-requests', { params });
+    return response.data;
   },
 
-  async approveRequest(id, { reviewNotes } = {}) {
-    try {
-      const response = await apiClient.patch(`/time-off/requests/${id}/approve`, { reviewNotes });
-      return response.data;
-    } catch (error) {
-      console.warn(`Backend PATCH /time-off/requests/${id}/approve unavailable`, error.message);
-      const requests = getTimeOffRequestsFromStorage();
-      const req = requests.find((r) => r.id === id);
-      if (req) {
-        req.status = 'Approved';
-        req.reviewNotes = reviewNotes || 'Approved by Manager';
-        saveTimeOffRequestsToStorage(requests);
-
-        // Deduct from allocation
-        const allocations = getAllocationsFromStorage();
-        const alloc = allocations.find(
-          (a) => a.employeeId === req.employeeId && a.leaveTypeId === req.leaveTypeId
-        );
-        if (alloc) {
-          alloc.approvedUsedDays += req.days;
-          saveAllocationsToStorage(allocations);
-        }
-
-        return { success: true, data: req };
-      }
-      return { success: false, message: 'Request not found' };
-    }
+  async getRequestById(id) {
+    const response = await apiClient.get(`/time-off-requests/${id}`);
+    return response.data;
   },
 
-  async rejectRequest(id, { reason } = {}) {
-    try {
-      const response = await apiClient.patch(`/time-off/requests/${id}/reject`, { reason });
-      return response.data;
-    } catch (error) {
-      console.warn(`Backend PATCH /time-off/requests/${id}/reject unavailable`, error.message);
-      const requests = getTimeOffRequestsFromStorage();
-      const req = requests.find((r) => r.id === id);
-      if (req) {
-        req.status = 'Rejected';
-        req.reviewNotes = reason || 'Declined per operational schedule';
-        saveTimeOffRequestsToStorage(requests);
-        return { success: true, data: req };
-      }
-      return { success: false, message: 'Request not found' };
-    }
+  async createRequest(data) {
+    const response = await apiClient.post('/time-off-requests', data);
+    return response.data;
   },
 
-  async submitRequest(requestData) {
-    return this.createRequest(requestData);
+  async approveRequest(id) {
+    const response = await apiClient.put(`/time-off-requests/${id}/approve`);
+    return response.data;
+  },
+
+  async refuseRequest(id, { refusalReason } = {}) {
+    const response = await apiClient.put(`/time-off-requests/${id}/refuse`, { refusalReason });
+    return response.data;
+  },
+
+  async cancelRequest(id) {
+    const response = await apiClient.put(`/time-off-requests/${id}/cancel`);
+    return response.data;
+  },
+
+  // Aliases for compatibility
+  async submitRequest(data) {
+    return this.createRequest(data);
+  },
+
+  async rejectRequest(id, options = {}) {
+    return this.refuseRequest(id, { refusalReason: options.reason || options.reviewNotes });
   },
 
   async updateRequestStatus(id, status, notes) {
-    if (status === 'Approved') {
+    if (status === 'Approved' || status === 'APPROVED') {
       return this.approveRequest(id);
     }
-    return this.rejectRequest(id, notes);
+    return this.refuseRequest(id, { refusalReason: notes });
   },
 };
 

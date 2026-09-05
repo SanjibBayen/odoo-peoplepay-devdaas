@@ -7,13 +7,51 @@ import Pagination from '../../components/common/Pagination.jsx';
 import ConfirmDialog from '../../components/common/ConfirmDialog.jsx';
 import BackButton from '../../components/common/BackButton.jsx';
 import contractApi from '../../services/contractApi.js';
-import { getContractsFromStorage } from '../../data/contractsData.js';
-import { getEmployees } from '../../data/employeeStore.js';
-import { getSalaryStructuresFromStorage } from '../../data/salaryData.js';
+import employeeApi from '../../services/employeeApi.js';
+import salaryStructureApi from '../../services/salaryStructureApi.js';
+import { extractErrorMessage } from '../../services/apiClient.js';
+
+function normalizeContract(c) {
+  if (!c) return null;
+  const emp = c.employee || {};
+  const empName = emp.firstName
+    ? `${emp.firstName} ${emp.lastName || ''}`.trim()
+    : c.employeeName || 'Employee';
+  const empCode = emp.employeeCode || c.employeeId || '';
+  const deptName = c.department?.name || c.department || 'General';
+  const posName = c.jobPosition?.name || c.jobPosition || 'Staff';
+  const structName = c.salaryStructure?.name || c.structureName || 'Standard';
+
+  return {
+    ...c,
+    id: c.id,
+    contractCode: c.contractNumber || c.contractCode || c.id,
+    employeeName: empName,
+    employeeId: empCode,
+    department: deptName,
+    jobPosition: posName,
+    salaryStructureId: c.salaryStructureId,
+    structureName: structName,
+    wage: Number(c.wage || 0),
+    startDate: c.startDate,
+    endDate: c.endDate,
+    status:
+      c.status === 'ACTIVE'
+        ? 'Active'
+        : c.status === 'DRAFT'
+        ? 'Draft'
+        : c.status === 'EXPIRED'
+        ? 'Expired'
+        : c.status === 'TERMINATED'
+        ? 'Archived'
+        : c.status || 'Active',
+    rawStatus: c.status,
+  };
+}
 
 export default function ContractsPage() {
-  const [contracts, setContracts] = useState(() => getContractsFromStorage());
-  const [loading, setLoading] = useState(false);
+  const [contracts, setContracts] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   const [selectedStatus, setSelectedStatus] = useState('All');
@@ -25,69 +63,95 @@ export default function ContractsPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingContract, setEditingContract] = useState(null);
   const [formError, setFormError] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [archiveTarget, setArchiveTarget] = useState(null);
   const [statusBanner, setStatusBanner] = useState(null);
 
-  // Reference data
-  const employees = getEmployees();
-  const salaryStructures = getSalaryStructuresFromStorage();
+  // Reference data loaded from APIs
+  const [employees, setEmployees] = useState([]);
+  const [salaryStructures, setSalaryStructures] = useState([]);
 
   const [formData, setFormData] = useState({
     employeeId: '',
-    jobPosition: '',
     startDate: '',
     endDate: '',
     wage: 100000,
-    salaryStructureId: 'str-1',
-    contractType: 'Permanent',
-    status: 'Active',
+    salaryStructureId: '',
   });
 
-  const loadContracts = () => {
-    contractApi
-      .getContracts()
-      .then((res) => {
-        setContracts(res.data || []);
-        setLoading(false);
-      })
-      .catch((err) => {
-        setError(err.message || 'Failed to fetch contracts.');
-        setLoading(false);
-      });
+
+  const loadContracts = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await contractApi.getContracts();
+      const list = res.contracts || res.data || (Array.isArray(res) ? res : []);
+      setContracts(list.map(normalizeContract));
+    } catch (err) {
+      setError(extractErrorMessage(err, 'Failed to fetch contracts.'));
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
-    loadContracts();
+    let active = true;
+    (async () => {
+      try {
+        const [contractsRes, empRes, strRes] = await Promise.allSettled([
+          contractApi.getContracts(),
+          employeeApi.getEmployees({ limit: 100 }),
+          salaryStructureApi.getSalaryStructures(),
+        ]);
+        if (!active) return;
+        if (contractsRes.status === 'fulfilled') {
+          const res = contractsRes.value;
+          const list = res.contracts || res.data || (Array.isArray(res) ? res : []);
+          setContracts(list.map(normalizeContract));
+        } else {
+          setError(extractErrorMessage(contractsRes.reason, 'Failed to fetch contracts.'));
+        }
+        if (empRes.status === 'fulfilled') {
+          setEmployees(empRes.value.data || []);
+        }
+        if (strRes.status === 'fulfilled') {
+          setSalaryStructures(strRes.value.data || (Array.isArray(strRes.value) ? strRes.value : []));
+        }
+      } catch (err) {
+        if (!active) return;
+        setError(extractErrorMessage(err, 'Failed to fetch contracts.'));
+      } finally {
+        if (active) setLoading(false);
+      }
+    })();
+    return () => {
+      active = false;
+    };
   }, []);
 
   const handleOpenAdd = () => {
     setEditingContract(null);
     setFormError(null);
+    const today = new Date().toISOString().split('T')[0];
     setFormData({
-      employeeId: employees[0]?.employeeId || 'EMP-2024-001',
-      jobPosition: employees[0]?.jobPosition || 'Software Engineer',
-      startDate: new Date().toISOString().split('T')[0],
-      endDate: '2027-12-31',
-      wage: 120000,
-      salaryStructureId: salaryStructures[0]?.id || 'str-1',
-      contractType: 'Permanent',
-      status: 'Active',
+      employeeId: employees[0]?.id || '',
+      startDate: today,
+      endDate: '',
+      wage: 100000,
+      salaryStructureId: salaryStructures[0]?.id || '',
     });
     setIsModalOpen(true);
   };
 
-  const handleOpenEdit = (contract) => {
-    setEditingContract(contract);
+  const handleOpenEdit = (c) => {
+    setEditingContract(c);
     setFormError(null);
     setFormData({
-      employeeId: contract.employeeId,
-      jobPosition: contract.jobPosition,
-      startDate: contract.startDate,
-      endDate: contract.endDate || '',
-      wage: contract.wage,
-      salaryStructureId: contract.salaryStructureId,
-      contractType: contract.contractType,
-      status: contract.status,
+      employeeId: c.employeeId || '',
+      startDate: c.startDate || '',
+      endDate: c.endDate || '',
+      wage: c.wage || 100000,
+      salaryStructureId: c.salaryStructureId || '',
     });
     setIsModalOpen(true);
   };
@@ -95,65 +159,71 @@ export default function ContractsPage() {
   const handleSaveContract = async (e) => {
     e.preventDefault();
     setFormError(null);
-
-    const emp = employees.find((x) => x.employeeId === formData.employeeId);
-    const struct = salaryStructures.find((s) => s.id === formData.salaryStructureId);
-
-    const payload = {
-      ...formData,
-      employeeName: emp ? emp.name : 'Employee',
-      department: emp ? emp.department : 'General',
-      salaryStructureName: struct ? struct.name : 'Standard Structure',
-      wage: Number(formData.wage),
-    };
+    setIsSubmitting(true);
 
     try {
       if (editingContract) {
-        await contractApi.updateContract(editingContract.id, payload);
+        await contractApi.updateContract(editingContract.id, {
+          startDate: formData.startDate,
+          endDate: formData.endDate || undefined,
+          wage: Number(formData.wage),
+          salaryStructureId: formData.salaryStructureId || undefined,
+        });
         setStatusBanner({ type: 'success', text: 'Contract updated successfully.' });
       } else {
-        await contractApi.createContract(payload);
-        setStatusBanner({ type: 'success', text: 'Contract created successfully.' });
+        await contractApi.createContract({
+          employeeId: formData.employeeId,
+          contractNumber: `CNT-${Date.now().toString().slice(-6)}`,
+          startDate: formData.startDate,
+          endDate: formData.endDate || undefined,
+          wage: Number(formData.wage),
+          wageType: 'MONTHLY',
+          salaryStructureId: formData.salaryStructureId || undefined,
+          status: 'ACTIVE',
+        });
+        setStatusBanner({ type: 'success', text: 'New contract created successfully.' });
       }
-      setTimeout(() => setStatusBanner(null), 4000);
       setIsModalOpen(false);
       await loadContracts();
+      setTimeout(() => setStatusBanner(null), 4000);
     } catch (err) {
-      setFormError(err.message || 'Contract validation failed.');
+      setFormError(extractErrorMessage(err, 'Failed to save contract.'));
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  const handleArchiveConfirm = async () => {
+  const handleArchive = async () => {
     if (!archiveTarget) return;
     try {
-      await contractApi.archiveContract(archiveTarget.id);
+      await contractApi.terminateContract(archiveTarget.id, {
+        terminationReason: 'Archived via HR dashboard',
+      });
       setArchiveTarget(null);
       await loadContracts();
-      setStatusBanner({ type: 'success', text: 'Contract archived successfully.' });
+      setStatusBanner({ type: 'success', text: 'Contract terminated/archived.' });
       setTimeout(() => setStatusBanner(null), 4000);
     } catch (err) {
-      setArchiveTarget(null);
-      setStatusBanner({ type: 'error', text: err.message || 'Failed to archive contract' });
+      setStatusBanner({ type: 'error', text: extractErrorMessage(err, 'Failed to archive contract') });
       setTimeout(() => setStatusBanner(null), 4000);
     }
   };
 
-  // Filtering
-  const filtered = contracts.filter((c) => {
+  const filteredContracts = contracts.filter((c) => {
     const matchesStatus =
-      selectedStatus === 'All' || c.status === selectedStatus;
+      selectedStatus === 'All' || c.status === selectedStatus || c.rawStatus === selectedStatus;
     const q = searchQuery.toLowerCase().trim();
     const matchesSearch =
       !q ||
-      c.contractCode?.toLowerCase().includes(q) ||
       c.employeeName?.toLowerCase().includes(q) ||
       c.employeeId?.toLowerCase().includes(q) ||
-      c.jobPosition?.toLowerCase().includes(q);
+      c.contractCode?.toLowerCase().includes(q) ||
+      c.department?.toLowerCase().includes(q);
     return matchesStatus && matchesSearch;
   });
 
-  const totalPages = Math.ceil(filtered.length / pageSize) || 1;
-  const paginatedContracts = filtered.slice(
+  const totalPages = Math.ceil(filteredContracts.length / pageSize) || 1;
+  const paginated = filteredContracts.slice(
     (page - 1) * pageSize,
     page * pageSize
   );
@@ -161,8 +231,8 @@ export default function ContractsPage() {
   return (
     <div className='space-y-5'>
       <PageHeader
-        title='Contracts'
-        subtitle='Workforce contracts, salary structures, and period overlap validation.'
+        title='Employment Contracts'
+        subtitle='Manage compensation packages, structure bindings, and tenure status.'
         actions={
           <button
             type='button'
@@ -177,19 +247,26 @@ export default function ContractsPage() {
 
       {statusBanner && (
         <div
-          className={`p-3 rounded-xl border text-xs font-semibold ${
+          className={`p-3.5 rounded-xl border text-xs font-semibold flex items-center justify-between animate-fadeIn ${
             statusBanner.type === 'success'
               ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
-              : 'bg-rose-50 border-rose-200 text-rose-800'
+              : 'bg-red-50 border-red-200 text-red-800'
           }`}
         >
-          {statusBanner.text}
+          <span>{statusBanner.text}</span>
+          <button
+            type='button'
+            onClick={() => setStatusBanner(null)}
+            className='font-bold ml-2 cursor-pointer'
+          >
+            ✕
+          </button>
         </div>
       )}
 
-      {/* Filter Toolbar */}
+      {/* Filter Bar */}
       <div className='bg-white p-3 rounded-2xl border border-[#EAE6DF] shadow-2xs flex flex-wrap items-center justify-between gap-3'>
-        <div className='flex flex-wrap items-center gap-2.5 flex-1 min-w-[280px]'>
+        <div className='flex flex-wrap items-center gap-2.5 flex-1 min-w-[260px]'>
           <div className='relative flex-1 max-w-xs'>
             <input
               type='text'
@@ -198,7 +275,7 @@ export default function ContractsPage() {
                 setSearchQuery(e.target.value);
                 setPage(1);
               }}
-              placeholder='Search by contract code, employee, or ID...'
+              placeholder='Search by contract code, employee or department...'
               className='w-full pl-8 pr-3 py-1.5 rounded-xl border border-gray-200 bg-[#FAF8F5] text-xs font-medium text-gray-800 placeholder-gray-400 focus:bg-white focus:outline-none focus:ring-1 focus:ring-[#714B67]'
             />
             <span className='absolute left-2.5 top-2 text-gray-400'>
@@ -208,47 +285,42 @@ export default function ContractsPage() {
             </span>
           </div>
 
-          <select
-            value={selectedStatus}
-            onChange={(e) => {
-              setSelectedStatus(e.target.value);
-              setPage(1);
-            }}
-            className='px-3 py-1.5 rounded-xl border border-gray-200 bg-[#FAF8F5] text-xs font-bold text-gray-700 focus:bg-white focus:outline-none'
-          >
-            <option value='All'>All Statuses</option>
-            <option value='Active'>Active</option>
-            <option value='Expired'>Expired</option>
-            <option value='Archived'>Archived</option>
-          </select>
+          <div className='flex items-center gap-1 bg-[#FAF8F5] p-1 rounded-xl border border-gray-200 text-xs font-bold'>
+            {['All', 'Active', 'Draft', 'Archived'].map((st) => (
+              <button
+                key={st}
+                type='button'
+                onClick={() => {
+                  setSelectedStatus(st);
+                  setPage(1);
+                }}
+                className={`px-3 py-1 rounded-lg transition-colors cursor-pointer ${
+                  selectedStatus === st
+                    ? 'bg-white text-[#714B67] shadow-xs'
+                    : 'text-gray-500 hover:text-gray-900'
+                }`}
+              >
+                {st}
+              </button>
+            ))}
+          </div>
         </div>
 
         <div className='text-xs font-bold text-gray-500'>
-          Showing {filtered.length} contracts
+          Showing {filteredContracts.length} contracts
         </div>
       </div>
 
-      {/* Content States */}
       {loading ? (
-        <LoadingState message='Loading contracts and validating overlaps...' />
+        <LoadingState message='Loading employee contracts...' />
       ) : error ? (
         <ErrorState message={error} onRetry={loadContracts} />
-      ) : filtered.length === 0 ? (
+      ) : filteredContracts.length === 0 ? (
         <EmptyState
           title='No contracts found'
-          description='Try adjusting your search query or status filter.'
-          action={
-            <button
-              type='button'
-              onClick={() => {
-                setSearchQuery('');
-                setSelectedStatus('All');
-              }}
-              className='px-3 py-1.5 rounded-xl bg-gray-100 text-gray-700 text-xs font-bold'
-            >
-              Reset Filters
-            </button>
-          }
+          description='Create a new contract or refine your search query.'
+          actionLabel='+ New Contract'
+          onAction={handleOpenAdd}
         />
       ) : (
         <div className='bg-white rounded-2xl border border-[#EAE6DF] shadow-2xs overflow-hidden'>
@@ -256,65 +328,67 @@ export default function ContractsPage() {
             <table className='w-full text-left text-xs'>
               <thead className='bg-[#FAF8F5] border-b border-[#EAE6DF] text-gray-500 font-bold uppercase tracking-wider text-[10px]'>
                 <tr>
-                  <th className='py-3 px-4'>Contract</th>
+                  <th className='py-3 px-4'>Contract Code</th>
                   <th className='py-3 px-4'>Employee</th>
+                  <th className='py-3 px-4'>Department & Position</th>
                   <th className='py-3 px-4'>Period</th>
                   <th className='py-3 px-4'>Monthly Wage</th>
-                  <th className='py-3 px-4'>Salary Structure</th>
                   <th className='py-3 px-4'>Status</th>
                   <th className='py-3 px-4 text-right'>Actions</th>
                 </tr>
               </thead>
               <tbody className='divide-y divide-gray-100'>
-                {paginatedContracts.map((c) => (
+                {paginated.map((c) => (
                   <tr key={c.id} className='hover:bg-[#FAF8F5]/60 transition-colors'>
-                    <td className='py-3 px-4'>
-                      <div className='font-bold text-gray-900'>{c.contractCode}</div>
-                      <div className='text-[10px] text-gray-400'>{c.contractType}</div>
+                    <td className='py-3 px-4 font-mono font-bold text-gray-900'>
+                      {c.contractCode}
                     </td>
                     <td className='py-3 px-4'>
-                      <div className='font-bold text-gray-800'>{c.employeeName}</div>
-                      <div className='text-[10px] text-gray-500'>{c.employeeId} • {c.jobPosition}</div>
+                      <div className='font-bold text-gray-900'>{c.employeeName}</div>
+                      <div className='text-[10px] text-gray-500'>{c.employeeId}</div>
+                    </td>
+                    <td className='py-3 px-4'>
+                      <div className='font-semibold text-gray-800'>{c.department}</div>
+                      <div className='text-[10px] text-gray-500'>{c.jobPosition}</div>
                     </td>
                     <td className='py-3 px-4 font-medium text-gray-600'>
-                      {c.startDate} &rarr; {c.endDate || 'Indefinite'}
+                      {c.startDate} {c.endDate ? `→ ${c.endDate}` : '(Open-ended)'}
                     </td>
                     <td className='py-3 px-4 font-bold text-gray-900'>
-                      ₹{c.wage?.toLocaleString()}
-                    </td>
-                    <td className='py-3 px-4 text-gray-600'>
-                      {c.salaryStructureName}
+                      ₹{c.wage.toLocaleString()}
                     </td>
                     <td className='py-3 px-4'>
                       <span
                         className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold border ${
                           c.status === 'Active'
                             ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                            : c.status === 'Expired'
+                            : c.status === 'Draft'
                             ? 'bg-amber-50 text-amber-700 border-amber-200'
-                            : 'bg-gray-50 text-gray-600 border-gray-200'
+                            : 'bg-gray-100 text-gray-600 border-gray-200'
                         }`}
                       >
                         {c.status}
                       </span>
                     </td>
-                    <td className='py-3 px-4 text-right space-x-2'>
-                      <button
-                        type='button'
-                        onClick={() => handleOpenEdit(c)}
-                        className='text-[#714B67] hover:underline font-bold cursor-pointer'
-                      >
-                        Edit
-                      </button>
-                      {c.status !== 'Archived' && (
+                    <td className='py-3 px-4 text-right'>
+                      <div className='inline-flex items-center gap-2'>
                         <button
                           type='button'
-                          onClick={() => setArchiveTarget(c)}
-                          className='text-rose-600 hover:underline font-bold cursor-pointer'
+                          onClick={() => handleOpenEdit(c)}
+                          className='text-[#714B67] hover:underline font-bold cursor-pointer'
                         >
-                          Archive
+                          Edit
                         </button>
-                      )}
+                        {c.status !== 'Archived' && (
+                          <button
+                            type='button'
+                            onClick={() => setArchiveTarget(c)}
+                            className='text-rose-600 hover:underline font-bold cursor-pointer'
+                          >
+                            Terminate
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -326,7 +400,7 @@ export default function ContractsPage() {
             <Pagination
               currentPage={page}
               totalPages={totalPages}
-              totalItems={filtered.length}
+              totalItems={filteredContracts.length}
               pageSize={pageSize}
               onPageChange={setPage}
             />
@@ -334,126 +408,55 @@ export default function ContractsPage() {
         </div>
       )}
 
-      {/* Add / Edit Contract Modal */}
+      {/* Add / Edit Modal */}
       {isModalOpen && (
         <div
           className='fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs animate-fadeIn'
           role='dialog'
           aria-modal='true'
         >
-          <div className='bg-white rounded-2xl max-w-lg w-full p-5 sm:p-6 border border-[#EAE6DF] shadow-xl space-y-4 max-h-[90vh] overflow-y-auto'>
-            <div className='flex items-center justify-between border-b border-gray-100 pb-3'>
-              <h3 className='text-base font-black text-[#1E293B]'>
-                {editingContract ? 'Edit Contract' : 'Create New Contract'}
+          <div className='bg-white rounded-2xl max-w-sm w-full p-5 sm:p-6 border border-[#EAE6DF] shadow-xl space-y-4'>
+            <div className='flex items-center justify-between border-b border-gray-100 pb-2.5'>
+              <h3 className='text-sm font-black text-[#1E293B]'>
+                {editingContract ? 'Edit Contract' : 'New Contract'}
               </h3>
               <button
                 type='button'
                 onClick={() => setIsModalOpen(false)}
-                className='text-gray-400 hover:text-gray-700 cursor-pointer font-bold'
+                className='text-gray-400 font-bold hover:text-gray-600'
               >
                 ✕
               </button>
             </div>
 
             {formError && (
-              <div className='p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-semibold'>
+              <div className='p-2.5 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs font-medium'>
                 {formError}
               </div>
             )}
 
-            <form onSubmit={handleSaveContract} className='space-y-3.5 text-xs'>
-              <div>
-                <label className='block font-bold text-gray-700 mb-1'>
-                  Employee *
-                </label>
-                <select
-                  value={formData.employeeId}
-                  onChange={(e) => {
-                    const emp = employees.find((x) => x.employeeId === e.target.value);
-                    setFormData({
-                      ...formData,
-                      employeeId: e.target.value,
-                      jobPosition: emp ? emp.jobPosition : formData.jobPosition,
-                    });
-                  }}
-                  className='w-full px-3 py-2 rounded-xl border border-gray-200 bg-[#FAF8F5] font-medium'
-                >
-                  {employees.map((emp) => (
-                    <option key={emp.id} value={emp.employeeId}>
-                      {emp.name} ({emp.employeeId}) • {emp.department}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className='grid grid-cols-2 gap-3'>
+            <form onSubmit={handleSaveContract} className='space-y-3 text-xs'>
+              {!editingContract && (
                 <div>
-                  <label className='block font-bold text-gray-700 mb-1'>
-                    Start Date *
-                  </label>
-                  <input
-                    type='date'
-                    required
-                    value={formData.startDate}
-                    onChange={(e) =>
-                      setFormData({ ...formData, startDate: e.target.value })
-                    }
-                    className='w-full px-3 py-2 rounded-xl border border-gray-200 bg-[#FAF8F5]'
-                  />
-                </div>
-                <div>
-                  <label className='block font-bold text-gray-700 mb-1'>
-                    End Date
-                  </label>
-                  <input
-                    type='date'
-                    value={formData.endDate}
-                    onChange={(e) =>
-                      setFormData({ ...formData, endDate: e.target.value })
-                    }
-                    className='w-full px-3 py-2 rounded-xl border border-gray-200 bg-[#FAF8F5]'
-                  />
-                </div>
-              </div>
-
-              <div className='grid grid-cols-2 gap-3'>
-                <div>
-                  <label className='block font-bold text-gray-700 mb-1'>
-                    Monthly Wage (INR) *
-                  </label>
-                  <input
-                    type='number'
-                    required
-                    min='1'
-                    value={formData.wage}
-                    onChange={(e) =>
-                      setFormData({ ...formData, wage: e.target.value })
-                    }
-                    className='w-full px-3 py-2 rounded-xl border border-gray-200 bg-[#FAF8F5]'
-                  />
-                </div>
-                <div>
-                  <label className='block font-bold text-gray-700 mb-1'>
-                    Contract Type
-                  </label>
+                  <label className='block font-bold text-gray-700 mb-1'>Employee *</label>
                   <select
-                    value={formData.contractType}
-                    onChange={(e) =>
-                      setFormData({ ...formData, contractType: e.target.value })
-                    }
+                    required
+                    value={formData.employeeId}
+                    onChange={(e) => setFormData({ ...formData, employeeId: e.target.value })}
                     className='w-full px-3 py-2 rounded-xl border border-gray-200 bg-[#FAF8F5]'
                   >
-                    <option value='Permanent'>Permanent</option>
-                    <option value='Probation'>Probation</option>
-                    <option value='Contract'>Contract</option>
+                    <option value=''>Select Employee</option>
+                    {employees.map((emp) => (
+                      <option key={emp.id} value={emp.id}>
+                        {emp.firstName ? `${emp.firstName} ${emp.lastName || ''}` : emp.name} ({emp.employeeCode || emp.employeeId})
+                      </option>
+                    ))}
                   </select>
                 </div>
-              </div>
+              )}
 
               <div>
-                <label className='block font-bold text-gray-700 mb-1'>
-                  Salary Structure *
-                </label>
+                <label className='block font-bold text-gray-700 mb-1'>Salary Structure</label>
                 <select
                   value={formData.salaryStructureId}
                   onChange={(e) =>
@@ -461,6 +464,7 @@ export default function ContractsPage() {
                   }
                   className='w-full px-3 py-2 rounded-xl border border-gray-200 bg-[#FAF8F5]'
                 >
+                  <option value=''>Standard Structure</option>
                   {salaryStructures.map((s) => (
                     <option key={s.id} value={s.id}>
                       {s.name} ({s.code})
@@ -469,13 +473,50 @@ export default function ContractsPage() {
                 </select>
               </div>
 
-              <div className='pt-2 flex items-center justify-end gap-2 border-t border-gray-100'>
+              <div>
+                <label className='block font-bold text-gray-700 mb-1'>Monthly Wage (₹) *</label>
+                <input
+                  type='number'
+                  required
+                  min='0'
+                  value={formData.wage}
+                  onChange={(e) => setFormData({ ...formData, wage: e.target.value })}
+                  className='w-full px-3 py-2 rounded-xl border border-gray-200 bg-[#FAF8F5]'
+                />
+              </div>
+
+              <div className='grid grid-cols-2 gap-2'>
+                <div>
+                  <label className='block font-bold text-gray-700 mb-1'>Start Date *</label>
+                  <input
+                    type='date'
+                    required
+                    value={formData.startDate}
+                    onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
+                    className='w-full px-3 py-2 rounded-xl border border-gray-200 bg-[#FAF8F5]'
+                  />
+                </div>
+                <div>
+                  <label className='block font-bold text-gray-700 mb-1'>End Date</label>
+                  <input
+                    type='date'
+                    value={formData.endDate}
+                    onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
+                    className='w-full px-3 py-2 rounded-xl border border-gray-200 bg-[#FAF8F5]'
+                  />
+                </div>
+              </div>
+
+              <div className='pt-2 flex justify-end gap-2 border-t border-gray-100'>
                 <BackButton label='Cancel' onClick={() => setIsModalOpen(false)} />
                 <button
                   type='submit'
-                  className='px-4 py-2 font-bold text-white bg-[#714B67] hover:bg-[#5E3E56] rounded-xl shadow-xs cursor-pointer'
+                  disabled={isSubmitting}
+                  className={`px-4 py-1.5 font-bold text-white bg-[#714B67] hover:bg-[#5E3E56] rounded-xl cursor-pointer ${
+                    isSubmitting ? 'opacity-60 cursor-not-allowed' : ''
+                  }`}
                 >
-                  Save Contract
+                  {isSubmitting ? 'Saving...' : 'Save Contract'}
                 </button>
               </div>
             </form>
@@ -483,16 +524,18 @@ export default function ContractsPage() {
         </div>
       )}
 
-      {/* Archive Confirm Dialog */}
-      <ConfirmDialog
-        isOpen={Boolean(archiveTarget)}
-        title='Archive Contract'
-        message={`Are you sure you want to archive contract ${archiveTarget?.contractCode}? It will no longer apply to upcoming payruns.`}
-        confirmLabel='Archive Contract'
-        isDestructive
-        onConfirm={handleArchiveConfirm}
-        onCancel={() => setArchiveTarget(null)}
-      />
+      {/* Confirm Terminate Modal */}
+      {archiveTarget && (
+        <ConfirmDialog
+          isOpen={Boolean(archiveTarget)}
+          title='Terminate Contract'
+          message={`Are you sure you want to terminate/archive the contract for ${archiveTarget.employeeName} (${archiveTarget.contractCode})?`}
+          confirmLabel='Terminate'
+          isDestructive={true}
+          onConfirm={handleArchive}
+          onCancel={() => setArchiveTarget(null)}
+        />
+      )}
     </div>
   );
 }

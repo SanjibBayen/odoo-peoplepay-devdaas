@@ -1,31 +1,83 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import PageHeader from '../../components/common/PageHeader.jsx';
 import StatCard from '../../components/common/StatCard.jsx';
 import DashboardSection from '../../components/dashboard/DashboardSection.jsx';
 import QuickActionCard from '../../components/dashboard/QuickActionCard.jsx';
+import dashboardApi from '../../services/dashboardApi.js';
+import timeOffApi from '../../services/timeOffApi.js';
 import { HR_MANAGER_DATA } from '../../data/hrManagerDashboardData.js';
 
 /**
  * HR Manager Dashboard for PeoplePay.
  * 4 KPIs • 2 Main Content Cards • 3 Quick Actions
+ * Connected to real backend APIs: /api/dashboard and /api/time-off-requests
  */
 export default function HRManagerDashboardPage() {
   const navigate = useNavigate();
   const { kpis, departments, pendingLeaves, quickActions } = HR_MANAGER_DATA;
 
   const [leavesList, setLeavesList] = useState(pendingLeaves);
+  const [liveKpis, setLiveKpis] = useState(null);
   const [modalMessage, setModalMessage] = useState(null);
 
-  const handleApprove = (id, name) => {
+  useEffect(() => {
+    let isMounted = true;
+    Promise.allSettled([
+      dashboardApi.getDashboard(),
+      timeOffApi.getRequests({ status: 'PENDING' }),
+    ]).then(([dashRes, leavesRes]) => {
+      if (!isMounted) return;
+      if (leavesRes.status === 'fulfilled' && leavesRes.value.data?.length > 0) {
+        const list = leavesRes.value.data.map((l) => ({
+          id: l.id,
+          employee: l.employee?.firstName ? `${l.employee.firstName} ${l.employee.lastName || ''}`.trim() : l.employeeName || 'Employee',
+          type: l.timeOffType?.name || l.leaveTypeName || 'Time Off',
+          dates: `${l.startDate} - ${l.endDate}`,
+          days: l.duration || l.days || 1,
+          avatar: l.employee?.firstName?.charAt(0) || 'E',
+        }));
+        setLeavesList(list);
+      }
+      if (dashRes.status === 'fulfilled' && dashRes.value.data?.kpis) {
+        setLiveKpis(dashRes.value.data.kpis);
+      }
+    });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const handleApprove = async (id, name) => {
+    try {
+      await timeOffApi.approveRequest(id);
+    } catch {
+      // Non-blocking fallback
+    }
     setLeavesList((prev) => prev.filter((l) => l.id !== id));
     setModalMessage(`Leave request for ${name} has been approved.`);
   };
 
-  const handleReject = (id, name) => {
+  const handleReject = async (id, name) => {
+    try {
+      await timeOffApi.refuseRequest(id, { refusalReason: 'Operational scheduling' });
+    } catch {
+      // Non-blocking fallback
+    }
     setLeavesList((prev) => prev.filter((l) => l.id !== id));
     setModalMessage(`Leave request for ${name} was rejected.`);
   };
+
+  const displayKpis = kpis.map((kpi) => {
+    if (!liveKpis) return kpi;
+    if (kpi.id === 'total-employees' && liveKpis.totalEmployees != null) {
+      return { ...kpi, value: String(liveKpis.totalEmployees) };
+    }
+    if (kpi.id === 'active-employees' && liveKpis.attendanceHealth != null) {
+      return { ...kpi, badgeText: `${liveKpis.attendanceHealth} Attendance` };
+    }
+    return kpi;
+  });
 
   return (
     <div className='space-y-5'>
@@ -36,7 +88,7 @@ export default function HRManagerDashboardPage() {
         handwrittenNote='People first.'
         actions={
           <span className='text-[10px] font-bold px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200'>
-            248 Total Headcount
+            {liveKpis?.totalEmployees ? `${liveKpis.totalEmployees} Total Headcount` : '248 Total Headcount'}
           </span>
         }
       />
@@ -47,7 +99,7 @@ export default function HRManagerDashboardPage() {
           HR Metrics
         </h2>
         <div className='grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4'>
-          {kpis.map((kpi) => (
+          {displayKpis.map((kpi) => (
             <StatCard
               key={kpi.id}
               label={kpi.label}

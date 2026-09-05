@@ -1,5 +1,4 @@
 import apiClient from './apiClient.js';
-import { getPayslipsFromStorage } from '../data/payslipsData.js';
 
 export const payslipApi = {
   async getPayslips(params = {}) {
@@ -7,15 +6,23 @@ export const payslipApi = {
       const response = await apiClient.get('/payslips', { params });
       return response.data;
     } catch (error) {
-      console.warn('Backend /payslips unavailable, using mock payslips.', error.message);
-      let data = getPayslipsFromStorage();
-      if (params.employeeId) {
-        data = data.filter((p) => p.employeeId === params.employeeId);
+      if (error.response?.status === 404) {
+        // Fallback to fetching payslips via payruns API
+        try {
+          const payrunsRes = await apiClient.get('/payruns');
+          const payruns = payrunsRes.data?.data || payrunsRes.data || [];
+          if (Array.isArray(payruns) && payruns.length > 0) {
+            const detailRes = await apiClient.get(`/payruns/${payruns[0].id}`);
+            const payrunData = detailRes.data?.data || detailRes.data;
+            const slips = payrunData?.payslips || [];
+            return { success: true, data: slips };
+          }
+          return { success: true, data: [] };
+        } catch {
+          return { success: true, data: [] };
+        }
       }
-      if (params.status && params.status !== 'All') {
-        data = data.filter((p) => p.status === params.status);
-      }
-      return { success: true, data, total: data.length };
+      throw error;
     }
   },
 
@@ -24,41 +31,41 @@ export const payslipApi = {
       const response = await apiClient.get(`/payslips/${id}`);
       return response.data;
     } catch (error) {
-      console.warn(`Backend /payslips/${id} unavailable`, error.message);
-      const all = getPayslipsFromStorage();
-      const found = all.find((p) => p.id === id || p.slipNumber === id);
-      return { success: true, data: found || null };
+      if (error.response?.status === 404) {
+        const list = await this.getPayslips();
+        const found = list.data?.find((s) => s.id === id || s.payslipNumber === id);
+        return { success: true, data: found || null };
+      }
+      throw error;
     }
   },
 
-  async downloadPayslip(id) {
+  async downloadPayslip(id, slipData = null) {
     try {
       const response = await apiClient.get(`/payslips/${id}/download`, {
         responseType: 'blob',
       });
       return response.data;
     } catch (error) {
-      console.warn(`Backend /payslips/${id}/download fallback to text receipt.`, error.message);
-      const all = getPayslipsFromStorage();
-      const slip = all.find((p) => p.id === id) || all[0];
+      // If backend download route is not implemented, generate downloadable receipt from slip data
+      const slip = slipData || (await this.getPayslipById(id))?.data;
+      if (!slip) throw error;
       const text = `
 PEOPLEPAY SALARY SLIP
 ====================================
-Slip Number: ${slip.slipNumber}
-Employee: ${slip.employeeName} (${slip.employeeId})
-Period: ${slip.period}
-Gross Salary: ₹${slip.grossSalary.toLocaleString()}
-Total Deductions: ₹${slip.totalDeductions.toLocaleString()}
-Net Disbursal: ₹${slip.netSalary.toLocaleString()}
-Bank: ${slip.bankAccount}
-Status: ${slip.status}
+Slip Number: ${slip.payslipNumber || slip.slipNumber || id}
+Employee: ${slip.employee?.firstName ? `${slip.employee.firstName} ${slip.employee.lastName}` : slip.employeeName || 'Employee'} (${slip.employeeId || ''})
+Gross Salary: ₹${Number(slip.grossSalary || 0).toLocaleString()}
+Total Deductions: ₹${Number(slip.totalDeductions || 0).toLocaleString()}
+Net Disbursal: ₹${Number(slip.netSalary || 0).toLocaleString()}
+Status: ${slip.status || 'COMPLETED'}
 ====================================
       `.trim();
       const blob = new Blob([text], { type: 'text/plain' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `${slip.slipNumber}.txt`;
+      a.download = `${slip.payslipNumber || slip.slipNumber || id}.txt`;
       a.click();
       URL.revokeObjectURL(url);
       return { success: true };
@@ -66,13 +73,8 @@ Status: ${slip.status}
   },
 
   async sendPayslip(id) {
-    try {
-      const response = await apiClient.post(`/payslips/${id}/send`);
-      return response.data;
-    } catch (error) {
-      console.warn(`Backend POST /payslips/${id}/send unavailable`, error.message);
-      return { success: true, message: 'Payslip sent to employee registered email.' };
-    }
+    const response = await apiClient.post(`/payslips/${id}/send`);
+    return response.data;
   },
 };
 

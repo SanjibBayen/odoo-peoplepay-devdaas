@@ -4,28 +4,50 @@ import LoadingState from '../../components/common/LoadingState.jsx';
 import ErrorState from '../../components/common/ErrorState.jsx';
 import EmptyState from '../../components/common/EmptyState.jsx';
 import auditLogApi from '../../services/auditLogApi.js';
-import { INITIAL_AUDIT_LOGS } from '../../data/adminData.js';
+import { extractErrorMessage } from '../../services/apiClient.js';
 
 export default function AuditLogsPage() {
-  const [logs, setLogs] = useState(() => INITIAL_AUDIT_LOGS);
-  const [loading, setLoading] = useState(false);
+  const [logs, setLogs] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [isPending, setIsPending] = useState(false);
 
   const loadLogs = () => {
-    auditLogApi
+    setLoading(true);
+    setError(null);
+    return auditLogApi
       .getAuditLogs()
       .then((res) => {
         setLogs(res.data || []);
-        setLoading(false);
+        if (res.pending) setIsPending(true);
       })
       .catch((err) => {
-        setError(err.message || 'Failed to load audit trail');
+        setError(extractErrorMessage(err, 'Failed to load audit trail'));
+      })
+      .finally(() => {
         setLoading(false);
       });
   };
 
   useEffect(() => {
-    loadLogs();
+    let active = true;
+    auditLogApi
+      .getAuditLogs()
+      .then((res) => {
+        if (!active) return;
+        setLogs(res.data || []);
+        if (res.pending) setIsPending(true);
+      })
+      .catch((err) => {
+        if (!active) return;
+        setError(extractErrorMessage(err, 'Failed to load audit trail'));
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
   }, []);
 
   return (
@@ -35,12 +57,22 @@ export default function AuditLogsPage() {
         subtitle='Immutable tracking of administrative actions, payroll updates, and authentication events.'
       />
 
+      {isPending && (
+        <div className='p-3.5 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs flex items-center gap-2'>
+          <span>ℹ️</span>
+          <span>Security Audit Trail API (<code>GET /api/audit-logs</code>) is pending on backend. System actions will stream here once available.</span>
+        </div>
+      )}
+
       {loading ? (
         <LoadingState message='Loading security audit logs...' />
       ) : error ? (
         <ErrorState message={error} onRetry={loadLogs} />
       ) : logs.length === 0 ? (
-        <EmptyState title='No audit records found' />
+        <EmptyState
+          title='No audit records found'
+          description='Security events and operational transactions will be displayed here.'
+        />
       ) : (
         <div className='bg-white rounded-2xl border border-[#EAE6DF] shadow-2xs overflow-hidden'>
           <table className='w-full text-left text-xs'>
@@ -60,21 +92,26 @@ export default function AuditLogsPage() {
                   <td className='py-3 px-4 font-mono text-[11px] text-gray-500'>
                     {log.timestamp}
                   </td>
-                  <td className='py-3 px-4'>
-                    <div className='font-bold text-gray-900'>{log.user}</div>
-                    <div className='text-[10px] text-gray-400'>{log.role}</div>
+                  <td className='py-3 px-4 font-bold text-gray-900'>
+                    {log.actor}
                   </td>
-                  <td className='py-3 px-4 font-mono font-bold text-gray-800 text-[11px]'>
+                  <td className='py-3 px-4 font-semibold text-[#714B67]'>
                     {log.action}
                   </td>
                   <td className='py-3 px-4 text-gray-600 font-medium'>
                     {log.module}
                   </td>
                   <td className='py-3 px-4 text-gray-600 max-w-xs truncate'>
-                    {log.detail}
+                    {log.details}
                   </td>
                   <td className='py-3 px-4'>
-                    <span className='px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200'>
+                    <span
+                      className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                        log.status === 'SUCCESS'
+                          ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                          : 'bg-red-50 text-red-700 border-red-200'
+                      }`}
+                    >
                       {log.status}
                     </span>
                   </td>

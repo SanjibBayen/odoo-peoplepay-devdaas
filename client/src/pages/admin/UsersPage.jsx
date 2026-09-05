@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import PageHeader from '../../components/common/PageHeader.jsx';
 import LoadingState from '../../components/common/LoadingState.jsx';
 import ErrorState from '../../components/common/ErrorState.jsx';
@@ -6,12 +7,14 @@ import EmptyState from '../../components/common/EmptyState.jsx';
 import BackButton from '../../components/common/BackButton.jsx';
 import authApi from '../../services/authApi.js';
 import userApi from '../../services/userApi.js';
-import { INITIAL_USERS } from '../../data/adminData.js';
+import { extractErrorMessage } from '../../services/apiClient.js';
 
 export default function UsersPage() {
-  const [users, setUsers] = useState(() => INITIAL_USERS);
-  const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [apiPendingNotice, setApiPendingNotice] = useState(false);
 
   // Add User Modal State
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -39,20 +42,49 @@ export default function UsersPage() {
   const [sessionNotice, setSessionNotice] = useState(null);
 
   const loadUsers = () => {
-    userApi
+    setLoading(true);
+    setError(null);
+    return userApi
       .getUsers()
       .then((res) => {
-        setUsers(res.data || INITIAL_USERS);
-        setLoading(false);
+        setUsers(res.data || []);
       })
       .catch((err) => {
-        setError(err.message || 'Failed to load users');
+        if (err.response?.status === 404) {
+          setApiPendingNotice(true);
+          setUsers([]);
+        } else {
+          setError(extractErrorMessage(err, 'Failed to load user directory.'));
+        }
+      })
+      .finally(() => {
         setLoading(false);
       });
   };
 
   useEffect(() => {
-    loadUsers();
+    let active = true;
+    userApi
+      .getUsers()
+      .then((res) => {
+        if (!active) return;
+        setUsers(res.data || []);
+      })
+      .catch((err) => {
+        if (!active) return;
+        if (err.response?.status === 404) {
+          setApiPendingNotice(true);
+          setUsers([]);
+        } else {
+          setError(extractErrorMessage(err, 'Failed to load user directory.'));
+        }
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
   }, []);
 
   const validatePasswordStrength = (pass) => {
@@ -169,18 +201,28 @@ export default function UsersPage() {
         title='Users & Roles'
         subtitle='Manage authentication accounts, administrative permissions, and security roles.'
         actions={
-          <button
-            type='button'
-            onClick={() => {
-              setFormError(null);
-              setFormSuccess(null);
-              setIsAddModalOpen(true);
-            }}
-            className='px-4 py-2 text-xs font-bold text-white bg-[#714B67] hover:bg-[#5E3E56] rounded-xl shadow-xs hover:shadow transition-all cursor-pointer flex items-center gap-1.5'
-          >
-            <span className='text-sm leading-none'>+</span>
-            <span>Add User</span>
-          </button>
+          <div className='flex items-center gap-2'>
+            <button
+              type='button'
+              onClick={() => navigate('/admin/employees/add')}
+              className='px-3.5 py-2 text-xs font-bold text-[#714B67] bg-purple-50 hover:bg-purple-100 border border-purple-200 rounded-xl transition-all cursor-pointer flex items-center gap-1.5'
+            >
+              <span className='text-sm leading-none'>+</span>
+              <span>Add Employee</span>
+            </button>
+            <button
+              type='button'
+              onClick={() => {
+                setFormError(null);
+                setFormSuccess(null);
+                setIsAddModalOpen(true);
+              }}
+              className='px-4 py-2 text-xs font-bold text-white bg-[#714B67] hover:bg-[#5E3E56] rounded-xl shadow-xs hover:shadow transition-all cursor-pointer flex items-center gap-1.5'
+            >
+              <span className='text-sm leading-none'>+</span>
+              <span>Add Application User</span>
+            </button>
+          </div>
         }
       />
 
@@ -208,6 +250,18 @@ export default function UsersPage() {
           >
             ✕
           </button>
+        </div>
+      )}
+
+      {apiPendingNotice && (
+        <div className='p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs space-y-1.5 shadow-2xs'>
+          <div className='font-bold flex items-center gap-1.5 text-amber-950'>
+            <span>⚠️</span>
+            <span>Backend Directory Endpoint Pending</span>
+          </div>
+          <p className='text-amber-800 leading-relaxed'>
+            The backend team has not yet exposed a user listing endpoint (<code className='bg-amber-100/70 px-1 py-0.5 rounded font-mono text-[11px]'>GET /api/users</code>). Provisioning new employee and administrative accounts is fully active and wired directly to the real backend registration service via the <strong>+ Add User</strong> button above.
+          </p>
         </div>
       )}
 

@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { CONTRACT_STATUSES, DEPARTMENTS } from '../../data/employees.js';
+import departmentApi from '../../services/departmentApi.js';
+import jobPositionApi from '../../services/jobPositionApi.js';
 
 /**
  * Reusable modal form for both Adding and Editing an employee.
@@ -21,7 +23,9 @@ function getInitialFormData(initialData) {
       dateOfBirth: initialData.dateOfBirth || '',
       joiningDate: initialData.joiningDate || '',
       department: initialData.department || 'Engineering',
+      departmentId: initialData.departmentId || null,
       jobPosition: initialData.jobPosition || '',
+      jobPositionId: initialData.jobPositionId || null,
       employeeId: initialData.employeeId || '',
       status: initialData.status || 'Active',
       contractStatus: initialData.contractStatus || 'Permanent',
@@ -40,7 +44,9 @@ function getInitialFormData(initialData) {
     dateOfBirth: '1998-01-01',
     joiningDate: new Date().toISOString().split('T')[0],
     department: 'Engineering',
+    departmentId: null,
     jobPosition: '',
+    jobPositionId: null,
     employeeId: `EMP-2026-${randomDigits}`,
     status: 'Active',
     contractStatus: 'Permanent',
@@ -60,7 +66,27 @@ export default function EmployeeForm({
   const isEditing = Boolean(initialData);
 
   const [formData, setFormData] = useState(() => getInitialFormData(initialData));
+  const [departmentList, setDepartmentList] = useState([]);
+  const [jobPositionList, setJobPositionList] = useState([]);
   const [errors, setErrors] = useState({});
+
+  useEffect(() => {
+    departmentApi
+      .getDepartments()
+      .then((res) => {
+        const list = res.data || (Array.isArray(res) ? res : []);
+        if (list.length > 0) setDepartmentList(list);
+      })
+      .catch(() => {});
+
+    jobPositionApi
+      .getJobPositions()
+      .then((res) => {
+        const list = res.data || (Array.isArray(res) ? res : []);
+        if (list.length > 0) setJobPositionList(list);
+      })
+      .catch(() => {});
+  }, []);
 
   // Close on Escape
   useEffect(() => {
@@ -106,9 +132,21 @@ export default function EmployeeForm({
       return;
     }
 
+    const selectedDeptObj = departmentList.find(
+      (d) => d.name === formData.department || d.id === formData.departmentId
+    );
+    const selectedPosObj = jobPositionList.find(
+      (p) =>
+        p.name === formData.jobPosition ||
+        p.title === formData.jobPosition ||
+        p.id === formData.jobPositionId
+    );
+
     const payload = {
       ...formData,
       id: initialData?.id || `emp-${Date.now()}`,
+      departmentId: selectedDeptObj?.id || formData.departmentId || null,
+      jobPositionId: selectedPosObj?.id || formData.jobPositionId || null,
       name: `${formData.firstName.trim()} ${formData.lastName.trim()}`,
       avatar: `${formData.firstName.charAt(0)}${formData.lastName.charAt(0)}`.toUpperCase(),
     };
@@ -116,7 +154,10 @@ export default function EmployeeForm({
     onSave(payload);
   };
 
-  const departmentOptions = DEPARTMENTS.filter((d) => d !== 'All Departments');
+  const departmentOptions =
+    departmentList.length > 0
+      ? departmentList.map((d) => d.name)
+      : DEPARTMENTS.filter((d) => d !== 'All Departments');
   const contractOptions = CONTRACT_STATUSES.filter((c) => c !== 'All Contracts');
 
   return (

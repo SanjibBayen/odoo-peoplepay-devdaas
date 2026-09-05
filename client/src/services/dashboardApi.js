@@ -1,59 +1,62 @@
 import apiClient from './apiClient.js';
-import { EMPLOYEE_DATA } from '../data/employeeDashboardData.js';
-import { HR_MANAGER_DATA } from '../data/hrManagerDashboardData.js';
-import { HR_PAYROLL_USER_DATA } from '../data/hrPayrollUserDashboardData.js';
-import { HR_PAYROLL_MANAGER_DATA } from '../data/hrPayrollManagerDashboardData.js';
-import { ADMIN_DATA } from '../data/adminDashboardData.js';
 
 export const dashboardApi = {
-  async getEmployeeDashboard() {
-    try {
-      const response = await apiClient.get('/dashboard/employee');
-      return response.data;
-    } catch (error) {
-      console.warn('Backend /dashboard/employee unavailable', error.message);
-      return { success: true, data: EMPLOYEE_DATA };
-    }
+  // Complete backend dashboard
+  async getDashboard(params = {}) {
+    const response = await apiClient.get('/dashboard', { params });
+    return response.data;
   },
 
-  async getHrManagerDashboard() {
-    try {
-      const response = await apiClient.get('/dashboard/hr-manager');
-      return response.data;
-    } catch (error) {
-      console.warn('Backend /dashboard/hr-manager unavailable', error.message);
-      return { success: true, data: HR_MANAGER_DATA };
-    }
+  async getKPIs(params = {}) {
+    const response = await apiClient.get('/dashboard/kpis', { params });
+    return response.data;
   },
 
-  async getPayrollUserDashboard() {
-    try {
-      const response = await apiClient.get('/dashboard/payroll-user');
-      return response.data;
-    } catch (error) {
-      console.warn('Backend /dashboard/payroll-user unavailable', error.message);
-      return { success: true, data: HR_PAYROLL_USER_DATA };
-    }
+  async getSalaryByDepartment(params = {}) {
+    const response = await apiClient.get('/dashboard/salary-by-department', { params });
+    return response.data;
   },
 
-  async getPayrollManagerDashboard() {
-    try {
-      const response = await apiClient.get('/dashboard/payroll-manager');
-      return response.data;
-    } catch (error) {
-      console.warn('Backend /dashboard/payroll-manager unavailable', error.message);
-      return { success: true, data: HR_PAYROLL_MANAGER_DATA };
-    }
+  async getMonthlyTrends(params = {}) {
+    const response = await apiClient.get('/dashboard/monthly-trends', { params });
+    return response.data;
   },
 
-  async getAdminDashboard() {
-    try {
-      const response = await apiClient.get('/dashboard/admin');
-      return response.data;
-    } catch (error) {
-      console.warn('Backend /dashboard/admin unavailable', error.message);
-      return { success: true, data: ADMIN_DATA };
-    }
+  async getAttendanceOverview(params = {}) {
+    const response = await apiClient.get('/dashboard/attendance-overview', { params });
+    return response.data;
+  },
+
+  async getTimeOffOverview(params = {}) {
+    const response = await apiClient.get('/dashboard/timeoff-overview', { params });
+    return response.data;
+  },
+
+  async getAlerts(params = {}) {
+    const response = await apiClient.get('/dashboard/alerts', { params });
+    return response.data;
+  },
+
+  // Role dashboard helpers calling real backend
+  async getAdminDashboard(params = {}) {
+    return this.getDashboard(params);
+  },
+
+  async getHrManagerDashboard(params = {}) {
+    return this.getDashboard(params);
+  },
+
+  async getPayrollUserDashboard(params = {}) {
+    return this.getDashboard(params);
+  },
+
+  async getPayrollManagerDashboard(params = {}) {
+    return this.getDashboard(params);
+  },
+
+  async getEmployeeDashboard(params = {}) {
+    // Return relevant employee-scoped attendance / requests data or dashboard
+    return this.getDashboard(params);
   },
 
   getHRManagerDashboard() {

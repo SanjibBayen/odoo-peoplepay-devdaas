@@ -1,60 +1,95 @@
 import apiClient from './apiClient.js';
-import { getEmployees, getEmployeeById, saveEmployee } from '../data/employeeStore.js';
 
 export const employeeApi = {
+  /**
+   * Get paginated employees with filtering & sorting
+   * @param {Object} params - { page, limit, search, status, departmentId, employeeTypeId, jobPositionId, sortBy, sortOrder }
+   */
   async getEmployees(params = {}) {
-    try {
-      const response = await apiClient.get('/employees', { params });
-      return response.data;
-    } catch (error) {
-      console.warn('Backend /employees unavailable, using mock employee store.', error.message);
-      const data = getEmployees();
-      return { success: true, data, total: data.length };
-    }
+    const response = await apiClient.get('/employees', { params });
+    return response.data;
   },
 
+  /**
+   * Get single employee by ID
+   * @param {string} id
+   */
   async getEmployeeById(id) {
-    try {
-      const response = await apiClient.get(`/employees/${id}`);
-      return response.data;
-    } catch (error) {
-      console.warn(`Backend /employees/${id} unavailable, using mock employee store.`, error.message);
-      const data = getEmployeeById(id);
-      return { success: true, data };
-    }
+    const response = await apiClient.get(`/employees/${id}`);
+    return response.data;
   },
 
+  /**
+   * Create new employee
+   * @param {Object} employeeData
+   */
   async createEmployee(employeeData) {
-    try {
-      const response = await apiClient.post('/employees', employeeData);
-      return response.data;
-    } catch (error) {
-      console.warn('Backend POST /employees unavailable, saving to local store.', error.message);
-      const updated = saveEmployee(employeeData);
-      return { success: true, data: updated[0] };
-    }
+    const response = await apiClient.post('/employees', employeeData);
+    return response.data;
   },
 
+  /**
+   * Update existing employee
+   * @param {string} id
+   * @param {Object} employeeData
+   */
   async updateEmployee(id, employeeData) {
-    try {
-      const response = await apiClient.put(`/employees/${id}`, employeeData);
-      return response.data;
-    } catch (error) {
-      console.warn(`Backend PUT /employees/${id} unavailable, saving to local store.`, error.message);
-      const updated = saveEmployee({ ...employeeData, id });
-      const record = updated.find((e) => e.id === id || e.employeeId === id);
-      return { success: true, data: record };
-    }
+    const response = await apiClient.put(`/employees/${id}`, employeeData);
+    return response.data;
   },
 
+  /**
+   * Soft delete / terminate employee
+   * @param {string} id
+   */
   async deleteEmployee(id) {
-    try {
-      const response = await apiClient.delete(`/employees/${id}`);
-      return response.data;
-    } catch (error) {
-      console.warn(`Backend DELETE /employees/${id} unavailable`, error.message);
-      return { success: true, message: 'Employee archived locally' };
-    }
+    const response = await apiClient.delete(`/employees/${id}`);
+    return response.data;
+  },
+
+  /**
+   * Get employee's contracts
+   * @param {string} id
+   */
+  async getEmployeeContracts(id) {
+    const response = await apiClient.get(`/employees/${id}/contracts`);
+    return response.data;
+  },
+
+  /**
+   * Get employee's attendance
+   * @param {string} id
+   */
+  async getEmployeeAttendance(id) {
+    const response = await apiClient.get(`/employees/${id}/attendance`);
+    return response.data;
+  },
+
+  /**
+   * Get employee's time off requests
+   * @param {string} id
+   */
+  async getEmployeeTimeOffRequests(id) {
+    const response = await apiClient.get(`/employees/${id}/time-off-requests`);
+    return response.data;
+  },
+
+  /**
+   * Get employee's leave balances
+   * @param {string} id
+   */
+  async getEmployeeLeaveBalances(id) {
+    const response = await apiClient.get(`/employees/${id}/leave-balances`);
+    return response.data;
+  },
+
+  /**
+   * Get employee's active contract
+   * @param {string} id
+   */
+  async getEmployeeActiveContract(id) {
+    const response = await apiClient.get(`/employees/${id}/active-contract`);
+    return response.data;
   },
 };
 

@@ -1,61 +1,39 @@
 import apiClient from './apiClient.js';
-import { INITIAL_DEPARTMENTS } from '../data/adminData.js';
 
 export const departmentApi = {
-  async getDepartments() {
-    try {
-      const response = await apiClient.get('/departments');
-      return response.data;
-    } catch (error) {
-      console.warn('Backend /departments unavailable, using local mock.', error.message);
-      return { success: true, data: INITIAL_DEPARTMENTS };
-    }
+  async getDepartments(params = {}) {
+    const response = await apiClient.get('/departments', { params });
+    return response.data;
+  },
+
+  async getDepartmentHierarchy() {
+    const response = await apiClient.get('/departments/hierarchy');
+    return response.data;
   },
 
   async getDepartmentById(id) {
-    try {
-      const response = await apiClient.get(`/departments/${id}`);
-      return response.data;
-    } catch (error) {
-      console.warn(`Backend /departments/${id} unavailable`, error.message);
-      const found = INITIAL_DEPARTMENTS.find((d) => d.id === id);
-      return { success: true, data: found || null };
-    }
+    const response = await apiClient.get(`/departments/${id}`);
+    return response.data;
+  },
+
+  async getDepartmentEmployees(id, params = {}) {
+    const response = await apiClient.get(`/departments/${id}/employees`, { params });
+    return response.data;
   },
 
   async createDepartment(deptData) {
-    try {
-      const response = await apiClient.post('/departments', deptData);
-      return response.data;
-    } catch (error) {
-      console.warn('Backend POST /departments unavailable', error.message);
-      const newDept = {
-        ...deptData,
-        id: `dept-${Date.now()}`,
-        headCount: 0,
-      };
-      return { success: true, data: newDept };
-    }
+    const response = await apiClient.post('/departments', deptData);
+    return response.data;
   },
 
   async updateDepartment(id, deptData) {
-    try {
-      const response = await apiClient.put(`/departments/${id}`, deptData);
-      return response.data;
-    } catch (error) {
-      console.warn(`Backend PUT /departments/${id} unavailable`, error.message);
-      return { success: true, data: { ...deptData, id } };
-    }
+    const response = await apiClient.put(`/departments/${id}`, deptData);
+    return response.data;
   },
 
   async deleteDepartment(id) {
-    try {
-      const response = await apiClient.delete(`/departments/${id}`);
-      return response.data;
-    } catch (error) {
-      console.warn(`Backend DELETE /departments/${id} unavailable`, error.message);
-      return { success: true, message: `Department ${id} deleted` };
-    }
+    const response = await apiClient.delete(`/departments/${id}`);
+    return response.data;
   },
 };
 

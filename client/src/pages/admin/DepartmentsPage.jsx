@@ -2,13 +2,14 @@ import React, { useEffect, useState } from 'react';
 import PageHeader from '../../components/common/PageHeader.jsx';
 import LoadingState from '../../components/common/LoadingState.jsx';
 import ErrorState from '../../components/common/ErrorState.jsx';
+import EmptyState from '../../components/common/EmptyState.jsx';
 import BackButton from '../../components/common/BackButton.jsx';
 import departmentApi from '../../services/departmentApi.js';
-import { INITIAL_DEPARTMENTS } from '../../data/adminData.js';
+import { extractErrorMessage } from '../../services/apiClient.js';
 
 export default function DepartmentsPage() {
-  const [departments, setDepartments] = useState(() => INITIAL_DEPARTMENTS);
-  const [loading, setLoading] = useState(false);
+  const [departments, setDepartments] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -17,25 +18,41 @@ export default function DepartmentsPage() {
   const [formData, setFormData] = useState({
     name: '',
     code: '',
-    manager: '',
-    budget: '₹50L',
+    description: '',
   });
 
-  const loadDepartments = () => {
-    departmentApi
-      .getDepartments()
-      .then((res) => {
-        setDepartments(res.data || []);
-        setLoading(false);
-      })
-      .catch((err) => {
-        setError(err.message || 'Failed to load departments');
-        setLoading(false);
-      });
+  const loadDepartments = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await departmentApi.getDepartments();
+      const list = res.data || (Array.isArray(res) ? res : []);
+      setDepartments(list);
+    } catch (err) {
+      setError(extractErrorMessage(err, 'Failed to load organizational departments.'));
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
-    loadDepartments();
+    let active = true;
+    (async () => {
+      try {
+        const res = await departmentApi.getDepartments();
+        if (!active) return;
+        const list = res.data || (Array.isArray(res) ? res : []);
+        setDepartments(list);
+      } catch (err) {
+        if (!active) return;
+        setError(extractErrorMessage(err, 'Failed to load organizational departments.'));
+      } finally {
+        if (active) setLoading(false);
+      }
+    })();
+    return () => {
+      active = false;
+    };
   }, []);
 
   const handleSave = async (e) => {
@@ -43,11 +60,16 @@ export default function DepartmentsPage() {
     setFormError(null);
     setIsSubmitting(true);
     try {
-      await departmentApi.createDepartment(formData);
+      await departmentApi.createDepartment({
+        name: formData.name.trim(),
+        code: formData.code.trim().toUpperCase(),
+        description: formData.description.trim() || undefined,
+      });
       setIsModalOpen(false);
+      setFormData({ name: '', code: '', description: '' });
       await loadDepartments();
     } catch (err) {
-      setFormError(err.message || 'Failed to create department');
+      setFormError(extractErrorMessage(err, 'Failed to create department.'));
     } finally {
       setIsSubmitting(false);
     }
@@ -74,31 +96,53 @@ export default function DepartmentsPage() {
         <LoadingState message='Loading organizational departments...' />
       ) : error ? (
         <ErrorState message={error} onRetry={loadDepartments} />
+      ) : departments.length === 0 ? (
+        <EmptyState
+          title='No departments yet'
+          description='Get started by creating your first organizational department.'
+          actionLabel='+ Add Department'
+          onAction={() => setIsModalOpen(true)}
+        />
       ) : (
         <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4'>
-          {departments.map((dept) => (
-            <div
-              key={dept.id}
-              className='bg-white rounded-2xl p-5 border border-[#EAE6DF] shadow-2xs space-y-3'
-            >
-              <div className='flex items-start justify-between'>
-                <div>
-                  <h4 className='text-sm font-black text-[#1E293B]'>{dept.name}</h4>
-                  <span className='text-[10px] font-bold text-[#714B67]'>
-                    CODE: {dept.code}
+          {departments.map((dept) => {
+            const managerName = dept.manager?.firstName
+              ? `${dept.manager.firstName} ${dept.manager.lastName || ''}`.trim()
+              : typeof dept.manager === 'string'
+              ? dept.manager
+              : 'Unassigned';
+            const count = dept.employeeCount ?? dept.headCount ?? 0;
+
+            return (
+              <div
+                key={dept.id}
+                className='bg-white rounded-2xl p-5 border border-[#EAE6DF] shadow-2xs space-y-3'
+              >
+                <div className='flex items-start justify-between'>
+                  <div>
+                    <h4 className='text-sm font-black text-[#1E293B]'>{dept.name}</h4>
+                    <span className='text-[10px] font-bold text-[#714B67]'>
+                      CODE: {dept.code}
+                    </span>
+                  </div>
+                  <span className='px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200'>
+                    {count} Members
                   </span>
                 </div>
-                <span className='px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200'>
-                  {dept.headCount || 0} Members
-                </span>
-              </div>
 
-              <div className='pt-2 border-t border-gray-100 text-xs space-y-1 text-gray-600'>
-                <div>Manager: <strong className='text-gray-900'>{dept.manager || 'Unassigned'}</strong></div>
-                <div>Monthly Budget: <strong className='text-gray-900'>{dept.budget || '--'}</strong></div>
+                <div className='pt-2 border-t border-gray-100 text-xs space-y-1 text-gray-600'>
+                  <div>
+                    Manager: <strong className='text-gray-900'>{managerName}</strong>
+                  </div>
+                  {dept.description && (
+                    <div className='text-[11px] text-gray-500 line-clamp-2'>
+                      {dept.description}
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
@@ -115,7 +159,7 @@ export default function DepartmentsPage() {
               <button
                 type='button'
                 onClick={() => setIsModalOpen(false)}
-                className='text-gray-400 font-bold'
+                className='text-gray-400 font-bold hover:text-gray-600'
               >
                 ✕
               </button>
@@ -135,7 +179,7 @@ export default function DepartmentsPage() {
                   required
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder='e.g. Data Science'
+                  placeholder='e.g. Engineering'
                   className='w-full px-3 py-2 rounded-xl border border-gray-200 bg-[#FAF8F5]'
                 />
               </div>
@@ -147,18 +191,18 @@ export default function DepartmentsPage() {
                   required
                   value={formData.code}
                   onChange={(e) => setFormData({ ...formData, code: e.target.value })}
-                  placeholder='e.g. DS'
+                  placeholder='e.g. ENG'
                   className='w-full px-3 py-2 rounded-xl border border-gray-200 bg-[#FAF8F5]'
                 />
               </div>
 
               <div>
-                <label className='block font-bold text-gray-700 mb-1'>Department Lead</label>
-                <input
-                  type='text'
-                  value={formData.manager}
-                  onChange={(e) => setFormData({ ...formData, manager: e.target.value })}
-                  placeholder='Lead Manager Name'
+                <label className='block font-bold text-gray-700 mb-1'>Description</label>
+                <textarea
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  placeholder='Department mission and responsibilities'
+                  rows={2}
                   className='w-full px-3 py-2 rounded-xl border border-gray-200 bg-[#FAF8F5]'
                 />
               </div>

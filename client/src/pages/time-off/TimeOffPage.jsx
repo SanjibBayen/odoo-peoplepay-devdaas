@@ -6,18 +6,47 @@ import EmptyState from '../../components/common/EmptyState.jsx';
 import Pagination from '../../components/common/Pagination.jsx';
 import BackButton from '../../components/common/BackButton.jsx';
 import timeOffApi from '../../services/timeOffApi.js';
-import { getEmployees } from '../../data/employeeStore.js';
-import {
-  getAllocationsFromStorage,
-  getTimeOffRequestsFromStorage,
-  INITIAL_LEAVE_TYPES,
-} from '../../data/timeOffData.js';
+import employeeApi from '../../services/employeeApi.js';
+import { extractErrorMessage } from '../../services/apiClient.js';
+
+function normalizeRequest(req) {
+  if (!req) return null;
+  const emp = req.employee || {};
+  const empName = emp.firstName
+    ? `${emp.firstName} ${emp.lastName || ''}`.trim()
+    : req.employeeName || 'Employee';
+  const empCode = emp.employeeCode || req.employeeId || '';
+  const typeName = req.timeOffType?.name || req.leaveTypeName || 'Time Off';
+
+  return {
+    ...req,
+    id: req.id,
+    employeeName: empName,
+    employeeId: empCode,
+    leaveTypeName: typeName,
+    timeOffTypeId: req.timeOffTypeId,
+    days: req.duration || req.days || 1,
+    startDate: req.startDate,
+    endDate: req.endDate,
+    status:
+      req.status === 'PENDING'
+        ? 'Pending'
+        : req.status === 'APPROVED'
+        ? 'Approved'
+        : req.status === 'REFUSED'
+        ? 'Rejected'
+        : req.status || 'Pending',
+    rawStatus: req.status,
+    reason: req.reason || '',
+  };
+}
 
 export default function TimeOffPage() {
-  const [requests, setRequests] = useState(() => getTimeOffRequestsFromStorage());
-  const [allocations, setAllocations] = useState(() => getAllocationsFromStorage());
-  const [leaveTypes, setLeaveTypes] = useState(() => INITIAL_LEAVE_TYPES);
-  const [loading, setLoading] = useState(false);
+  const [requests, setRequests] = useState([]);
+  const [allocations, setAllocations] = useState([]);
+  const [leaveTypes, setLeaveTypes] = useState([]);
+  const [employees, setEmployees] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [statusBanner, setStatusBanner] = useState(null);
 
@@ -29,47 +58,91 @@ export default function TimeOffPage() {
   // New Request Modal
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formError, setFormError] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const employees = getEmployees();
   const [formData, setFormData] = useState({
-    employeeId: employees[0]?.employeeId || 'EMP-2024-001',
-    leaveTypeId: 'lt-1',
+    employeeId: '',
+    timeOffTypeId: '',
     startDate: '',
     endDate: '',
-    days: 1,
     reason: '',
   });
 
-  const loadData = () => {
-    Promise.all([
-      timeOffApi.getLeaveTypes(),
-      timeOffApi.getAllocations(),
-      timeOffApi.getRequests(),
-    ])
-      .then(([typesRes, allocRes, reqRes]) => {
-        setLeaveTypes(typesRes.data || []);
-        setAllocations(allocRes.data || []);
-        setRequests(reqRes.data || []);
-        setLoading(false);
-      })
-      .catch((err) => {
-        setError(err.message || 'Failed to load time off data.');
-        setLoading(false);
-      });
+  const loadData = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const [typesRes, allocRes, reqRes, empRes] = await Promise.allSettled([
+        timeOffApi.getTimeOffTypes(),
+        timeOffApi.getAllocations(),
+        timeOffApi.getRequests(),
+        employeeApi.getEmployees({ limit: 100 }),
+      ]);
+
+      if (typesRes.status === 'fulfilled') {
+        setLeaveTypes(typesRes.value.data || (Array.isArray(typesRes.value) ? typesRes.value : []));
+      }
+      if (allocRes.status === 'fulfilled') {
+        setAllocations(allocRes.value.data || (Array.isArray(allocRes.value) ? allocRes.value : []));
+      }
+      if (reqRes.status === 'fulfilled') {
+        const list = reqRes.value.data || (Array.isArray(reqRes.value) ? reqRes.value : []);
+        setRequests(list.map(normalizeRequest));
+      }
+      if (empRes.status === 'fulfilled') {
+        setEmployees(empRes.value.data || []);
+      }
+    } catch (err) {
+      setError(extractErrorMessage(err, 'Failed to load time off records.'));
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
-    loadData();
+    let active = true;
+    (async () => {
+      try {
+        const [typesRes, allocRes, reqRes, empRes] = await Promise.allSettled([
+          timeOffApi.getTimeOffTypes(),
+          timeOffApi.getAllocations(),
+          timeOffApi.getRequests(),
+          employeeApi.getEmployees({ limit: 100 }),
+        ]);
+        if (!active) return;
+        if (typesRes.status === 'fulfilled') {
+          setLeaveTypes(typesRes.value.data || (Array.isArray(typesRes.value) ? typesRes.value : []));
+        }
+        if (allocRes.status === 'fulfilled') {
+          setAllocations(allocRes.value.data || (Array.isArray(allocRes.value) ? allocRes.value : []));
+        }
+        if (reqRes.status === 'fulfilled') {
+          const list = reqRes.value.data || (Array.isArray(reqRes.value) ? reqRes.value : []);
+          setRequests(list.map(normalizeRequest));
+        }
+        if (empRes.status === 'fulfilled') {
+          setEmployees(empRes.value.data || []);
+        }
+      } catch (err) {
+        if (!active) return;
+        setError(extractErrorMessage(err, 'Failed to load time off records.'));
+      } finally {
+        if (active) setLoading(false);
+      }
+    })();
+    return () => {
+      active = false;
+    };
   }, []);
 
   const handleOpenAdd = () => {
     setFormError(null);
+    const today = new Date().toISOString().split('T')[0];
     setFormData({
-      employeeId: employees[0]?.employeeId || 'EMP-2024-001',
-      leaveTypeId: leaveTypes[0]?.id || 'lt-1',
-      startDate: new Date().toISOString().split('T')[0],
-      endDate: new Date().toISOString().split('T')[0],
-      days: 1,
+      employeeId: employees[0]?.id || '',
+      timeOffTypeId: leaveTypes[0]?.id || '',
+      startDate: today,
+      endDate: today,
       reason: '',
     });
     setIsModalOpen(true);
@@ -78,54 +151,54 @@ export default function TimeOffPage() {
   const handleCreateRequest = async (e) => {
     e.preventDefault();
     setFormError(null);
-
-    const emp = employees.find((x) => x.employeeId === formData.employeeId);
-    const lt = leaveTypes.find((x) => x.id === formData.leaveTypeId);
+    setIsSubmitting(true);
 
     try {
       await timeOffApi.createRequest({
-        ...formData,
-        employeeName: emp ? emp.name : 'Employee',
-        department: emp ? emp.department : 'General',
-        leaveTypeName: lt ? lt.name : 'Leave',
-        days: Number(formData.days),
+        employeeId: formData.employeeId || undefined,
+        timeOffTypeId: formData.timeOffTypeId,
+        startDate: formData.startDate,
+        endDate: formData.endDate,
+        reason: formData.reason,
       });
       setIsModalOpen(false);
       await loadData();
       setStatusBanner({ type: 'success', text: 'Time off request submitted successfully.' });
       setTimeout(() => setStatusBanner(null), 4000);
     } catch (err) {
-      setFormError(err.message || 'Failed to submit time off request');
+      setFormError(extractErrorMessage(err, 'Failed to submit time off request.'));
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   const handleApprove = async (id) => {
     try {
-      await timeOffApi.approveRequest(id, { reviewNotes: 'Approved' });
+      await timeOffApi.approveRequest(id);
       await loadData();
       setStatusBanner({ type: 'success', text: 'Time off request approved.' });
       setTimeout(() => setStatusBanner(null), 4000);
     } catch (err) {
-      setStatusBanner({ type: 'error', text: err.message || 'Failed to approve request' });
+      setStatusBanner({ type: 'error', text: extractErrorMessage(err, 'Failed to approve request') });
       setTimeout(() => setStatusBanner(null), 4000);
     }
   };
 
   const handleReject = async (id) => {
     try {
-      await timeOffApi.rejectRequest(id, { reason: 'Schedule clash' });
+      await timeOffApi.refuseRequest(id, { refusalReason: 'Schedule operational conflict' });
       await loadData();
-      setStatusBanner({ type: 'success', text: 'Time off request rejected.' });
+      setStatusBanner({ type: 'success', text: 'Time off request refused.' });
       setTimeout(() => setStatusBanner(null), 4000);
     } catch (err) {
-      setStatusBanner({ type: 'error', text: err.message || 'Failed to reject request' });
+      setStatusBanner({ type: 'error', text: extractErrorMessage(err, 'Failed to refuse request') });
       setTimeout(() => setStatusBanner(null), 4000);
     }
   };
 
   const filteredRequests = requests.filter((r) => {
     const matchesStatus =
-      selectedStatus === 'All' || r.status === selectedStatus;
+      selectedStatus === 'All' || r.status === selectedStatus || r.rawStatus === selectedStatus;
     const q = searchQuery.toLowerCase().trim();
     const matchesSearch =
       !q ||
@@ -153,57 +226,59 @@ export default function TimeOffPage() {
             className='px-4 py-2 text-xs font-bold text-white bg-[#714B67] hover:bg-[#5E3E56] rounded-xl shadow-xs transition-all cursor-pointer flex items-center gap-1'
           >
             <span>+</span>
-            <span>Request Time Off</span>
+            <span>New Request</span>
           </button>
         }
       />
 
       {statusBanner && (
         <div
-          className={`p-3 rounded-xl border text-xs font-semibold ${
+          className={`p-3.5 rounded-xl border text-xs font-semibold flex items-center justify-between animate-fadeIn ${
             statusBanner.type === 'success'
               ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
-              : 'bg-rose-50 border-rose-200 text-rose-800'
+              : 'bg-red-50 border-red-200 text-red-800'
           }`}
         >
-          {statusBanner.text}
+          <span>{statusBanner.text}</span>
+          <button
+            type='button'
+            onClick={() => setStatusBanner(null)}
+            className='font-bold ml-2 cursor-pointer'
+          >
+            ✕
+          </button>
         </div>
       )}
 
-      {/* Allocation Balances Strip */}
-      <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5'>
-        {leaveTypes.map((type) => {
-          const alloc = allocations.find((a) => a.leaveTypeId === type.id);
-          const total = alloc?.allocatedDays ?? type.defaultDays;
-          const used = alloc?.approvedUsedDays ?? 0;
-          const remaining = total - used;
-
+      {/* Allocation Summary Strip */}
+      <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3'>
+        {allocations.slice(0, 4).map((item) => {
+          const typeName = item.timeOffType?.name || item.leaveTypeName || 'Leave Balance';
+          const remaining = item.remainingAmount ?? item.allocatedAmount ?? 0;
+          const total = item.allocatedAmount ?? 0;
           return (
             <div
-              key={type.id}
-              className='bg-white rounded-2xl p-4 border border-[#EAE6DF] shadow-2xs space-y-2'
+              key={item.id}
+              className='bg-white p-4 rounded-2xl border border-[#EAE6DF] shadow-2xs space-y-1'
             >
-              <div className='flex items-center justify-between'>
-                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${type.color}`}>
-                  {type.code}
-                </span>
-                <span className='text-[11px] text-gray-400 font-medium'>
-                  {used} used
+              <div className='flex items-center justify-between text-xs font-bold text-gray-500'>
+                <span className='truncate'>{typeName}</span>
+                <span className='text-[10px] bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full'>
+                  Allocated: {total}d
                 </span>
               </div>
-              <h4 className='text-xs font-bold text-gray-800 truncate'>{type.name}</h4>
-              <div className='flex items-baseline gap-1.5 pt-1'>
-                <span className='text-xl font-black text-[#1E293B]'>{remaining}</span>
-                <span className='text-xs text-gray-500 font-medium'>days available</span>
-              </div>
+              <div className='text-xl font-black text-[#1E293B]'>{remaining} Days</div>
+              <p className='text-[11px] text-gray-500 font-medium'>
+                {item.employee?.firstName ? `${item.employee.firstName} ${item.employee.lastName || ''}` : 'Employee Balance'}
+              </p>
             </div>
           );
         })}
       </div>
 
-      {/* Requests Filter Bar */}
+      {/* Filters Toolbar */}
       <div className='bg-white p-3 rounded-2xl border border-[#EAE6DF] shadow-2xs flex flex-wrap items-center justify-between gap-3'>
-        <div className='flex flex-wrap items-center gap-2.5 flex-1 min-w-[280px]'>
+        <div className='flex flex-wrap items-center gap-2.5 flex-1 min-w-[260px]'>
           <div className='relative flex-1 max-w-xs'>
             <input
               type='text'
@@ -222,19 +297,25 @@ export default function TimeOffPage() {
             </span>
           </div>
 
-          <select
-            value={selectedStatus}
-            onChange={(e) => {
-              setSelectedStatus(e.target.value);
-              setPage(1);
-            }}
-            className='px-3 py-1.5 rounded-xl border border-gray-200 bg-[#FAF8F5] text-xs font-bold text-gray-700 focus:bg-white focus:outline-none'
-          >
-            <option value='All'>All Requests</option>
-            <option value='Pending'>Pending</option>
-            <option value='Approved'>Approved</option>
-            <option value='Rejected'>Rejected</option>
-          </select>
+          <div className='flex items-center gap-1 bg-[#FAF8F5] p-1 rounded-xl border border-gray-200 text-xs font-bold'>
+            {['All', 'Pending', 'Approved', 'Rejected'].map((st) => (
+              <button
+                key={st}
+                type='button'
+                onClick={() => {
+                  setSelectedStatus(st);
+                  setPage(1);
+                }}
+                className={`px-3 py-1 rounded-lg transition-colors cursor-pointer ${
+                  selectedStatus === st
+                    ? 'bg-white text-[#714B67] shadow-xs'
+                    : 'text-gray-500 hover:text-gray-900'
+                }`}
+              >
+                {st}
+              </button>
+            ))}
+          </div>
         </div>
 
         <div className='text-xs font-bold text-gray-500'>
@@ -243,22 +324,15 @@ export default function TimeOffPage() {
       </div>
 
       {loading ? (
-        <LoadingState message='Loading time off requests and balances...' />
+        <LoadingState message='Loading time off requests...' />
       ) : error ? (
         <ErrorState message={error} onRetry={loadData} />
       ) : filteredRequests.length === 0 ? (
         <EmptyState
           title='No time off requests found'
-          description='Submit a new request or change your filter.'
-          action={
-            <button
-              type='button'
-              onClick={handleOpenAdd}
-              className='px-3.5 py-1.5 rounded-xl bg-[#714B67] text-white text-xs font-bold'
-            >
-              New Request
-            </button>
-          }
+          description='Submit a new request or adjust your search filter.'
+          actionLabel='+ New Request'
+          onAction={handleOpenAdd}
         />
       ) : (
         <div className='bg-white rounded-2xl border border-[#EAE6DF] shadow-2xs overflow-hidden'>
@@ -266,65 +340,67 @@ export default function TimeOffPage() {
             <table className='w-full text-left text-xs'>
               <thead className='bg-[#FAF8F5] border-b border-[#EAE6DF] text-gray-500 font-bold uppercase tracking-wider text-[10px]'>
                 <tr>
-                  <th className='py-3 px-4'>Request ID</th>
                   <th className='py-3 px-4'>Employee</th>
                   <th className='py-3 px-4'>Leave Type</th>
                   <th className='py-3 px-4'>Period</th>
-                  <th className='py-3 px-4'>Days</th>
+                  <th className='py-3 px-4'>Duration</th>
                   <th className='py-3 px-4'>Reason</th>
                   <th className='py-3 px-4'>Status</th>
                   <th className='py-3 px-4 text-right'>Actions</th>
                 </tr>
               </thead>
               <tbody className='divide-y divide-gray-100'>
-                {paginated.map((r) => (
-                  <tr key={r.id} className='hover:bg-[#FAF8F5]/60 transition-colors'>
-                    <td className='py-3 px-4 font-bold text-gray-800'>{r.requestId}</td>
+                {paginated.map((req) => (
+                  <tr key={req.id} className='hover:bg-[#FAF8F5]/60 transition-colors'>
                     <td className='py-3 px-4'>
-                      <div className='font-bold text-gray-900'>{r.employeeName}</div>
-                      <div className='text-[10px] text-gray-500'>{r.employeeId}</div>
+                      <div className='font-bold text-gray-900'>{req.employeeName}</div>
+                      <div className='text-[10px] text-gray-500'>{req.employeeId}</div>
                     </td>
-                    <td className='py-3 px-4 font-bold text-gray-700'>{r.leaveTypeName}</td>
-                    <td className='py-3 px-4 text-gray-600'>
-                      {r.startDate} &rarr; {r.endDate}
+                    <td className='py-3 px-4 font-semibold text-gray-800'>
+                      {req.leaveTypeName}
                     </td>
-                    <td className='py-3 px-4 font-bold text-gray-900'>{r.days} d</td>
+                    <td className='py-3 px-4 font-medium text-gray-600'>
+                      {req.startDate} → {req.endDate}
+                    </td>
+                    <td className='py-3 px-4 font-bold text-gray-900'>
+                      {req.days} {Number(req.days) === 1 ? 'day' : 'days'}
+                    </td>
                     <td className='py-3 px-4 text-gray-600 max-w-xs truncate'>
-                      {r.reason}
+                      {req.reason || '--'}
                     </td>
                     <td className='py-3 px-4'>
                       <span
                         className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold border ${
-                          r.status === 'Approved'
+                          req.status === 'Approved'
                             ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                            : r.status === 'Pending'
-                            ? 'bg-amber-50 text-amber-700 border-amber-200'
-                            : 'bg-rose-50 text-rose-700 border-rose-200'
+                            : req.status === 'Rejected'
+                            ? 'bg-rose-50 text-rose-700 border-rose-200'
+                            : 'bg-amber-50 text-amber-700 border-amber-200'
                         }`}
                       >
-                        {r.status}
+                        {req.status}
                       </span>
                     </td>
-                    <td className='py-3 px-4 text-right space-x-2'>
-                      {r.status === 'Pending' ? (
-                        <>
+                    <td className='py-3 px-4 text-right'>
+                      {req.status === 'Pending' ? (
+                        <div className='inline-flex items-center gap-2'>
                           <button
                             type='button'
-                            onClick={() => handleApprove(r.id)}
-                            className='text-emerald-700 hover:underline font-bold cursor-pointer'
+                            onClick={() => handleApprove(req.id)}
+                            className='px-2.5 py-1 text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg cursor-pointer'
                           >
                             Approve
                           </button>
                           <button
                             type='button'
-                            onClick={() => handleReject(r.id)}
-                            className='text-rose-600 hover:underline font-bold cursor-pointer'
+                            onClick={() => handleReject(req.id)}
+                            className='px-2.5 py-1 text-xs font-bold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-lg cursor-pointer'
                           >
-                            Reject
+                            Refuse
                           </button>
-                        </>
+                        </div>
                       ) : (
-                        <span className='text-gray-400 font-medium'>Reviewed</span>
+                        <span className='text-[11px] text-gray-400 font-medium'>Processed</span>
                       )}
                     </td>
                   </tr>
@@ -352,124 +428,102 @@ export default function TimeOffPage() {
           role='dialog'
           aria-modal='true'
         >
-          <div className='bg-white rounded-2xl max-w-md w-full p-5 sm:p-6 border border-[#EAE6DF] shadow-xl space-y-4'>
-            <div className='flex items-center justify-between border-b border-gray-100 pb-3'>
-              <h3 className='text-base font-black text-[#1E293B]'>
-                Request Time Off
-              </h3>
+          <div className='bg-white rounded-2xl max-w-sm w-full p-5 sm:p-6 border border-[#EAE6DF] shadow-xl space-y-4'>
+            <div className='flex items-center justify-between border-b border-gray-100 pb-2.5'>
+              <h3 className='text-sm font-black text-[#1E293B]'>New Time Off Request</h3>
               <button
                 type='button'
                 onClick={() => setIsModalOpen(false)}
-                className='text-gray-400 font-bold'
+                className='text-gray-400 font-bold hover:text-gray-600'
               >
                 ✕
               </button>
             </div>
 
             {formError && (
-              <div className='p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-semibold'>
+              <div className='p-2.5 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs font-medium'>
                 {formError}
               </div>
             )}
 
-            <form onSubmit={handleCreateRequest} className='space-y-3.5 text-xs'>
-              <div>
-                <label className='block font-bold text-gray-700 mb-1'>Employee</label>
-                <select
-                  value={formData.employeeId}
-                  onChange={(e) =>
-                    setFormData({ ...formData, employeeId: e.target.value })
-                  }
-                  className='w-full px-3 py-2 rounded-xl border border-gray-200 bg-[#FAF8F5]'
-                >
-                  {employees.map((emp) => (
-                    <option key={emp.id} value={emp.employeeId}>
-                      {emp.name} ({emp.employeeId})
-                    </option>
-                  ))}
-                </select>
-              </div>
+            <form onSubmit={handleCreateRequest} className='space-y-3 text-xs'>
+              {employees.length > 0 && (
+                <div>
+                  <label className='block font-bold text-gray-700 mb-1'>Employee</label>
+                  <select
+                    value={formData.employeeId}
+                    onChange={(e) => setFormData({ ...formData, employeeId: e.target.value })}
+                    className='w-full px-3 py-2 rounded-xl border border-gray-200 bg-[#FAF8F5]'
+                  >
+                    {employees.map((emp) => (
+                      <option key={emp.id} value={emp.id}>
+                        {emp.firstName ? `${emp.firstName} ${emp.lastName || ''}` : emp.name} ({emp.employeeCode || emp.employeeId})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               <div>
-                <label className='block font-bold text-gray-700 mb-1'>Leave Type</label>
+                <label className='block font-bold text-gray-700 mb-1'>Leave Type *</label>
                 <select
-                  value={formData.leaveTypeId}
-                  onChange={(e) =>
-                    setFormData({ ...formData, leaveTypeId: e.target.value })
-                  }
+                  required
+                  value={formData.timeOffTypeId}
+                  onChange={(e) => setFormData({ ...formData, timeOffTypeId: e.target.value })}
                   className='w-full px-3 py-2 rounded-xl border border-gray-200 bg-[#FAF8F5]'
                 >
                   {leaveTypes.map((lt) => (
                     <option key={lt.id} value={lt.id}>
-                      {lt.name} ({lt.code})
+                      {lt.name}
                     </option>
                   ))}
                 </select>
               </div>
 
-              <div className='grid grid-cols-2 gap-3'>
+              <div className='grid grid-cols-2 gap-2'>
                 <div>
-                  <label className='block font-bold text-gray-700 mb-1'>Start Date</label>
+                  <label className='block font-bold text-gray-700 mb-1'>Start Date *</label>
                   <input
                     type='date'
                     required
                     value={formData.startDate}
-                    onChange={(e) =>
-                      setFormData({ ...formData, startDate: e.target.value })
-                    }
+                    onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
                     className='w-full px-3 py-2 rounded-xl border border-gray-200 bg-[#FAF8F5]'
                   />
                 </div>
                 <div>
-                  <label className='block font-bold text-gray-700 mb-1'>End Date</label>
+                  <label className='block font-bold text-gray-700 mb-1'>End Date *</label>
                   <input
                     type='date'
                     required
                     value={formData.endDate}
-                    onChange={(e) =>
-                      setFormData({ ...formData, endDate: e.target.value })
-                    }
+                    onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
                     className='w-full px-3 py-2 rounded-xl border border-gray-200 bg-[#FAF8F5]'
                   />
                 </div>
               </div>
 
               <div>
-                <label className='block font-bold text-gray-700 mb-1'>Days Count</label>
-                <input
-                  type='number'
-                  min='0.5'
-                  step='0.5'
-                  required
-                  value={formData.days}
-                  onChange={(e) =>
-                    setFormData({ ...formData, days: e.target.value })
-                  }
-                  className='w-full px-3 py-2 rounded-xl border border-gray-200 bg-[#FAF8F5]'
-                />
-              </div>
-
-              <div>
-                <label className='block font-bold text-gray-700 mb-1'>Reason</label>
+                <label className='block font-bold text-gray-700 mb-1'>Reason / Notes</label>
                 <textarea
-                  required
-                  rows='2'
-                  placeholder='Provide context for approval...'
+                  rows={2}
                   value={formData.reason}
-                  onChange={(e) =>
-                    setFormData({ ...formData, reason: e.target.value })
-                  }
+                  onChange={(e) => setFormData({ ...formData, reason: e.target.value })}
+                  placeholder='Brief reason for planned leave'
                   className='w-full px-3 py-2 rounded-xl border border-gray-200 bg-[#FAF8F5]'
                 />
               </div>
 
-              <div className='pt-2 flex items-center justify-end gap-2 border-t border-gray-100'>
+              <div className='pt-2 flex justify-end gap-2 border-t border-gray-100'>
                 <BackButton label='Cancel' onClick={() => setIsModalOpen(false)} />
                 <button
                   type='submit'
-                  className='px-4 py-2 font-bold text-white bg-[#714B67] hover:bg-[#5E3E56] rounded-xl shadow-xs cursor-pointer'
+                  disabled={isSubmitting}
+                  className={`px-4 py-1.5 font-bold text-white bg-[#714B67] hover:bg-[#5E3E56] rounded-xl cursor-pointer ${
+                    isSubmitting ? 'opacity-60 cursor-not-allowed' : ''
+                  }`}
                 >
-                  Submit Request
+                  {isSubmitting ? 'Submitting...' : 'Submit Request'}
                 </button>
               </div>
             </form>

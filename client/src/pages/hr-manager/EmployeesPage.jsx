@@ -1,21 +1,56 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import PageHeader from '../../components/common/PageHeader.jsx';
 import StatCard from '../../components/common/StatCard.jsx';
 import EmployeeFilters from '../../components/employee/EmployeeFilters.jsx';
 import EmployeeForm from '../../components/employee/EmployeeForm.jsx';
 import EmployeeTable from '../../components/employee/EmployeeTable.jsx';
-import { getEmployees, saveEmployee } from '../../data/employeeStore.js';
+import LoadingState from '../../components/common/LoadingState.jsx';
+import ErrorState from '../../components/common/ErrorState.jsx';
+import employeeApi from '../../services/employeeApi.js';
+import { extractErrorMessage } from '../../services/apiClient.js';
+
+// Normalizer to adapt backend Employee record to frontend UI shape
+function normalizeEmployee(emp) {
+  if (!emp) return null;
+  const firstName = emp.firstName || '';
+  const lastName = emp.lastName || '';
+  const fullName = emp.name || `${firstName} ${lastName}`.trim() || 'Unnamed';
+  const code = emp.employeeCode || emp.employeeId || emp.id;
+  const dept = emp.department?.name || emp.department || 'General';
+  const pos = emp.jobPosition?.name || emp.jobPosition?.title || emp.jobPosition || 'Staff';
+  const status = emp.status === 'ACTIVE' ? 'Active' : emp.status === 'ON_LEAVE' ? 'On Leave' : (emp.status || 'Active');
+  const contract = emp.contracts?.[0]?.contractType || emp.contractStatus || 'Permanent';
+
+  return {
+    ...emp,
+    id: emp.id,
+    firstName,
+    lastName,
+    name: fullName,
+    employeeId: code,
+    department: dept,
+    departmentId: emp.departmentId,
+    jobPosition: pos,
+    jobPositionId: emp.jobPositionId,
+    status,
+    contractStatus: contract,
+    email: emp.email || '',
+    avatar: firstName.charAt(0) || fullName.charAt(0) || 'E',
+  };
+}
 
 /**
  * Workforce Employee Management Page.
  * Accessible to HR Manager and Admin roles.
+ * Connected directly to real backend API: /api/employees.
  */
 export default function EmployeesPage() {
   const navigate = useNavigate();
 
-  // Local state initialized from persistent session store
-  const [employees, setEmployees] = useState(() => getEmployees());
+  const [rawEmployees, setRawEmployees] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState(null);
 
   // Filter criteria state
   const [searchQuery, setSearchQuery] = useState('');
@@ -29,6 +64,45 @@ export default function EmployeesPage() {
 
   // Toast feedback
   const [toastMessage, setToastMessage] = useState(null);
+
+  const fetchEmployees = async () => {
+    setLoading(true);
+    setFetchError(null);
+    try {
+      const res = await employeeApi.getEmployees({ limit: 100 });
+      const items = res.data || [];
+      setRawEmployees(items.map(normalizeEmployee));
+    } catch (err) {
+      setFetchError(extractErrorMessage(err, 'Failed to fetch workforce employees.'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    let isMounted = true;
+    employeeApi
+      .getEmployees({ limit: 100 })
+      .then((res) => {
+        if (isMounted) {
+          const items = res.data || [];
+          setRawEmployees(items.map(normalizeEmployee));
+          setLoading(false);
+        }
+      })
+      .catch((err) => {
+        if (isMounted) {
+          setFetchError(extractErrorMessage(err, 'Failed to fetch workforce employees.'));
+          setLoading(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const employees = rawEmployees;
 
   // KPIs
   const totalEmployeesCount = employees.length;
@@ -90,8 +164,7 @@ export default function EmployeesPage() {
   };
 
   const handleOpenAdd = () => {
-    setEditingEmployee(null);
-    setIsFormOpen(true);
+    navigate('/admin/employees/add');
   };
 
   const handleOpenEdit = (emp) => {
@@ -99,25 +172,49 @@ export default function EmployeesPage() {
     setIsFormOpen(true);
   };
 
-  const handleSaveEmployee = (savedData) => {
-    const updated = saveEmployee(savedData);
-    setEmployees(updated);
-    setIsFormOpen(false);
-
+  const handleSaveEmployee = async (formData) => {
     const isEdit = Boolean(editingEmployee);
-    setToastMessage(
-      isEdit
-        ? `Updated profile for ${savedData.name}.`
-        : `Added new employee ${savedData.name} (${savedData.employeeId}).`
-    );
+    try {
+      if (isEdit) {
+        await employeeApi.updateEmployee(editingEmployee.id, {
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          email: formData.email,
+          phone: formData.phone,
+          departmentId: formData.departmentId,
+          jobPositionId: formData.jobPositionId,
+          status: formData.status === 'Active' ? 'ACTIVE' : formData.status === 'On Leave' ? 'ON_LEAVE' : formData.status,
+          joiningDate: formData.joiningDate,
+          address: formData.address,
+        });
+        setToastMessage(`Updated profile for ${formData.firstName} ${formData.lastName}.`);
+      } else {
+        await employeeApi.createEmployee({
+          employeeCode: formData.employeeId || `EMP-${Date.now().toString().slice(-4)}`,
+          firstName: formData.firstName,
+          lastName: formData.lastName || '',
+          email: formData.email,
+          phone: formData.phone,
+          joiningDate: formData.joiningDate || new Date().toISOString().split('T')[0],
+          departmentId: formData.departmentId || null,
+          jobPositionId: formData.jobPositionId || null,
+          address: formData.address,
+        });
+        setToastMessage(`Added new employee ${formData.firstName} ${formData.lastName}.`);
+      }
+      setIsFormOpen(false);
+      fetchEmployees();
+    } catch (err) {
+      setToastMessage(extractErrorMessage(err, 'Failed to save employee profile.'));
+    }
 
     setTimeout(() => {
       setToastMessage(null);
-    }, 4000);
+    }, 5000);
   };
 
   const handleViewEmployee = (emp) => {
-    navigate(`/employees/${emp.employeeId}`);
+    navigate(`/employees/${emp.id || emp.employeeId}`);
   };
 
   return (
@@ -207,22 +304,29 @@ export default function EmployeesPage() {
         filteredCount={filteredEmployees.length}
       />
 
+      {loading && <LoadingState message='Loading employee directory from server...' />}
+      {fetchError && <ErrorState message={fetchError} onRetry={fetchEmployees} />}
+
       {/* Employee Table */}
-      <EmployeeTable
-        employees={filteredEmployees}
-        onView={handleViewEmployee}
-        onEdit={handleOpenEdit}
-        onResetFilters={handleResetFilters}
-      />
+      {!loading && !fetchError && (
+        <EmployeeTable
+          employees={filteredEmployees}
+          onView={handleViewEmployee}
+          onEdit={handleOpenEdit}
+          onResetFilters={handleResetFilters}
+        />
+      )}
 
       {/* Add / Edit Employee Modal Form */}
-      <EmployeeForm
-        key={editingEmployee?.id || 'new'}
-        isOpen={isFormOpen}
-        onClose={() => setIsFormOpen(false)}
-        onSave={handleSaveEmployee}
-        initialData={editingEmployee}
-      />
+      {isFormOpen && (
+        <EmployeeForm
+          key={editingEmployee?.id || 'new'}
+          isOpen={isFormOpen}
+          onClose={() => setIsFormOpen(false)}
+          onSave={handleSaveEmployee}
+          initialData={editingEmployee}
+        />
+      )}
 
       {/* Toast Notification */}
       {toastMessage && (

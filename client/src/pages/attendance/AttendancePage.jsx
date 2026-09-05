@@ -6,11 +6,66 @@ import EmptyState from '../../components/common/EmptyState.jsx';
 import Pagination from '../../components/common/Pagination.jsx';
 import BackButton from '../../components/common/BackButton.jsx';
 import attendanceApi from '../../services/attendanceApi.js';
-import { ATTENDANCE_STATUSES, getAttendanceFromStorage } from '../../data/attendanceData.js';
+import { extractErrorMessage } from '../../services/apiClient.js';
+
+const ATTENDANCE_STATUSES = [
+  'All Statuses',
+  'PRESENT',
+  'ABSENT',
+  'HALF_DAY',
+  'LEAVE',
+  'LATE',
+  'OVERTIME',
+  'EARLY_EXIT',
+  'CORRECTED',
+];
+
+function normalizeAttendance(att) {
+  if (!att) return null;
+  const emp = att.employee || {};
+  const empName = emp.firstName
+    ? `${emp.firstName} ${emp.lastName || ''}`.trim()
+    : att.employeeName || 'Employee';
+  const empCode = emp.employeeCode || att.employeeId || '';
+  const deptName = emp.department?.name || att.department || 'General';
+  const workedHours = att.workedMinutes
+    ? Math.round((att.workedMinutes / 60) * 10) / 10
+    : att.workedHours || 0;
+
+  const formatTime = (t) => {
+    if (!t) return '--:--';
+    if (typeof t === 'string' && t.includes('T')) {
+      try {
+        return new Date(t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      } catch {
+        return t;
+      }
+    }
+    return t;
+  };
+
+  return {
+    ...att,
+    id: att.id,
+    date: att.workDate || att.date || (att.createdAt ? att.createdAt.split('T')[0] : ''),
+    employeeName: empName,
+    employeeId: empCode,
+    department: deptName,
+    checkIn: formatTime(att.checkIn),
+    checkOut: formatTime(att.checkOut),
+    rawCheckIn: att.checkIn,
+    rawCheckOut: att.checkOut,
+    workedHours,
+    lateMinutes: att.lateMinutes || 0,
+    earlyExitMinutes: att.earlyExitMinutes || 0,
+    overtimeMinutes: att.overtimeMinutes || 0,
+    status: att.status || 'PRESENT',
+  };
+}
 
 export default function AttendancePage() {
-  const [records, setRecords] = useState(() => getAttendanceFromStorage());
-  const [loading, setLoading] = useState(false);
+  const [records, setRecords] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [statusBanner, setStatusBanner] = useState(null);
 
@@ -24,66 +79,73 @@ export default function AttendancePage() {
   const [correctionForm, setCorrectionForm] = useState({
     checkIn: '',
     checkOut: '',
-    status: 'PRESENT',
-    notes: '',
+    breakMinutes: 0,
+    correctionReason: '',
   });
 
-  const loadAttendance = () => {
-    attendanceApi
-      .getAttendance()
-      .then((res) => {
-        setRecords(res.data || []);
-        setLoading(false);
-      })
-      .catch((err) => {
-        setError(err.message || 'Failed to load attendance logs.');
-        setLoading(false);
-      });
+  const loadAttendance = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await attendanceApi.getAttendance();
+      const list = res.data || (Array.isArray(res) ? res : []);
+      setRecords(list.map(normalizeAttendance));
+    } catch (err) {
+      setError(extractErrorMessage(err, 'Failed to load attendance logs.'));
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
-    loadAttendance();
+    let active = true;
+    (async () => {
+      try {
+        const res = await attendanceApi.getAttendance();
+        if (!active) return;
+        const list = res.data || (Array.isArray(res) ? res : []);
+        setRecords(list.map(normalizeAttendance));
+      } catch (err) {
+        if (!active) return;
+        setError(extractErrorMessage(err, 'Failed to load attendance logs.'));
+      } finally {
+        if (active) setLoading(false);
+      }
+    })();
+    return () => {
+      active = false;
+    };
   }, []);
 
   const handleCheckIn = async () => {
-    const timeNow = new Date().toTimeString().slice(0, 5);
     try {
-      await attendanceApi.checkIn({
-        employeeId: 'EMP-2024-001',
-        checkInTime: timeNow,
-        notes: 'Manual punch',
-      });
+      await attendanceApi.checkIn({});
       await loadAttendance();
-      setStatusBanner({ type: 'success', text: `Check-in recorded at ${timeNow}.` });
+      setStatusBanner({ type: 'success', text: 'Punch-in recorded successfully.' });
       setTimeout(() => setStatusBanner(null), 4000);
     } catch (err) {
-      setStatusBanner({ type: 'error', text: err.message || 'Check-in failed' });
+      setStatusBanner({ type: 'error', text: extractErrorMessage(err, 'Punch-in failed') });
     }
   };
 
   const handleCheckOut = async () => {
-    const timeNow = new Date().toTimeString().slice(0, 5);
     try {
-      await attendanceApi.checkOut({
-        attendanceId: records[0]?.id,
-        checkOutTime: timeNow,
-        notes: 'Evening shift end',
-      });
+      await attendanceApi.checkOut({});
       await loadAttendance();
-      setStatusBanner({ type: 'success', text: `Check-out recorded at ${timeNow}.` });
+      setStatusBanner({ type: 'success', text: 'Punch-out recorded successfully.' });
       setTimeout(() => setStatusBanner(null), 4000);
     } catch (err) {
-      setStatusBanner({ type: 'error', text: err.message || 'Check-out failed' });
+      setStatusBanner({ type: 'error', text: extractErrorMessage(err, 'Punch-out failed') });
     }
   };
 
   const handleOpenCorrection = (record) => {
     setCorrectionTarget(record);
     setCorrectionForm({
-      checkIn: record.checkIn || '09:00',
-      checkOut: record.checkOut || '18:00',
-      status: record.status || 'PRESENT',
-      notes: record.notes || '',
+      checkIn: record.rawCheckIn || '',
+      checkOut: record.rawCheckOut || '',
+      breakMinutes: record.breakMinutes || 0,
+      correctionReason: record.correctionReason || 'Manual adjustment',
     });
   };
 
@@ -92,16 +154,18 @@ export default function AttendancePage() {
     if (!correctionTarget) return;
 
     try {
-      await attendanceApi.updateAttendance(correctionTarget.id, {
-        ...correctionForm,
-        workedHours: 8.0,
+      await attendanceApi.correctAttendance(correctionTarget.id, {
+        checkIn: correctionForm.checkIn ? new Date(correctionForm.checkIn).toISOString() : undefined,
+        checkOut: correctionForm.checkOut ? new Date(correctionForm.checkOut).toISOString() : undefined,
+        breakMinutes: Number(correctionForm.breakMinutes) || 0,
+        correctionReason: correctionForm.correctionReason,
       });
       setCorrectionTarget(null);
       await loadAttendance();
-      setStatusBanner({ type: 'success', text: 'Attendance record updated.' });
+      setStatusBanner({ type: 'success', text: 'Attendance record adjusted.' });
       setTimeout(() => setStatusBanner(null), 4000);
     } catch (err) {
-      setStatusBanner({ type: 'error', text: err.message || 'Failed to update attendance' });
+      setStatusBanner({ type: 'error', text: extractErrorMessage(err, 'Failed to update attendance') });
     }
   };
 
@@ -211,25 +275,18 @@ export default function AttendancePage() {
       </div>
 
       {loading ? (
-        <LoadingState message='Loading attendance records...' />
+        <LoadingState message='Loading attendance records from server...' />
       ) : error ? (
         <ErrorState message={error} onRetry={loadAttendance} />
       ) : filtered.length === 0 ? (
         <EmptyState
           title='No attendance logs found'
           description='Try changing your search query or status filter.'
-          action={
-            <button
-              type='button'
-              onClick={() => {
-                setSearchQuery('');
-                setSelectedStatus('All Statuses');
-              }}
-              className='px-3 py-1.5 rounded-xl bg-gray-100 text-gray-700 text-xs font-bold'
-            >
-              Reset Filters
-            </button>
-          }
+          actionLabel='Reset Filters'
+          onAction={() => {
+            setSearchQuery('');
+            setSelectedStatus('All Statuses');
+          }}
         />
       ) : (
         <div className='bg-white rounded-2xl border border-[#EAE6DF] shadow-2xs overflow-hidden'>
@@ -329,88 +386,83 @@ export default function AttendancePage() {
           role='dialog'
           aria-modal='true'
         >
-          <div className='bg-white rounded-2xl max-w-sm w-full p-5 border border-[#EAE6DF] shadow-xl space-y-4'>
-            <div className='flex items-center justify-between border-b border-gray-100 pb-2.5'>
-              <h3 className='text-sm font-black text-[#1E293B]'>
-                Manual Attendance Correction
-              </h3>
+          <div className='bg-white rounded-2xl max-w-md w-full p-6 border border-[#EAE6DF] shadow-xl space-y-4'>
+            <div className='flex items-center justify-between border-b border-gray-100 pb-3'>
+              <div>
+                <h3 className='text-sm font-black text-[#1E293B]'>Adjust Attendance Record</h3>
+                <p className='text-xs text-gray-500 font-medium'>
+                  {correctionTarget.employeeName} ({correctionTarget.employeeId}) • {correctionTarget.date}
+                </p>
+              </div>
               <button
                 type='button'
                 onClick={() => setCorrectionTarget(null)}
-                className='text-gray-400 font-bold'
+                className='text-gray-400 font-bold hover:text-gray-600'
               >
                 ✕
               </button>
             </div>
 
-            <form onSubmit={handleSaveCorrection} className='space-y-3 text-xs'>
-              <div className='text-gray-600 font-bold'>
-                {correctionTarget.employeeName} ({correctionTarget.date})
-              </div>
-
-              <div className='grid grid-cols-2 gap-2'>
+            <form onSubmit={handleSaveCorrection} className='space-y-3.5 text-xs'>
+              <div className='grid grid-cols-2 gap-3'>
                 <div>
-                  <label className='block font-bold text-gray-700 mb-1'>Check In</label>
+                  <label className='block font-bold text-gray-700 mb-1'>Check-In</label>
                   <input
-                    type='time'
-                    value={correctionForm.checkIn}
+                    type='datetime-local'
+                    value={correctionForm.checkIn ? correctionForm.checkIn.slice(0, 16) : ''}
                     onChange={(e) =>
                       setCorrectionForm({ ...correctionForm, checkIn: e.target.value })
                     }
-                    className='w-full px-2 py-1.5 rounded border border-gray-200 bg-[#FAF8F5]'
+                    className='w-full px-3 py-2 rounded-xl border border-gray-200 bg-[#FAF8F5]'
                   />
                 </div>
                 <div>
-                  <label className='block font-bold text-gray-700 mb-1'>Check Out</label>
+                  <label className='block font-bold text-gray-700 mb-1'>Check-Out</label>
                   <input
-                    type='time'
-                    value={correctionForm.checkOut}
+                    type='datetime-local'
+                    value={correctionForm.checkOut ? correctionForm.checkOut.slice(0, 16) : ''}
                     onChange={(e) =>
                       setCorrectionForm({ ...correctionForm, checkOut: e.target.value })
                     }
-                    className='w-full px-2 py-1.5 rounded border border-gray-200 bg-[#FAF8F5]'
+                    className='w-full px-3 py-2 rounded-xl border border-gray-200 bg-[#FAF8F5]'
                   />
                 </div>
               </div>
 
               <div>
-                <label className='block font-bold text-gray-700 mb-1'>Status</label>
-                <select
-                  value={correctionForm.status}
-                  onChange={(e) =>
-                    setCorrectionForm({ ...correctionForm, status: e.target.value })
-                  }
-                  className='w-full px-2 py-1.5 rounded border border-gray-200 bg-[#FAF8F5]'
-                >
-                  <option value='PRESENT'>PRESENT</option>
-                  <option value='LATE'>LATE</option>
-                  <option value='ABSENT'>ABSENT</option>
-                  <option value='EARLY_EXIT'>EARLY_EXIT</option>
-                  <option value='OVERTIME'>OVERTIME</option>
-                </select>
-              </div>
-
-              <div>
-                <label className='block font-bold text-gray-700 mb-1'>Manager Reason / Note</label>
+                <label className='block font-bold text-gray-700 mb-1'>Break Minutes</label>
                 <input
-                  type='text'
-                  required
-                  placeholder='Correction rationale...'
-                  value={correctionForm.notes}
+                  type='number'
+                  min='0'
+                  value={correctionForm.breakMinutes}
                   onChange={(e) =>
-                    setCorrectionForm({ ...correctionForm, notes: e.target.value })
+                    setCorrectionForm({ ...correctionForm, breakMinutes: e.target.value })
                   }
-                  className='w-full px-2 py-1.5 rounded border border-gray-200 bg-[#FAF8F5]'
+                  className='w-full px-3 py-2 rounded-xl border border-gray-200 bg-[#FAF8F5]'
                 />
               </div>
 
-              <div className='pt-2 flex items-center justify-end gap-2 border-t border-gray-100'>
+              <div>
+                <label className='block font-bold text-gray-700 mb-1'>Correction Reason *</label>
+                <textarea
+                  required
+                  rows={2}
+                  value={correctionForm.correctionReason}
+                  onChange={(e) =>
+                    setCorrectionForm({ ...correctionForm, correctionReason: e.target.value })
+                  }
+                  placeholder='Specify biometric scanner malfunction or manager approval note'
+                  className='w-full px-3 py-2 rounded-xl border border-gray-200 bg-[#FAF8F5]'
+                />
+              </div>
+
+              <div className='pt-2 flex justify-end gap-2 border-t border-gray-100'>
                 <BackButton label='Cancel' onClick={() => setCorrectionTarget(null)} />
                 <button
                   type='submit'
-                  className='px-3.5 py-1.5 font-bold text-white bg-[#714B67] rounded-lg cursor-pointer'
+                  className='px-4 py-2 font-bold text-white bg-[#714B67] hover:bg-[#5E3E56] rounded-xl cursor-pointer'
                 >
-                  Apply Correction
+                  Save Correction
                 </button>
               </div>
             </form>

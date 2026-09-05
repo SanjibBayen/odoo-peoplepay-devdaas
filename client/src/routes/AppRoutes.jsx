@@ -17,6 +17,7 @@ import HRPayrollUserLoginPage from '../pages/auth/HRPayrollUserLoginPage.jsx';
 import HRPayrollManagerLoginPage from '../pages/auth/HRPayrollManagerLoginPage.jsx';
 import AdminLoginPage from '../pages/auth/AdminLoginPage.jsx';
 import LoginOTPPage from '../pages/auth/LoginOTPPage.jsx';
+import SetPasswordPage from '../pages/auth/SetPasswordPage.jsx';
 import AuthSessionProvider from '../components/auth/AuthSessionProvider.jsx';
 
 // Role Dashboards
@@ -41,6 +42,7 @@ import ReportsPage from '../pages/reports/ReportsPage.jsx';
 
 // Admin & Self-Service Pages
 import UsersPage from '../pages/admin/UsersPage.jsx';
+import AddEmployeePage from '../pages/admin/AddEmployeePage.jsx';
 import DepartmentsPage from '../pages/admin/DepartmentsPage.jsx';
 import SettingsPage from '../pages/admin/SettingsPage.jsx';
 import AuditLogsPage from '../pages/admin/AuditLogsPage.jsx';
@@ -96,6 +98,7 @@ export default function AppRoutes() {
           <Route path='/login/hr-payroll-manager' element={<HRPayrollManagerLoginPage />} />
           <Route path='/login/admin' element={<AdminLoginPage />} />
           <Route path='/login/verify-otp' element={<LoginOTPPage />} />
+          <Route path='/set-password' element={<SetPasswordPage />} />
         </Route>
 
         {/* Authenticated Routes with ProtectedRoute Guard */}
@@ -170,6 +173,30 @@ export default function AppRoutes() {
 
           {/* 6. Shared Workforce & HR Modules */}
           <Route element={<RoleRoute allowedRoles={['hr_manager', 'admin']} />}>
+            <Route
+              path='/admin/employees/add'
+              element={
+                <AppShell title='Add New Employee' activeNav='employees'>
+                  <AddEmployeePage />
+                </AppShell>
+              }
+            />
+            <Route
+              path='/hr/employees/add'
+              element={
+                <AppShell title='Add New Employee' activeNav='employees'>
+                  <AddEmployeePage />
+                </AppShell>
+              }
+            />
+            <Route
+              path='/employees/add'
+              element={
+                <AppShell title='Add New Employee' activeNav='employees'>
+                  <AddEmployeePage />
+                </AppShell>
+              }
+            />
             <Route
               path='/employees'
               element={
