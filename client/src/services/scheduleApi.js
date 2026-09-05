@@ -26,18 +26,8 @@ export const scheduleApi = {
     return response.data;
   },
 
-  async getScheduleDays(id) {
-    const response = await apiClient.get(`/work-schedules/${id}/days`);
-    return response.data;
-  },
-
   async updateScheduleDays(id, days) {
     const response = await apiClient.put(`/work-schedules/${id}/days`, { days });
-    return response.data;
-  },
-
-  async recalculateWeeklyHours(id) {
-    const response = await apiClient.post(`/work-schedules/${id}/recalculate`);
     return response.data;
   },
 };

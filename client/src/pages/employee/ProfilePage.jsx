@@ -6,17 +6,23 @@ import ChangePasswordModal from '../../components/auth/ChangePasswordModal.jsx';
 import LoadingState from '../../components/common/LoadingState.jsx';
 import { selectCurrentUser } from '../../redux/selectors/authSelectors.js';
 import employeeApi from '../../services/employeeApi.js';
+import authApi from '../../services/authApi.js';
 
 function normalizeEmployee(emp) {
   if (!emp) return null;
   const firstName = emp.firstName || '';
   const lastName = emp.lastName || '';
-  const fullName = emp.name || `${firstName} ${lastName}`.trim() || 'Employee';
+  const fullName = emp.fullName || `${firstName} ${lastName}`.trim() || 'Employee';
   const code = emp.employeeCode || emp.employeeId || emp.id;
   const dept = emp.department?.name || emp.department || 'General';
   const pos = emp.jobPosition?.name || emp.jobPosition?.title || emp.jobPosition || 'Staff';
-  const status = emp.status === 'ACTIVE' ? 'Active' : emp.status === 'ON_LEAVE' ? 'On Leave' : (emp.status || 'Active');
-  const contract = emp.contracts?.[0]?.contractType || emp.contractStatus || 'Permanent';
+  const status =
+    emp.status === 'ACTIVE'
+      ? 'Active'
+      : emp.status === 'ON_LEAVE'
+        ? 'On Leave'
+        : emp.status || 'Active';
+  const contract = emp.contractStatus || 'Permanent';
 
   return {
     ...emp,
@@ -32,6 +38,7 @@ function normalizeEmployee(emp) {
     status,
     contractStatus: contract,
     email: emp.email || '',
+    phone: emp.phone || '',
     avatar: firstName.charAt(0) || fullName.charAt(0) || 'E',
   };
 }
@@ -42,30 +49,67 @@ export default function ProfilePage() {
   const [hrNotice, setHrNotice] = useState(null);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     let isMounted = true;
-    employeeApi
-      .getEmployees({ limit: 1 })
-      .then((res) => {
-        if (isMounted) {
-          const list = res.data || [];
-          if (list.length > 0) {
-            setProfile(normalizeEmployee(list[0]));
-          } else if (currentUser) {
-            setProfile(normalizeEmployee(currentUser));
+
+    const fetchProfile = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+
+        // Get current user from auth API (includes employee info)
+        const authRes = await authApi.getMe();
+        const authUser = authRes?.user || authRes?.data?.user || null;
+
+        if (!authUser) {
+          throw new Error('No user found');
+        }
+
+        // Check if user has employee record linked
+        if (authUser.employee?.id) {
+          try {
+            const empRes = await employeeApi.getEmployeeById(authUser.employee.id);
+            const empData = empRes?.data || empRes?.employee || null;
+
+            if (isMounted && empData) {
+              setProfile(
+                normalizeEmployee({
+                  ...empData,
+                  ...authUser,
+                  email: empData.email || authUser.email,
+                  firstName: empData.firstName || authUser.firstName,
+                  lastName: empData.lastName || authUser.lastName,
+                })
+              );
+              setLoading(false);
+              return;
+            }
+          } catch (empErr) {
+            console.warn('Failed to fetch employee details, using auth user:', empErr.message);
           }
+        }
+
+        // Fallback: use auth user data directly
+        if (isMounted) {
+          setProfile(normalizeEmployee(authUser));
           setLoading(false);
         }
-      })
-      .catch(() => {
+      } catch (err) {
+        console.error('Failed to fetch profile:', err);
         if (isMounted) {
+          setError(err.message || 'Failed to load profile');
+          // Fallback to currentUser from Redux
           if (currentUser) {
             setProfile(normalizeEmployee(currentUser));
           }
           setLoading(false);
         }
-      });
+      }
+    };
+
+    fetchProfile();
 
     return () => {
       isMounted = false;
@@ -75,7 +119,9 @@ export default function ProfilePage() {
   const currentEmployee = profile || {
     id: currentUser?.id || 'emp-current',
     employeeId: currentUser?.employeeCode || 'EMP-2024-001',
-    name: currentUser ? `${currentUser.firstName || ''} ${currentUser.lastName || ''}`.trim() : 'Employee Profile',
+    name: currentUser
+      ? `${currentUser.firstName || ''} ${currentUser.lastName || ''}`.trim()
+      : 'Employee Profile',
     email: currentUser?.email || 'user@peoplepay.internal',
     phone: currentUser?.phone || '--',
     department: 'General',
@@ -84,6 +130,10 @@ export default function ProfilePage() {
     contractStatus: 'Permanent',
     avatar: currentUser?.firstName?.charAt(0) || 'E',
   };
+
+  if (loading) {
+    return <LoadingState message='Loading employee profile...' />;
+  }
 
   return (
     <div className='space-y-6'>
@@ -127,18 +177,22 @@ export default function ProfilePage() {
         </div>
       )}
 
-      {loading ? (
-        <LoadingState message='Loading employee profile...' />
-      ) : (
-        <EmployeeDetails
-          employee={currentEmployee}
-          onBack={() => window.history.back()}
-          onEdit={() => {
-            setHrNotice('To update official employment records or bank details, please contact your assigned HR Manager.');
-            setTimeout(() => setHrNotice(null), 6000);
-          }}
-        />
+      {error && !profile && (
+        <div className='p-3.5 rounded-xl bg-red-50 border border-red-200 text-red-900 text-xs'>
+          {error}
+        </div>
       )}
+
+      <EmployeeDetails
+        employee={currentEmployee}
+        onBack={() => window.history.back()}
+        onEdit={() => {
+          setHrNotice(
+            'To update official employment records or bank details, please contact your assigned HR Manager.'
+          );
+          setTimeout(() => setHrNotice(null), 6000);
+        }}
+      />
 
       <ChangePasswordModal
         isOpen={changePasswordOpen}

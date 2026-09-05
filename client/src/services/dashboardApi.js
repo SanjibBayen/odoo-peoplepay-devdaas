@@ -1,9 +1,11 @@
 import apiClient from './apiClient.js';
 
 export const dashboardApi = {
+  // ============ HR/ADMIN DASHBOARD ENDPOINTS ============
+
   // Complete backend dashboard
   async getDashboard(params = {}) {
-    const response = await apiClient.get('/dashboard', { params });
+    const response = await apiClient.get('/dashboard/kpis', { params });
     return response.data;
   },
 
@@ -37,26 +39,29 @@ export const dashboardApi = {
     return response.data;
   },
 
-  // Role dashboard helpers calling real backend
+  // ============ EMPLOYEE DASHBOARD ENDPOINT ============
+
+  async getEmployeeDashboard(params = {}) {
+    const response = await apiClient.get('/dashboard/employee-kpis', { params });
+    return response.data;
+  },
+
+  // ============ ROLE-BASED HELPERS ============
+
   async getAdminDashboard(params = {}) {
-    return this.getDashboard(params);
+    return this.getKPIs(params);
   },
 
   async getHrManagerDashboard(params = {}) {
-    return this.getDashboard(params);
+    return this.getKPIs(params);
   },
 
   async getPayrollUserDashboard(params = {}) {
-    return this.getDashboard(params);
+    return this.getKPIs(params);
   },
 
   async getPayrollManagerDashboard(params = {}) {
-    return this.getDashboard(params);
-  },
-
-  async getEmployeeDashboard(params = {}) {
-    // Return relevant employee-scoped attendance / requests data or dashboard
-    return this.getDashboard(params);
+    return this.getKPIs(params);
   },
 
   getHRManagerDashboard() {

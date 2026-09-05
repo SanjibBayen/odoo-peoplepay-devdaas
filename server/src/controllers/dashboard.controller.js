@@ -9,120 +9,276 @@ import TimeOffAllocation from '../models/timeOffAllocation.model.js';
 import Contract from '../models/contract.model.js';
 import EmployeeType from '../models/employeeType.model.js';
 import PayrollWarning from '../models/payrollWarning.model.js';
+import WorkSchedule from '../models/workSchedule.model.js';
+import ScheduleDay from '../models/scheduleDay.model.js';
+import TimeOffType from '../models/timeOffType.model.js';
 import { AppError, asyncHandler } from '../middleware/error.middleware.js';
 
 const { Op, fn, col } = Sequelize;
 
-// ============ DASHBOARD KPIs ============
+// ============ EMPLOYEE DASHBOARD ============
+
+/**
+ * @desc    Get employee dashboard KPIs
+ * @route   GET /api/dashboard/employee-kpis
+ * @access  Private (Employee - own data)
+ */
+export const getEmployeeDashboardKPIs = asyncHandler(async (req, res, next) => {
+  const employee = await Employee.findOne({
+    where: { userId: req.user.id },
+  });
+
+  if (!employee) {
+    throw new AppError('Employee record not found', 404);
+  }
+
+  const today = new Date().toISOString().split('T')[0];
+  const currentMonth = new Date().getMonth();
+  const currentYear = new Date().getFullYear();
+  const monthStart = new Date(currentYear, currentMonth, 1).toISOString().split('T')[0];
+  const monthEnd = new Date(currentYear, currentMonth + 1, 0).toISOString().split('T')[0];
+
+  // Today's attendance
+  const todayAttendance = await Attendance.findOne({
+    where: { employeeId: employee.id, workDate: today },
+  });
+
+  // Monthly attendance
+  const monthAttendance = await Attendance.findAll({
+    where: {
+      employeeId: employee.id,
+      workDate: { [Op.between]: [monthStart, monthEnd] },
+    },
+  });
+
+  const totalDays = monthAttendance.length;
+  const presentDays = monthAttendance.filter((a) =>
+    ['PRESENT', 'LATE', 'OVERTIME'].includes(a.status)
+  ).length;
+  const attendanceRate = totalDays > 0 ? Math.round((presentDays / totalDays) * 100) : 100;
+
+  // Leave balances
+  const allocations = await TimeOffAllocation.findAll({
+    where: {
+      employeeId: employee.id,
+      status: 'APPROVED',
+      validFrom: { [Op.lte]: today },
+      validTo: { [Op.gte]: today },
+    },
+    include: [
+      {
+        model: TimeOffType,
+        as: 'timeOffType',
+        attributes: ['id', 'name', 'code'],
+      },
+    ],
+  });
+
+  const leaveBalances = allocations.map((allocation) => ({
+    id: allocation.id,
+    leaveType: allocation.timeOffType?.name,
+    leaveCode: allocation.timeOffType?.code,
+    allocated: parseFloat(allocation.allocatedAmount),
+    used: parseFloat(allocation.usedAmount),
+    remaining: allocation.calculateRemaining(),
+  }));
+
+  const totalLeaveBalance = leaveBalances.reduce((sum, l) => sum + l.remaining, 0);
+
+  // Pending requests
+  const pendingRequests = await TimeOffRequest.findAll({
+    where: {
+      employeeId: employee.id,
+      status: 'PENDING',
+    },
+    include: [
+      {
+        model: TimeOffType,
+        as: 'timeOffType',
+        attributes: ['id', 'name', 'code'],
+      },
+    ],
+    order: [['createdAt', 'DESC']],
+  });
+
+  // Today's schedule
+  const dayOfWeek = new Date().getDay();
+  let todaySchedule = null;
+
+  if (employee.scheduleId) {
+    const scheduleDay = await ScheduleDay.findOne({
+      where: {
+        scheduleId: employee.scheduleId,
+        dayOfWeek,
+      },
+    });
+
+    if (scheduleDay && scheduleDay.isWorkingDay) {
+      todaySchedule = {
+        dayName: scheduleDay.getDayName(),
+        startTime: scheduleDay.startTime,
+        endTime: scheduleDay.endTime,
+        breakMinutes: scheduleDay.breakMinutes,
+        isWorkingDay: scheduleDay.isWorkingDay,
+        workingHours: scheduleDay.calculateWorkingHours(),
+      };
+    }
+  }
+
+  // Recent payslips
+  const recentPayslips = await Payslip.findAll({
+    where: { employeeId: employee.id },
+    order: [['createdAt', 'DESC']],
+    limit: 5,
+    attributes: ['id', 'payslipNumber', 'periodStart', 'periodEnd', 'netSalary', 'status'],
+  });
+
+  res.status(200).json({
+    success: true,
+    data: {
+      today: {
+        date: today,
+        attendance: todayAttendance
+          ? {
+              checkIn: todayAttendance.checkIn,
+              checkOut: todayAttendance.checkOut,
+              workedMinutes: todayAttendance.workedMinutes,
+              status: todayAttendance.status,
+              lateMinutes: todayAttendance.lateMinutes,
+              overtimeMinutes: todayAttendance.overtimeMinutes,
+              breakMinutes: todayAttendance.breakMinutes,
+            }
+          : null,
+        schedule: todaySchedule,
+      },
+      metrics: {
+        attendanceRate,
+        presentDays,
+        totalDays,
+        leaveBalance: totalLeaveBalance,
+        pendingRequests: pendingRequests.length,
+      },
+      leaveBalances,
+      pendingRequests: pendingRequests.map((r) => ({
+        id: r.id,
+        type: r.timeOffType?.name,
+        startDate: r.startDate,
+        endDate: r.endDate,
+        duration: r.duration,
+        status: r.status,
+      })),
+      recentPayslips: recentPayslips.map((p) => ({
+        id: p.id,
+        payslipNumber: p.payslipNumber,
+        periodStart: p.periodStart,
+        periodEnd: p.periodEnd,
+        netSalary: parseFloat(p.netSalary),
+        status: p.status,
+      })),
+    },
+  });
+});
+
+// ============ DASHBOARD KPIs (HR/Admin) ============
 
 /**
  * @desc    Get dashboard KPIs
  * @route   GET /api/dashboard/kpis
  * @access  Private (HR Payroll, Admin)
  */
-export const getDashboardKPIs = asyncHandler(async(req, res, next) => {
-    const { periodStart, periodEnd, departmentId, employeeTypeId } = req.query;
+export const getDashboardKPIs = asyncHandler(async (req, res, next) => {
+  const { periodStart, periodEnd, departmentId, employeeTypeId } = req.query;
 
-    // Build filters
-    const payslipWhere = { status: {
-            [Op.in]: ['VALIDATED', 'PAID'] } };
+  const payslipWhere = { status: { [Op.in]: ['VALIDATED', 'PAID'] } };
 
-    if (periodStart && periodEnd) {
-        payslipWhere.periodStart = {
-            [Op.gte]: periodStart };
-        payslipWhere.periodEnd = {
-            [Op.lte]: periodEnd };
-    }
+  if (periodStart && periodEnd) {
+    payslipWhere.periodStart = { [Op.gte]: periodStart };
+    payslipWhere.periodEnd = { [Op.lte]: periodEnd };
+  }
 
-    const employeeWhere = { status: 'ACTIVE' };
-    if (departmentId) {
-        employeeWhere.departmentId = departmentId;
-    }
-    if (employeeTypeId) {
-        employeeWhere.employeeTypeId = employeeTypeId;
-    }
+  const employeeWhere = { status: 'ACTIVE' };
+  if (departmentId) {
+    employeeWhere.departmentId = departmentId;
+  }
+  if (employeeTypeId) {
+    employeeWhere.employeeTypeId = employeeTypeId;
+  }
 
-    // Get employees for department filter
-    const filteredEmployees = await Employee.findAll({
-        where: employeeWhere,
-        attributes: ['id'],
-    });
+  const filteredEmployees = await Employee.findAll({
+    where: employeeWhere,
+    attributes: ['id'],
+  });
 
-    const employeeIds = filteredEmployees.map((e) => e.id);
+  const employeeIds = filteredEmployees.map((e) => e.id);
 
-    if (employeeIds.length > 0) {
-        payslipWhere.employeeId = {
-            [Op.in]: employeeIds };
-    }
+  if (employeeIds.length > 0) {
+    payslipWhere.employeeId = { [Op.in]: employeeIds };
+  }
 
-    // KPI 1: Total Net Salary Paid
-    const totalNetSalary = await Payslip.sum('netSalary', {
-        where: payslipWhere,
-    }) || 0;
+  // KPI 1: Total Net Salary Paid
+  const totalNetSalary = (await Payslip.sum('netSalary', { where: payslipWhere })) || 0;
 
-    // KPI 2: Payslips Generated
-    const payslipCount = await Payslip.count({
-        where: payslipWhere,
-    });
+  // KPI 2: Payslips Generated
+  const payslipCount = await Payslip.count({ where: payslipWhere });
 
-    // KPI 3: Average Salary
-    const averageSalary = payslipCount > 0 ? totalNetSalary / payslipCount : 0;
+  // KPI 3: Average Salary
+  const averageSalary = payslipCount > 0 ? totalNetSalary / payslipCount : 0;
 
-    // KPI 4: Approved Time Off Days
-    const timeOffWhere = { status: 'APPROVED' };
-    if (employeeIds.length > 0) {
-        timeOffWhere.employeeId = {
-            [Op.in]: employeeIds };
-    }
-    if (periodStart && periodEnd) {
-        timeOffWhere.startDate = {
-            [Op.gte]: periodStart };
-        timeOffWhere.endDate = {
-            [Op.lte]: periodEnd };
-    }
+  // KPI 4: Approved Time Off Days
+  const timeOffWhere = { status: 'APPROVED' };
+  if (employeeIds.length > 0) {
+    timeOffWhere.employeeId = { [Op.in]: employeeIds };
+  }
+  if (periodStart && periodEnd) {
+    timeOffWhere.startDate = { [Op.gte]: periodStart };
+    timeOffWhere.endDate = { [Op.lte]: periodEnd };
+  }
 
-    const approvedTimeOff = await TimeOffRequest.sum('duration', {
-        where: timeOffWhere,
-    }) || 0;
+  const approvedTimeOff = (await TimeOffRequest.sum('duration', { where: timeOffWhere })) || 0;
 
-    // KPI 5: Attendance Health
-    const attendanceWhere = {};
-    if (employeeIds.length > 0) {
-        attendanceWhere.employeeId = {
-            [Op.in]: employeeIds };
-    }
-    if (periodStart && periodEnd) {
-        attendanceWhere.workDate = {
-            [Op.between]: [periodStart, periodEnd] };
-    }
+  // KPI 5: Attendance Health
+  const attendanceWhere = {};
+  if (employeeIds.length > 0) {
+    attendanceWhere.employeeId = { [Op.in]: employeeIds };
+  }
+  if (periodStart && periodEnd) {
+    attendanceWhere.workDate = { [Op.between]: [periodStart, periodEnd] };
+  }
 
-    const totalAttendanceRecords = await Attendance.count({
-        where: attendanceWhere,
-    });
+  const totalAttendanceRecords = await Attendance.count({ where: attendanceWhere });
 
-    const presentAttendanceRecords = await Attendance.count({
-        where: {
-            ...attendanceWhere,
-            status: {
-                [Op.in]: ['PRESENT', 'LATE', 'OVERTIME'] },
-        },
-    });
+  const presentAttendanceRecords = await Attendance.count({
+    where: {
+      ...attendanceWhere,
+      status: { [Op.in]: ['PRESENT', 'LATE', 'OVERTIME'] },
+    },
+  });
 
-    const attendanceHealth = totalAttendanceRecords > 0 ?
-        Math.round((presentAttendanceRecords / totalAttendanceRecords) * 100) :
-        0;
+  const attendanceHealth =
+    totalAttendanceRecords > 0
+      ? Math.round((presentAttendanceRecords / totalAttendanceRecords) * 100)
+      : 0;
 
-    res.status(200).json({
-        success: true,
-        data: {
-            totalNetSalary: Math.round(totalNetSalary * 100) / 100,
-            payslipCount,
-            averageSalary: Math.round(averageSalary * 100) / 100,
-            approvedTimeOffDays: parseFloat(approvedTimeOff),
-            attendanceHealth: `${attendanceHealth}%`,
-            totalEmployees: employeeIds.length,
-        },
-    });
+  // KPI 6: Pending Requests
+  const pendingRequests = await TimeOffRequest.count({
+    where: {
+      status: 'PENDING',
+      ...(employeeIds.length > 0 && { employeeId: { [Op.in]: employeeIds } }),
+    },
+  });
+
+  res.status(200).json({
+    success: true,
+    data: {
+      totalNetSalary: Math.round(totalNetSalary * 100) / 100,
+      payslipCount,
+      averageSalary: Math.round(averageSalary * 100) / 100,
+      approvedTimeOffDays: parseFloat(approvedTimeOff),
+      attendanceHealth: `${attendanceHealth}%`,
+      totalEmployees: employeeIds.length,
+      pendingRequests,
+    },
+  });
 });
 
 // ============ DEPARTMENT SALARY BREAKDOWN ============
@@ -132,65 +288,61 @@ export const getDashboardKPIs = asyncHandler(async(req, res, next) => {
  * @route   GET /api/dashboard/salary-by-department
  * @access  Private (HR Payroll, Admin)
  */
-export const getSalaryByDepartment = asyncHandler(async(req, res, next) => {
-    const { periodStart, periodEnd } = req.query;
+export const getSalaryByDepartment = asyncHandler(async (req, res, next) => {
+  const { periodStart, periodEnd } = req.query;
 
-    const payslipWhere = { status: {
-            [Op.in]: ['VALIDATED', 'PAID'] } };
+  const payslipWhere = { status: { [Op.in]: ['VALIDATED', 'PAID'] } };
 
-    if (periodStart && periodEnd) {
-        payslipWhere.periodStart = {
-            [Op.gte]: periodStart };
-        payslipWhere.periodEnd = {
-            [Op.lte]: periodEnd };
-    }
+  if (periodStart && periodEnd) {
+    payslipWhere.periodStart = { [Op.gte]: periodStart };
+    payslipWhere.periodEnd = { [Op.lte]: periodEnd };
+  }
 
-    const departments = await Department.findAll({
-        where: { active: true },
-        attributes: ['id', 'name', 'code'],
+  const departments = await Department.findAll({
+    where: { active: true },
+    attributes: ['id', 'name', 'code'],
+  });
+
+  const departmentData = [];
+
+  for (const department of departments) {
+    const employees = await Employee.findAll({
+      where: { departmentId: department.id, status: 'ACTIVE' },
+      attributes: ['id'],
     });
 
-    const departmentData = [];
+    const employeeIds = employees.map((e) => e.id);
 
-    for (const department of departments) {
-        const employees = await Employee.findAll({
-            where: { departmentId: department.id, status: 'ACTIVE' },
-            attributes: ['id'],
-        });
+    if (employeeIds.length === 0) continue;
 
-        const employeeIds = employees.map((e) => e.id);
-
-        if (employeeIds.length === 0) continue;
-
-        const deptPayslips = await Payslip.findAll({
-            where: {
-                ...payslipWhere,
-                employeeId: {
-                    [Op.in]: employeeIds },
-            },
-            attributes: [
-                [fn('SUM', col('net_salary')), 'totalNet'],
-                [fn('COUNT', col('id')), 'payslipCount'],
-                [fn('AVG', col('net_salary')), 'avgNet'],
-            ],
-            raw: true,
-        });
-
-        departmentData.push({
-            departmentId: department.id,
-            departmentName: department.name,
-            departmentCode: department.code,
-            headcount: employeeIds.length,
-            totalNetSalary: Math.round(parseFloat(deptPayslips[0]?.totalNet || 0) * 100) / 100,
-            payslipCount: parseInt(deptPayslips[0]?.payslipCount || 0),
-            averageSalary: Math.round(parseFloat(deptPayslips[0]?.avgNet || 0) * 100) / 100,
-        });
-    }
-
-    res.status(200).json({
-        success: true,
-        data: departmentData,
+    const deptPayslips = await Payslip.findAll({
+      where: {
+        ...payslipWhere,
+        employeeId: { [Op.in]: employeeIds },
+      },
+      attributes: [
+        [fn('SUM', col('net_salary')), 'totalNet'],
+        [fn('COUNT', col('id')), 'payslipCount'],
+        [fn('AVG', col('net_salary')), 'avgNet'],
+      ],
+      raw: true,
     });
+
+    departmentData.push({
+      departmentId: department.id,
+      departmentName: department.name,
+      departmentCode: department.code,
+      headcount: employeeIds.length,
+      totalNetSalary: Math.round(parseFloat(deptPayslips[0]?.totalNet || 0) * 100) / 100,
+      payslipCount: parseInt(deptPayslips[0]?.payslipCount || 0),
+      averageSalary: Math.round(parseFloat(deptPayslips[0]?.avgNet || 0) * 100) / 100,
+    });
+  }
+
+  res.status(200).json({
+    success: true,
+    data: departmentData,
+  });
 });
 
 // ============ MONTHLY SALARY TRENDS ============
@@ -200,45 +352,41 @@ export const getSalaryByDepartment = asyncHandler(async(req, res, next) => {
  * @route   GET /api/dashboard/monthly-trends
  * @access  Private (HR Payroll, Admin)
  */
-export const getMonthlyTrends = asyncHandler(async(req, res, next) => {
-    const { months = 12 } = req.query;
+export const getMonthlyTrends = asyncHandler(async (req, res, next) => {
+  const { months = 12 } = req.query;
 
-    const startDate = new Date();
-    startDate.setMonth(startDate.getMonth() - parseInt(months));
+  const startDate = new Date();
+  startDate.setMonth(startDate.getMonth() - parseInt(months));
 
-    const payslips = await Payslip.findAll({
-        where: {
-            status: {
-                [Op.in]: ['VALIDATED', 'PAID'] },
-            periodStart: {
-                [Op.gte]: startDate },
-        },
-        attributes: [
-            [fn('DATE_TRUNC', 'month', col('period_start')), 'month'],
-            [fn('SUM', col('net_salary')), 'totalNet'],
-            [fn('SUM', col('gross_salary')), 'totalGross'],
-            [fn('COUNT', col('id')), 'payslipCount'],
-            [fn('COUNT', fn('DISTINCT', col('employee_id'))), 'employeeCount'],
-        ],
-        group: [fn('DATE_TRUNC', 'month', col('period_start'))],
-        order: [
-            [fn('DATE_TRUNC', 'month', col('period_start')), 'ASC']
-        ],
-        raw: true,
-    });
+  const payslips = await Payslip.findAll({
+    where: {
+      status: { [Op.in]: ['VALIDATED', 'PAID'] },
+      periodStart: { [Op.gte]: startDate },
+    },
+    attributes: [
+      [fn('DATE_TRUNC', 'month', col('period_start')), 'month'],
+      [fn('SUM', col('net_salary')), 'totalNet'],
+      [fn('SUM', col('gross_salary')), 'totalGross'],
+      [fn('COUNT', col('id')), 'payslipCount'],
+      [fn('COUNT', fn('DISTINCT', col('employee_id'))), 'employeeCount'],
+    ],
+    group: [fn('DATE_TRUNC', 'month', col('period_start'))],
+    order: [[fn('DATE_TRUNC', 'month', col('period_start')), 'ASC']],
+    raw: true,
+  });
 
-    const formattedTrends = payslips.map((item) => ({
-        month: item.month,
-        totalNetSalary: Math.round(parseFloat(item.totalNet) * 100) / 100,
-        totalGrossSalary: Math.round(parseFloat(item.totalGross) * 100) / 100,
-        payslipCount: parseInt(item.payslipCount),
-        employeeCount: parseInt(item.employeeCount),
-    }));
+  const formattedTrends = payslips.map((item) => ({
+    month: item.month,
+    totalNetSalary: Math.round(parseFloat(item.totalNet) * 100) / 100,
+    totalGrossSalary: Math.round(parseFloat(item.totalGross) * 100) / 100,
+    payslipCount: parseInt(item.payslipCount),
+    employeeCount: parseInt(item.employeeCount),
+  }));
 
-    res.status(200).json({
-        success: true,
-        data: formattedTrends,
-    });
+  res.status(200).json({
+    success: true,
+    data: formattedTrends,
+  });
 });
 
 // ============ ATTENDANCE OVERVIEW ============
@@ -248,78 +396,68 @@ export const getMonthlyTrends = asyncHandler(async(req, res, next) => {
  * @route   GET /api/dashboard/attendance-overview
  * @access  Private (HR Payroll, Admin)
  */
-export const getAttendanceOverview = asyncHandler(async(req, res, next) => {
-    const { periodStart, periodEnd, departmentId } = req.query;
+export const getAttendanceOverview = asyncHandler(async (req, res, next) => {
+  const { periodStart, periodEnd, departmentId } = req.query;
 
-    const where = {};
+  const where = {};
 
-    if (periodStart && periodEnd) {
-        where.workDate = {
-            [Op.between]: [periodStart, periodEnd] };
-    }
+  if (periodStart && periodEnd) {
+    where.workDate = { [Op.between]: [periodStart, periodEnd] };
+  }
 
-    if (departmentId) {
-        const employees = await Employee.findAll({
-            where: { departmentId },
-            attributes: ['id'],
-        });
-        where.employeeId = {
-            [Op.in]: employees.map((e) => e.id) };
-    }
-
-    const overview = await Attendance.findAll({
-        where,
-        attributes: [
-            'status', [fn('COUNT', col('id')), 'count'],
-            [fn('SUM', col('overtime_minutes')), 'totalOvertimeMinutes'],
-            [fn('SUM', col('late_minutes')), 'totalLateMinutes'],
-            [fn('SUM', col('worked_minutes')), 'totalWorkedMinutes'],
-        ],
-        group: ['status'],
-        raw: true,
+  if (departmentId) {
+    const employees = await Employee.findAll({
+      where: { departmentId },
+      attributes: ['id'],
     });
+    where.employeeId = { [Op.in]: employees.map((e) => e.id) };
+  }
 
-    // Get manual edits count
-    const manualEditsCount = await Attendance.count({
-        where: {
-            ...where,
-            isManualEntry: true,
-        },
-    });
+  const overview = await Attendance.findAll({
+    where,
+    attributes: [
+      'status',
+      [fn('COUNT', col('id')), 'count'],
+      [fn('SUM', col('overtime_minutes')), 'totalOvertimeMinutes'],
+      [fn('SUM', col('late_minutes')), 'totalLateMinutes'],
+      [fn('SUM', col('worked_minutes')), 'totalWorkedMinutes'],
+    ],
+    group: ['status'],
+    raw: true,
+  });
 
-    // Get missing checkout count
-    const missingCheckoutCount = await Attendance.count({
-        where: {
-            ...where,
-            status: 'MISSING_CHECKOUT',
-        },
-    });
+  const manualEditsCount = await Attendance.count({
+    where: { ...where, isManualEntry: true },
+  });
 
-    // Total records
-    const totalRecords = overview.reduce((sum, item) => sum + parseInt(item.count), 0);
+  const missingCheckoutCount = await Attendance.count({
+    where: { ...where, status: 'MISSING_CHECKOUT' },
+  });
 
-    // Present records
-    const presentRecords = overview
-        .filter((item) => ['PRESENT', 'LATE', 'OVERTIME'].includes(item.status))
-        .reduce((sum, item) => sum + parseInt(item.count), 0);
+  const totalRecords = overview.reduce((sum, item) => sum + parseInt(item.count), 0);
 
-    res.status(200).json({
-        success: true,
-        data: {
-            totalRecords,
-            presentCount: presentRecords,
-            attendanceHealth: totalRecords > 0 ? `${Math.round((presentRecords / totalRecords) * 100)}%` : '0%',
-            manualEdits: manualEditsCount,
-            missingCheckouts: missingCheckoutCount,
-            statusBreakdown: overview.map((item) => ({
-                status: item.status,
-                count: parseInt(item.count),
-                totalOvertimeMinutes: parseInt(item.totalOvertimeMinutes || 0),
-                totalLateMinutes: parseInt(item.totalLateMinutes || 0),
-                totalWorkedMinutes: parseInt(item.totalWorkedMinutes || 0),
-            })),
-        },
-    });
+  const presentRecords = overview
+    .filter((item) => ['PRESENT', 'LATE', 'OVERTIME'].includes(item.status))
+    .reduce((sum, item) => sum + parseInt(item.count), 0);
+
+  res.status(200).json({
+    success: true,
+    data: {
+      totalRecords,
+      presentCount: presentRecords,
+      attendanceHealth:
+        totalRecords > 0 ? `${Math.round((presentRecords / totalRecords) * 100)}%` : '0%',
+      manualEdits: manualEditsCount,
+      missingCheckouts: missingCheckoutCount,
+      statusBreakdown: overview.map((item) => ({
+        status: item.status,
+        count: parseInt(item.count),
+        totalOvertimeMinutes: parseInt(item.totalOvertimeMinutes || 0),
+        totalLateMinutes: parseInt(item.totalLateMinutes || 0),
+        totalWorkedMinutes: parseInt(item.totalWorkedMinutes || 0),
+      })),
+    },
+  });
 });
 
 // ============ TIME OFF OVERVIEW ============
@@ -329,57 +467,55 @@ export const getAttendanceOverview = asyncHandler(async(req, res, next) => {
  * @route   GET /api/dashboard/timeoff-overview
  * @access  Private (HR Payroll, Admin)
  */
-export const getTimeOffOverview = asyncHandler(async(req, res, next) => {
-    const { periodStart, periodEnd, departmentId } = req.query;
+export const getTimeOffOverview = asyncHandler(async (req, res, next) => {
+  const { periodStart, periodEnd, departmentId } = req.query;
 
-    const where = {};
+  const where = {};
 
-    if (periodStart && periodEnd) {
-        where.startDate = {
-            [Op.gte]: periodStart };
-        where.endDate = {
-            [Op.lte]: periodEnd };
-    }
+  if (periodStart && periodEnd) {
+    where.startDate = { [Op.gte]: periodStart };
+    where.endDate = { [Op.lte]: periodEnd };
+  }
 
-    if (departmentId) {
-        const employees = await Employee.findAll({
-            where: { departmentId },
-            attributes: ['id'],
-        });
-        where.employeeId = {
-            [Op.in]: employees.map((e) => e.id) };
-    }
-
-    const overview = await TimeOffRequest.findAll({
-        where,
-        attributes: [
-            'status', [fn('COUNT', col('id')), 'count'],
-            [fn('SUM', col('duration')), 'totalDuration'],
-        ],
-        group: ['status'],
-        raw: true,
+  if (departmentId) {
+    const employees = await Employee.findAll({
+      where: { departmentId },
+      attributes: ['id'],
     });
+    where.employeeId = { [Op.in]: employees.map((e) => e.id) };
+  }
 
-    const approvedDays = overview
-        .filter((item) => item.status === 'APPROVED')
-        .reduce((sum, item) => sum + parseFloat(item.totalDuration || 0), 0);
+  const overview = await TimeOffRequest.findAll({
+    where,
+    attributes: [
+      'status',
+      [fn('COUNT', col('id')), 'count'],
+      [fn('SUM', col('duration')), 'totalDuration'],
+    ],
+    group: ['status'],
+    raw: true,
+  });
 
-    const pendingRequests = overview
-        .filter((item) => item.status === 'PENDING')
-        .reduce((sum, item) => sum + parseInt(item.count || 0), 0);
+  const approvedDays = overview
+    .filter((item) => item.status === 'APPROVED')
+    .reduce((sum, item) => sum + parseFloat(item.totalDuration || 0), 0);
 
-    res.status(200).json({
-        success: true,
-        data: {
-            approvedDays: Math.round(approvedDays * 100) / 100,
-            pendingRequests,
-            statusBreakdown: overview.map((item) => ({
-                status: item.status,
-                count: parseInt(item.count),
-                totalDuration: parseFloat(item.totalDuration || 0),
-            })),
-        },
-    });
+  const pendingRequests = overview
+    .filter((item) => item.status === 'PENDING')
+    .reduce((sum, item) => sum + parseInt(item.count || 0), 0);
+
+  res.status(200).json({
+    success: true,
+    data: {
+      approvedDays: Math.round(approvedDays * 100) / 100,
+      pendingRequests,
+      statusBreakdown: overview.map((item) => ({
+        status: item.status,
+        count: parseInt(item.count),
+        totalDuration: parseFloat(item.totalDuration || 0),
+      })),
+    },
+  });
 });
 
 // ============ OPERATIONAL ALERTS ============
@@ -389,124 +525,83 @@ export const getTimeOffOverview = asyncHandler(async(req, res, next) => {
  * @route   GET /api/dashboard/alerts
  * @access  Private (HR Payroll, Admin)
  */
-export const getOperationalAlerts = asyncHandler(async(req, res, next) => {
-    const alerts = [];
+export const getOperationalAlerts = asyncHandler(async (req, res, next) => {
+  const alerts = [];
 
-    // 1. Payroll warnings (unresolved)
-    const warnings = await PayrollWarning.findAll({
-        where: { resolved: false },
-        include: [{
-            model: Employee,
-            as: 'employee',
-            attributes: ['id', 'employeeCode', 'firstName', 'lastName'],
-        }, ],
-        order: [
-            ['severity', 'ASC']
-        ],
-        limit: 20,
-    });
-
-    warnings.forEach((warning) => {
-        alerts.push({
-            type: warning.warningType,
-            severity: warning.severity,
-            message: warning.message,
-            employeeName: warning.employee?.fullName,
-            createdAt: warning.createdAt,
-        });
-    });
-
-    // 2. Employees with missing bank details
-    const employeesMissingBank = await Employee.findAll({
-        where: {
-            status: 'ACTIVE',
-            [Op.or]: [
-                { bankAccountNumber: null },
-                { bankAccountNumber: '' },
-                { bankName: null },
-                { bankName: '' },
-            ],
-        },
+  // 1. Payroll warnings (unresolved)
+  const warnings = await PayrollWarning.findAll({
+    where: { resolved: false },
+    include: [
+      {
+        model: Employee,
+        as: 'employee',
         attributes: ['id', 'employeeCode', 'firstName', 'lastName'],
+      },
+    ],
+    order: [['severity', 'ASC']],
+    limit: 20,
+  });
+
+  warnings.forEach((warning) => {
+    alerts.push({
+      type: warning.warningType,
+      severity: warning.severity,
+      message: warning.message,
+      employeeName: warning.employee?.fullName,
+      createdAt: warning.createdAt,
+    });
+  });
+
+  // 2. Employees with missing bank details
+  const employeesMissingBank = await Employee.findAll({
+    where: {
+      status: 'ACTIVE',
+      [Op.or]: [
+        { bankAccountNumber: null },
+        { bankAccountNumber: '' },
+        { bankName: null },
+        { bankName: '' },
+      ],
+    },
+    attributes: ['id', 'employeeCode', 'firstName', 'lastName'],
+  });
+
+  employeesMissingBank.forEach((employee) => {
+    alerts.push({
+      type: 'MISSING_BANK_DETAILS',
+      severity: 'WARNING',
+      message: `Employee ${employee.employeeCode} has missing bank details`,
+      employeeName: employee.fullName,
+    });
+  });
+
+  // 3. Employees with no active contract
+  const employeesWithoutContract = await Employee.findAll({
+    where: { status: 'ACTIVE' },
+    attributes: ['id', 'employeeCode', 'firstName', 'lastName'],
+  });
+
+  for (const employee of employeesWithoutContract) {
+    const activeContract = await Contract.findOne({
+      where: {
+        employeeId: employee.id,
+        status: 'ACTIVE',
+      },
     });
 
-    employeesMissingBank.forEach((employee) => {
-        alerts.push({
-            type: 'MISSING_BANK_DETAILS',
-            severity: 'WARNING',
-            message: `Employee ${employee.employeeCode} has missing bank details`,
-            employeeName: employee.fullName,
-        });
-    });
-
-    // 3. Employees with no active contract
-    const employeesWithoutContract = await Employee.findAll({
-        where: { status: 'ACTIVE' },
-        attributes: ['id', 'employeeCode', 'firstName', 'lastName'],
-    });
-
-    for (const employee of employeesWithoutContract) {
-        const activeContract = await Contract.findOne({
-            where: {
-                employeeId: employee.id,
-                status: 'ACTIVE',
-            },
-        });
-
-        if (!activeContract) {
-            alerts.push({
-                type: 'MISSING_CONTRACT',
-                severity: 'ERROR',
-                message: `Employee ${employee.employeeCode} has no active contract`,
-                employeeName: employee.fullName,
-            });
-        }
+    if (!activeContract) {
+      alerts.push({
+        type: 'MISSING_CONTRACT',
+        severity: 'ERROR',
+        message: `Employee ${employee.employeeCode} has no active contract`,
+        employeeName: employee.fullName,
+      });
     }
+  }
 
-    res.status(200).json({
-        success: true,
-        count: alerts.length,
-        data: alerts,
-    });
-});
-
-// ============ COMPLETE DASHBOARD ============
-
-/**
- * @desc    Get complete dashboard data
- * @route   GET /api/dashboard
- * @access  Private (HR Payroll, Admin)
- */
-export const getCompleteDashboard = asyncHandler(async(req, res, next) => {
-    const { periodStart, periodEnd, departmentId, employeeTypeId } = req.query;
-
-    // Get all KPIs
-    const kpis = await getDashboardKPIs(req, res);
-
-    // Get department breakdown
-    const departmentBreakdown = await getSalaryByDepartment(req, res);
-
-    // Get monthly trends
-    const monthlyTrends = await getMonthlyTrends(req, res);
-
-    // Get attendance overview
-    const attendanceOverview = await getAttendanceOverview(req, res);
-
-    // Get time off overview
-    const timeOffOverview = await getTimeOffOverview(req, res);
-
-    // Get alerts
-    const alerts = await getOperationalAlerts(req, res);
-
-    res.status(200).json({
-        success: true,
-        data: {
-            kpis: kpis.data,
-            departmentBreakdown: departmentBreakdown.data,
-            monthlyTrends: monthlyTrends.data,
-            attendanceOverview: attendanceOverview.data,
-            timeOffOverview: timeOffOverview.data,
-            alerts: alerts.data,
-        },
-    });
+  res.status(200).json({
+    success: true,
+    count: alerts.length,
+    data: alerts,
+  });
 });

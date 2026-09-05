@@ -12,12 +12,12 @@ export const contractApi = {
   },
 
   async getContractsByEmployee(employeeId) {
-    const response = await apiClient.get(`/contracts/employee/${employeeId}`);
+    const response = await apiClient.get(`/employees/${employeeId}/contracts`);
     return response.data;
   },
 
   async getActiveContract(employeeId) {
-    const response = await apiClient.get(`/contracts/active/${employeeId}`);
+    const response = await apiClient.get(`/employees/${employeeId}/active-contract`);
     return response.data;
   },
 
@@ -34,21 +34,6 @@ export const contractApi = {
   async deleteContract(id) {
     const response = await apiClient.delete(`/contracts/${id}`);
     return response.data;
-  },
-
-  async terminateContract(id, data = {}) {
-    const response = await apiClient.post(`/contracts/${id}/terminate`, data);
-    return response.data;
-  },
-
-  async activateContract(id) {
-    const response = await apiClient.post(`/contracts/${id}/activate`);
-    return response.data;
-  },
-
-  // Alias for compatibility
-  async archiveContract(id) {
-    return this.terminateContract(id);
   },
 };
 

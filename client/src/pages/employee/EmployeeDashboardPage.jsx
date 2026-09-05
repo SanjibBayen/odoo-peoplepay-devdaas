@@ -1,31 +1,187 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import PageHeader from '../../components/common/PageHeader.jsx';
 import StatCard from '../../components/common/StatCard.jsx';
 import AttendanceCard from '../../components/dashboard/AttendanceCard.jsx';
 import QuickActionCard from '../../components/dashboard/QuickActionCard.jsx';
 import UpcomingCard from '../../components/dashboard/UpcomingCard.jsx';
-import { EMPLOYEE_DATA } from '../../data/employeeDashboardData.js';
+import { attendanceApi } from '../../services/attendanceApi.js';
+import { timeOffApi } from '../../services/timeOffApi.js';
+import { dashboardApi } from '../../services/dashboardApi.js';
+import { useAuth } from '../../hooks/useAuth.js';
 
 /**
  * Compact, modern Employee Dashboard for PeoplePay.
  * 4 KPIs • 2 Main Content Cards • 3 Quick Actions
  */
 export default function EmployeeDashboardPage() {
-  const {
-    user,
-    kpis,
-    attendanceToday,
-    quickActions,
-    upcoming,
-  } = EMPLOYEE_DATA;
-
+  const { user } = useAuth();
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [dashboardData, setDashboardData] = useState({
+    kpis: [],
+    attendanceToday: null,
+    upcoming: [],
+    quickActions: [],
+  });
   const [modalAction, setModalAction] = useState(null);
+
+  useEffect(() => {
+    const fetchDashboard = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+
+        // Fetch employee dashboard data (correct endpoint)
+        const dashboardRes = await dashboardApi.getEmployeeDashboard().catch(() => ({
+          data: null,
+        }));
+
+        const data = dashboardRes?.data || null;
+
+        // Build KPIs from employee dashboard data
+        const kpis = data
+          ? [
+              {
+                id: 1,
+                label: 'Attendance Rate',
+                value: `${data.metrics?.attendanceRate ?? 100}%`,
+                badgeText:
+                  data.metrics?.presentDays > 0 ? '+ On Track' : 'No Records',
+                hint: `${data.metrics?.presentDays ?? 0} days present`,
+                iconType: 'check',
+                bgColor: 'bg-emerald-50',
+                borderColor: 'border-emerald-200',
+                iconBg: 'bg-emerald-100',
+                valueColor: 'text-emerald-700',
+              },
+              {
+                id: 2,
+                label: 'Leave Balance',
+                value: `${data.metrics?.leaveBalance ?? 0} Days`,
+                badgeText: 'Available',
+                hint: 'Annual leave',
+                iconType: 'calendar',
+                bgColor: 'bg-blue-50',
+                borderColor: 'border-blue-200',
+                iconBg: 'bg-blue-100',
+                valueColor: 'text-blue-700',
+              },
+              {
+                id: 3,
+                label: 'Pending Requests',
+                value: `${data.metrics?.pendingRequests ?? 0}`,
+                badgeText: 'Awaiting',
+                hint: 'Time off requests',
+                iconType: 'clock',
+                bgColor: 'bg-amber-50',
+                borderColor: 'border-amber-200',
+                iconBg: 'bg-amber-100',
+                valueColor: 'text-amber-700',
+              },
+              {
+                id: 4,
+                label: 'Today Status',
+                value: data.today?.attendance?.status || 'No Check-in',
+                badgeText: data.today?.attendance ? 'Logged' : 'Pending',
+                hint: data.today?.attendance?.checkIn
+                  ? `In: ${new Date(data.today.attendance.checkIn).toLocaleTimeString()}`
+                  : 'Not checked in',
+                iconType: 'user',
+                bgColor: 'bg-purple-50',
+                borderColor: 'border-purple-200',
+                iconBg: 'bg-purple-100',
+                valueColor: 'text-purple-700',
+              },
+            ]
+          : [];
+
+        // Build attendance card data
+        const attendanceToday = data?.today?.attendance
+          ? {
+              checkIn: data.today.attendance.checkIn,
+              checkOut: data.today.attendance.checkOut,
+              status: data.today.attendance.status,
+              workedMinutes: data.today.attendance.workedMinutes || 0,
+              lateMinutes: data.today.attendance.lateMinutes || 0,
+              schedule: data.today.schedule,
+            }
+          : null;
+
+        // Build upcoming leaves from pending requests
+        const upcomingLeaves = (data?.pendingRequests || [])
+          .filter((r) => new Date(r.startDate) >= new Date())
+          .slice(0, 3)
+          .map((r) => ({
+            id: r.id,
+            title: r.type || 'Leave',
+            subtitle: `${r.startDate} to ${r.endDate}`,
+            status: r.status,
+          }));
+
+        // Build quick actions
+        const quickActions = [
+          {
+            id: 1,
+            title: 'Check In',
+            subtitle: 'Mark your attendance for today',
+            iconType: 'login',
+          },
+          {
+            id: 2,
+            title: 'Request Time Off',
+            subtitle: 'Submit a leave request',
+            iconType: 'calendar',
+          },
+          {
+            id: 3,
+            title: 'View Payslips',
+            subtitle: 'Access your salary slips',
+            iconType: 'document',
+          },
+        ];
+
+        setDashboardData({
+          kpis,
+          attendanceToday,
+          upcoming: upcomingLeaves,
+          quickActions,
+        });
+      } catch (err) {
+        console.error('Failed to fetch dashboard:', err);
+        setError('Failed to load dashboard data');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDashboard();
+  }, []);
+
+  const { kpis, attendanceToday, upcoming, quickActions } = dashboardData;
+
+  if (loading) {
+    return (
+      <div className='flex items-center justify-center h-64'>
+        <div className='text-gray-400 text-sm'>Loading dashboard...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className='flex items-center justify-center h-64'>
+        <div className='text-red-500 text-sm'>{error}</div>
+      </div>
+    );
+  }
+
+  const firstName = user?.firstName || 'there';
 
   return (
     <div className='space-y-5'>
       {/* Compact Page Header */}
       <PageHeader
-        title={`Good morning, ${user.firstName}`}
+        title={`Good morning, ${firstName}`}
         subtitle="Here's what's happening with your work today."
         handwrittenNote='Your work, all in one place.'
         actions={
