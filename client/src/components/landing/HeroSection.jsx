@@ -1,6 +1,6 @@
 import React from 'react';
 
-export default function HeroSection() {
+export default function HeroSection({ onOpenWorkspaceModal }) {
   return (
     <section
       id='home'
@@ -65,7 +65,7 @@ export default function HeroSection() {
                 <button
                   type='button'
                   className='px-7 py-3.5 text-base font-bold text-white bg-[#714B67] hover:bg-[#5E3E56] rounded-full shadow-md hover:shadow-lg transition-all transform hover:-translate-y-0.5 cursor-pointer flex items-center gap-2'
-                  onClick={() => alert('Get Started')}
+                  onClick={onOpenWorkspaceModal}
                 >
                   <span>Get Started</span>
                   <span className='text-lg'>→</span>
@@ -177,7 +177,7 @@ export default function HeroSection() {
                       P
                     </div>
                     <span className='text-xs font-bold text-[#1E293B]'>
-                      PeoplePay360
+                      PeoplePay
                     </span>
                   </div>
                 </div>

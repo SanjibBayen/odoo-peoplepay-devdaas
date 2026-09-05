@@ -1,6 +1,11 @@
 import React from 'react';
-import LandingPage from './pages/public/LandingPage.jsx';
+import { BrowserRouter } from 'react-router-dom';
+import AppRoutes from './routes/AppRoutes.jsx';
 
 export default function App() {
-  return <LandingPage />;
+  return (
+    <BrowserRouter>
+      <AppRoutes />
+    </BrowserRouter>
+  );
 }
