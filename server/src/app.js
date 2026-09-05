@@ -50,6 +50,7 @@ app.get('/api/health', async(req, res) => {
     }
 });
 
+<<<<<<< HEAD
 // Import routes
 import authRoutes from './routes/auth.routes.js';
 import employeeRoutes from './routes/employee.routes.js';
@@ -57,14 +58,29 @@ import departmentRoutes from './routes/department.routes.js';
 // import jobPositionRoutes from './routes/jobPosition.routes.js';
 // import employeeTypeRoutes from './routes/employeeType.routes.js';
 import contractRoutes from './routes/contract.routes.js';
+=======
+// API routes
+
+import authRoutes from './routes/auth.routes.js';
+import employeeRoutes from './routes/employee.routes.js';
+import departmentRoutes from './routes/department.routes.js';
+import jobPositionRoutes from './routes/jobPosition.routes.js';
+import employeeTypeRoutes from './routes/employeeType.routes.js';
+>>>>>>> 257a0451e9bdb40ccb92bbf0f0ebbde8d4e34219
 
 // Mount routes
+// API routes
 app.use('/api/auth', authRoutes);
 app.use('/api/employees', employeeRoutes);
 app.use('/api/departments', departmentRoutes);
+<<<<<<< HEAD
 // app.use('/api/job-positions', jobPositionRoutes);
 // app.use('/api/employee-types', employeeTypeRoutes);
 app.use('/api/contracts', contractRoutes);
+=======
+app.use('/api/job-positions', jobPositionRoutes);
+app.use('/api/employee-types', employeeTypeRoutes);
+>>>>>>> 257a0451e9bdb40ccb92bbf0f0ebbde8d4e34219
 
 // 404 handler
 app.use(notFound);
