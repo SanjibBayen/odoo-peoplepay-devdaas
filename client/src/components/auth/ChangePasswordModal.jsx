@@ -50,6 +50,26 @@ export default function ChangePasswordModal({ isOpen, onClose }) {
       return;
     }
 
+    if (!/[A-Z]/.test(newPassword)) {
+      setErrorMessage('New password must contain at least one uppercase letter.');
+      return;
+    }
+
+    if (!/[a-z]/.test(newPassword)) {
+      setErrorMessage('New password must contain at least one lowercase letter.');
+      return;
+    }
+
+    if (!/[0-9]/.test(newPassword)) {
+      setErrorMessage('New password must contain at least one number.');
+      return;
+    }
+
+    if (!/[!@#$%^&*(),.?":{}|<>]/.test(newPassword)) {
+      setErrorMessage('New password must contain at least one special character.');
+      return;
+    }
+
     if (currentPassword === newPassword) {
       setErrorMessage('New password must be different from current password.');
       return;

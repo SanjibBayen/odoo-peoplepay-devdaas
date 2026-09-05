@@ -23,7 +23,7 @@ export default function AdminDashboardPage() {
       <PageHeader
         title='System Administration'
         subtitle='Platform governance, security controls, multi-role RBAC, and audit logs.'
-        handwrittenNote='Total security & control ⚡'
+        handwrittenNote='Total security & control'
         actions={
           <span className='text-[10px] font-bold px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200'>
             ● ISO 27001 Certified

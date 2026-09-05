@@ -20,12 +20,11 @@ export default function CTASection({ onOpenWorkspaceModal }) {
           />
 
           <div className='relative z-10 max-w-2xl mx-auto space-y-4'>
-            {/* Handwritten Note with Doodle */}
+            {/* Handwritten Note with Subtle Highlight */}
             <div className='inline-flex items-center gap-2 select-none -rotate-1'>
               <span className='font-handwriting text-xl sm:text-2xl font-bold text-teal-800 marker-yellow px-2.5 py-0.5'>
                 Let’s make work simpler.
               </span>
-              <span className='text-lg'>✨</span>
             </div>
 
             {/* Main Heading */}

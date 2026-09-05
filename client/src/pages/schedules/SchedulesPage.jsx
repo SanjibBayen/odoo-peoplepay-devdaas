@@ -3,6 +3,7 @@ import PageHeader from '../../components/common/PageHeader.jsx';
 import LoadingState from '../../components/common/LoadingState.jsx';
 import ErrorState from '../../components/common/ErrorState.jsx';
 import EmptyState from '../../components/common/EmptyState.jsx';
+import BackButton from '../../components/common/BackButton.jsx';
 import scheduleApi from '../../services/scheduleApi.js';
 import {
   calculateDailyHours,
@@ -37,6 +38,8 @@ export default function SchedulesPage() {
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingSchedule, setEditingSchedule] = useState(null);
+  const [formError, setFormError] = useState(null);
+  const [statusBanner, setStatusBanner] = useState(null);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -64,6 +67,7 @@ export default function SchedulesPage() {
 
   const handleOpenAdd = () => {
     setEditingSchedule(null);
+    setFormError(null);
     setFormData({
       name: '',
       code: `SCH-${Date.now().toString().slice(-4)}`,
@@ -75,6 +79,7 @@ export default function SchedulesPage() {
 
   const handleOpenEdit = (sch) => {
     setEditingSchedule(sch);
+    setFormError(null);
     setFormData({
       name: sch.name,
       code: sch.code,
@@ -97,16 +102,20 @@ export default function SchedulesPage() {
 
   const handleSave = async (e) => {
     e.preventDefault();
+    setFormError(null);
     try {
       if (editingSchedule) {
         await scheduleApi.updateSchedule(editingSchedule.id, formData);
+        setStatusBanner({ type: 'success', text: 'Schedule updated successfully.' });
       } else {
         await scheduleApi.createSchedule(formData);
+        setStatusBanner({ type: 'success', text: 'Schedule created successfully.' });
       }
+      setTimeout(() => setStatusBanner(null), 4000);
       setIsModalOpen(false);
       await loadSchedules();
     } catch (err) {
-      alert(err.message || 'Failed to save schedule');
+      setFormError(err.message || 'Failed to save schedule');
     }
   };
 
@@ -129,6 +138,18 @@ export default function SchedulesPage() {
           </button>
         }
       />
+
+      {statusBanner && (
+        <div
+          className={`p-3 rounded-xl border text-xs font-semibold ${
+            statusBanner.type === 'success'
+              ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+              : 'bg-rose-50 border-rose-200 text-rose-800'
+          }`}
+        >
+          {statusBanner.text}
+        </div>
+      )}
 
       {loading ? (
         <LoadingState message='Loading working schedules...' />
@@ -243,6 +264,12 @@ export default function SchedulesPage() {
                 ✕
               </button>
             </div>
+
+            {formError && (
+              <div className='p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-semibold'>
+                {formError}
+              </div>
+            )}
 
             <form onSubmit={handleSave} className='space-y-4 text-xs'>
               <div className='grid grid-cols-2 gap-3'>
@@ -395,13 +422,7 @@ export default function SchedulesPage() {
               </div>
 
               <div className='pt-2 flex items-center justify-end gap-2 border-t border-gray-100'>
-                <button
-                  type='button'
-                  onClick={() => setIsModalOpen(false)}
-                  className='px-3.5 py-2 font-bold text-gray-600 hover:bg-gray-100 rounded-xl cursor-pointer'
-                >
-                  Cancel
-                </button>
+                <BackButton label='Cancel' onClick={() => setIsModalOpen(false)} />
                 <button
                   type='submit'
                   className='px-4 py-2 font-bold text-white bg-[#714B67] hover:bg-[#5E3E56] rounded-xl shadow-xs cursor-pointer'

@@ -94,7 +94,7 @@ export default function HeroSection({ onOpenWorkspaceModal }) {
                   <path d='M6 25 L 8 19 L 14 21' />
                 </svg>
                 <span className='font-handwriting text-xl text-gray-700 font-semibold'>
-                  Less manual work → More time for people   😊
+                  Less manual work → More time for people
                 </span>
               </div>
             </div>
@@ -103,20 +103,20 @@ export default function HeroSection({ onOpenWorkspaceModal }) {
             <div className='pt-4 border-t border-gray-200/80 flex items-center gap-4'>
               <div className='flex -space-x-2.5 overflow-hidden'>
                 {/* Avatar 1 */}
-                <div className='w-10 h-10 rounded-full border-2 border-white bg-blue-100 flex items-center justify-center text-sm font-bold text-blue-700 shadow-xs'>
-                  👨‍💼
+                <div className='w-10 h-10 rounded-full border-2 border-white bg-blue-100 flex items-center justify-center text-xs font-bold text-blue-700 shadow-xs'>
+                  AM
                 </div>
                 {/* Avatar 2 */}
-                <div className='w-10 h-10 rounded-full border-2 border-white bg-amber-100 flex items-center justify-center text-sm font-bold text-amber-700 shadow-xs'>
-                  👩‍💼
+                <div className='w-10 h-10 rounded-full border-2 border-white bg-amber-100 flex items-center justify-center text-xs font-bold text-amber-700 shadow-xs'>
+                  SK
                 </div>
                 {/* Avatar 3 */}
-                <div className='w-10 h-10 rounded-full border-2 border-white bg-emerald-100 flex items-center justify-center text-sm font-bold text-emerald-700 shadow-xs'>
-                  🧑‍💻
+                <div className='w-10 h-10 rounded-full border-2 border-white bg-emerald-100 flex items-center justify-center text-xs font-bold text-emerald-700 shadow-xs'>
+                  RJ
                 </div>
                 {/* Avatar 4 */}
-                <div className='w-10 h-10 rounded-full border-2 border-white bg-purple-100 flex items-center justify-center text-sm font-bold text-purple-700 shadow-xs'>
-                  👩‍🔬
+                <div className='w-10 h-10 rounded-full border-2 border-white bg-purple-100 flex items-center justify-center text-xs font-bold text-purple-700 shadow-xs'>
+                  LT
                 </div>
               </div>
               <div className='flex items-center gap-2'>
@@ -124,7 +124,6 @@ export default function HeroSection({ onOpenWorkspaceModal }) {
                   Trusted by HR teams <br />
                   across growing organizations
                 </p>
-                <span className='text-rose-400 text-lg'>♥</span>
               </div>
             </div>
           </div>
@@ -209,22 +208,22 @@ export default function HeroSection({ onOpenWorkspaceModal }) {
                 {/* Left Mini-Sidebar */}
                 <div className='hidden sm:block sm:col-span-3 bg-gray-50/70 border-r border-gray-100 p-3 space-y-1'>
                   <div className='px-2.5 py-1.5 rounded-lg bg-purple-100/70 text-[#714B67] text-xs font-bold flex items-center gap-2'>
-                    <span>📊</span> Dashboard
+                    <svg className='w-3.5 h-3.5' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='2'><rect width='7' height='9' x='3' y='3' rx='1'/><rect width='7' height='5' x='14' y='3' rx='1'/><rect width='7' height='9' x='14' y='12' rx='1'/><rect width='7' height='5' x='3' y='16' rx='1'/></svg> Dashboard
                   </div>
                   <div className='px-2.5 py-1.5 text-xs text-gray-600 font-medium flex items-center gap-2 hover:bg-gray-100 rounded-lg'>
-                    <span>👥</span> Employees
+                    <svg className='w-3.5 h-3.5' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='2'><path d='M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2'/><circle cx='9' cy='7' r='4'/></svg> Employees
                   </div>
                   <div className='px-2.5 py-1.5 text-xs text-gray-600 font-medium flex items-center gap-2 hover:bg-gray-100 rounded-lg'>
-                    <span>⏱️</span> Attendance
+                    <svg className='w-3.5 h-3.5' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='2'><circle cx='12' cy='12' r='10'/><polyline points='12 6 12 12 16 14'/></svg> Attendance
                   </div>
                   <div className='px-2.5 py-1.5 text-xs text-gray-600 font-medium flex items-center gap-2 hover:bg-gray-100 rounded-lg'>
-                    <span>🌴</span> Time Off
+                    <svg className='w-3.5 h-3.5' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='2'><rect width='18' height='18' x='3' y='4' rx='2'/><line x1='16' x2='16' y1='2' y2='6'/><line x1='8' x2='8' y1='2' y2='6'/><line x1='3' x2='21' y1='10' y2='10'/></svg> Time Off
                   </div>
                   <div className='px-2.5 py-1.5 text-xs text-gray-600 font-medium flex items-center gap-2 hover:bg-gray-100 rounded-lg'>
-                    <span>💰</span> Payroll
+                    <svg className='w-3.5 h-3.5' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='2'><rect width='20' height='14' x='2' y='5' rx='2'/><line x1='2' x2='22' y1='10' y2='10'/></svg> Payroll
                   </div>
                   <div className='px-2.5 py-1.5 text-xs text-gray-400 font-medium flex items-center gap-2'>
-                    <span>📈</span> Reports
+                    <svg className='w-3.5 h-3.5' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='2'><path d='M3 3v18h18'/><path d='m19 9-5 5-4-4-3 3'/></svg> Reports
                   </div>
                 </div>
 
@@ -233,7 +232,7 @@ export default function HeroSection({ onOpenWorkspaceModal }) {
                   {/* Greeting Row */}
                   <div>
                     <h2 className='text-base sm:text-lg font-bold text-[#1E293B]'>
-                      Good Morning, Sarah! 👋
+                      Good Morning, Sarah!
                     </h2>
                     <p className='text-xs text-gray-500'>
                       Here’s what’s happening in your workforce today.

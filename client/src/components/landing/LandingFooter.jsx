@@ -60,20 +60,14 @@ export default function LandingFooter({ onOpenWorkspaceModal }) {
           <div className='flex items-center gap-6 font-medium'>
             <a
               href='#privacy'
-              onClick={(e) => {
-                e.preventDefault();
-                alert('Privacy Policy');
-              }}
+              onClick={(e) => e.preventDefault()}
               className='hover:text-gray-800 transition-colors'
             >
               Privacy
             </a>
             <a
               href='#terms'
-              onClick={(e) => {
-                e.preventDefault();
-                alert('Terms of Service');
-              }}
+              onClick={(e) => e.preventDefault()}
               className='hover:text-gray-800 transition-colors'
             >
               Terms

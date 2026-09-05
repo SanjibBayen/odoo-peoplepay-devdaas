@@ -4,6 +4,7 @@ import LoadingState from '../../components/common/LoadingState.jsx';
 import ErrorState from '../../components/common/ErrorState.jsx';
 import EmptyState from '../../components/common/EmptyState.jsx';
 import Pagination from '../../components/common/Pagination.jsx';
+import BackButton from '../../components/common/BackButton.jsx';
 import timeOffApi from '../../services/timeOffApi.js';
 import { getEmployees } from '../../data/employeeStore.js';
 import {
@@ -18,6 +19,7 @@ export default function TimeOffPage() {
   const [leaveTypes, setLeaveTypes] = useState(() => INITIAL_LEAVE_TYPES);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [statusBanner, setStatusBanner] = useState(null);
 
   const [selectedStatus, setSelectedStatus] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
@@ -90,6 +92,8 @@ export default function TimeOffPage() {
       });
       setIsModalOpen(false);
       await loadData();
+      setStatusBanner({ type: 'success', text: 'Time off request submitted successfully.' });
+      setTimeout(() => setStatusBanner(null), 4000);
     } catch (err) {
       setFormError(err.message || 'Failed to submit time off request');
     }
@@ -99,8 +103,11 @@ export default function TimeOffPage() {
     try {
       await timeOffApi.approveRequest(id, { reviewNotes: 'Approved' });
       await loadData();
+      setStatusBanner({ type: 'success', text: 'Time off request approved.' });
+      setTimeout(() => setStatusBanner(null), 4000);
     } catch (err) {
-      alert(err.message || 'Failed to approve');
+      setStatusBanner({ type: 'error', text: err.message || 'Failed to approve request' });
+      setTimeout(() => setStatusBanner(null), 4000);
     }
   };
 
@@ -108,8 +115,11 @@ export default function TimeOffPage() {
     try {
       await timeOffApi.rejectRequest(id, { reason: 'Schedule clash' });
       await loadData();
+      setStatusBanner({ type: 'success', text: 'Time off request rejected.' });
+      setTimeout(() => setStatusBanner(null), 4000);
     } catch (err) {
-      alert(err.message || 'Failed to reject');
+      setStatusBanner({ type: 'error', text: err.message || 'Failed to reject request' });
+      setTimeout(() => setStatusBanner(null), 4000);
     }
   };
 
@@ -147,6 +157,18 @@ export default function TimeOffPage() {
           </button>
         }
       />
+
+      {statusBanner && (
+        <div
+          className={`p-3 rounded-xl border text-xs font-semibold ${
+            statusBanner.type === 'success'
+              ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+              : 'bg-rose-50 border-rose-200 text-rose-800'
+          }`}
+        >
+          {statusBanner.text}
+        </div>
+      )}
 
       {/* Allocation Balances Strip */}
       <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5'>
@@ -193,8 +215,10 @@ export default function TimeOffPage() {
               placeholder='Search by employee or leave type...'
               className='w-full pl-8 pr-3 py-1.5 rounded-xl border border-gray-200 bg-[#FAF8F5] text-xs font-medium text-gray-800 placeholder-gray-400 focus:bg-white focus:outline-none focus:ring-1 focus:ring-[#714B67]'
             />
-            <span className='absolute left-2.5 top-2 text-gray-400 text-xs'>
-              🔍
+            <span className='absolute left-2.5 top-2 text-gray-400'>
+              <svg className='w-3.5 h-3.5' fill='none' stroke='currentColor' viewBox='0 0 24 24' strokeWidth='2'>
+                <path strokeLinecap='round' strokeLinejoin='round' d='M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z' />
+              </svg>
             </span>
           </div>
 
@@ -440,13 +464,7 @@ export default function TimeOffPage() {
               </div>
 
               <div className='pt-2 flex items-center justify-end gap-2 border-t border-gray-100'>
-                <button
-                  type='button'
-                  onClick={() => setIsModalOpen(false)}
-                  className='px-3.5 py-2 font-bold text-gray-600 hover:bg-gray-100 rounded-xl cursor-pointer'
-                >
-                  Cancel
-                </button>
+                <BackButton label='Cancel' onClick={() => setIsModalOpen(false)} />
                 <button
                   type='submit'
                   className='px-4 py-2 font-bold text-white bg-[#714B67] hover:bg-[#5E3E56] rounded-xl shadow-xs cursor-pointer'

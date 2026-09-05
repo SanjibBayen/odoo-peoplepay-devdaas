@@ -405,7 +405,9 @@ export default function EmployeeForm({
               type='submit'
               className='px-5 py-2 text-xs font-bold text-white bg-[#714B67] hover:bg-[#5E3E56] rounded-xl shadow-xs transition-colors cursor-pointer flex items-center gap-1.5'
             >
-              <span>💾</span>
+              <svg className='w-3.5 h-3.5' fill='none' stroke='currentColor' viewBox='0 0 24 24' strokeWidth='2.2'>
+                <path strokeLinecap='round' strokeLinejoin='round' d='M5 13l4 4L19 7' />
+              </svg>
               <span>{isEditing ? 'Save Changes' : 'Save Employee'}</span>
             </button>
           </div>

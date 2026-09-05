@@ -33,7 +33,7 @@ export default function HRManagerDashboardPage() {
       <PageHeader
         title='HR Manager Dashboard'
         subtitle='Workforce health, department staffing, and approval queues.'
-        handwrittenNote='People first. 🚀'
+        handwrittenNote='People first.'
         actions={
           <span className='text-[10px] font-bold px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200'>
             248 Total Headcount

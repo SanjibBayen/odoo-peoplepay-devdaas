@@ -3,6 +3,7 @@ import PageHeader from '../../components/common/PageHeader.jsx';
 import LoadingState from '../../components/common/LoadingState.jsx';
 import ErrorState from '../../components/common/ErrorState.jsx';
 import EmptyState from '../../components/common/EmptyState.jsx';
+import BackButton from '../../components/common/BackButton.jsx';
 import salaryStructureApi from '../../services/salaryStructureApi.js';
 import { getSalaryRulesFromStorage } from '../../data/salaryData.js';
 
@@ -12,6 +13,8 @@ export default function SalaryStructuresPage() {
   const [error, setError] = useState(null);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formError, setFormError] = useState(null);
   const [editingStructure, setEditingStructure] = useState(null);
 
   const availableRules = getSalaryRulesFromStorage();
@@ -77,6 +80,8 @@ export default function SalaryStructuresPage() {
 
   const handleSave = async (e) => {
     e.preventDefault();
+    setFormError(null);
+    setIsSubmitting(true);
     try {
       if (editingStructure) {
         await salaryStructureApi.updateSalaryStructure(editingStructure.id, formData);
@@ -86,7 +91,9 @@ export default function SalaryStructuresPage() {
       setIsModalOpen(false);
       await loadStructures();
     } catch (err) {
-      alert(err.message || 'Failed to save salary structure');
+      setFormError(err.message || 'Failed to save salary structure');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -201,10 +208,17 @@ export default function SalaryStructuresPage() {
                 type='button'
                 onClick={() => setIsModalOpen(false)}
                 className='text-gray-400 font-bold'
+                aria-label='Close'
               >
                 ✕
               </button>
             </div>
+
+            {formError && (
+              <div className='p-2.5 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs font-medium'>
+                {formError}
+              </div>
+            )}
 
             <form onSubmit={handleSave} className='space-y-3.5 text-xs'>
               <div>
@@ -268,18 +282,15 @@ export default function SalaryStructuresPage() {
               </div>
 
               <div className='pt-2 flex items-center justify-end gap-2 border-t border-gray-100'>
-                <button
-                  type='button'
-                  onClick={() => setIsModalOpen(false)}
-                  className='px-3.5 py-2 font-bold text-gray-600 hover:bg-gray-100 rounded-xl cursor-pointer'
-                >
-                  Cancel
-                </button>
+                <BackButton label='Cancel' onClick={() => setIsModalOpen(false)} />
                 <button
                   type='submit'
-                  className='px-4 py-2 font-bold text-white bg-[#714B67] hover:bg-[#5E3E56] rounded-xl shadow-xs cursor-pointer'
+                  disabled={isSubmitting}
+                  className={`px-4 py-2 font-bold text-white bg-[#714B67] hover:bg-[#5E3E56] rounded-xl shadow-xs cursor-pointer ${
+                    isSubmitting ? 'opacity-60 cursor-not-allowed' : ''
+                  }`}
                 >
-                  Save Structure
+                  {isSubmitting ? 'Saving...' : 'Save Structure'}
                 </button>
               </div>
             </form>

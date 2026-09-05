@@ -3,6 +3,7 @@ import PageHeader from '../../components/common/PageHeader.jsx';
 import LoadingState from '../../components/common/LoadingState.jsx';
 import ErrorState from '../../components/common/ErrorState.jsx';
 import EmptyState from '../../components/common/EmptyState.jsx';
+import BackButton from '../../components/common/BackButton.jsx';
 import payrunApi from '../../services/payrunApi.js';
 import { getEmployees } from '../../data/employeeStore.js';
 import { getSalaryStructuresFromStorage } from '../../data/salaryData.js';
@@ -12,6 +13,7 @@ export default function PayrunsPage() {
   const [payruns, setPayruns] = useState(() => getPayrunsFromStorage());
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [statusBanner, setStatusBanner] = useState(null);
 
   // Two-Step Creation Modal State
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -92,7 +94,7 @@ export default function PayrunsPage() {
 
   const handleFinalizeCreate = async () => {
     if (selectedEmployeeIds.length === 0) {
-      alert('Please select at least one employee for the payrun.');
+      setStatusBanner({ type: 'error', text: 'Please select at least one employee for the payrun.' });
       return;
     }
 
@@ -113,8 +115,10 @@ export default function PayrunsPage() {
       });
       setIsCreateModalOpen(false);
       await loadPayruns();
+      setStatusBanner({ type: 'success', text: 'Payrun batch created successfully.' });
+      setTimeout(() => setStatusBanner(null), 4000);
     } catch (err) {
-      alert(err.message || 'Failed to create payrun');
+      setStatusBanner({ type: 'error', text: err.message || 'Failed to create payrun' });
     }
   };
 
@@ -123,8 +127,10 @@ export default function PayrunsPage() {
     try {
       await payrunApi.computePayrun(id);
       await loadPayruns();
+      setStatusBanner({ type: 'success', text: 'Payrun computation complete.' });
+      setTimeout(() => setStatusBanner(null), 4000);
     } catch (err) {
-      alert(err.message || 'Computation failed');
+      setStatusBanner({ type: 'error', text: err.message || 'Computation failed' });
     }
   };
 
@@ -132,8 +138,10 @@ export default function PayrunsPage() {
     try {
       await payrunApi.validatePayrun(id);
       await loadPayruns();
+      setStatusBanner({ type: 'success', text: 'Payrun validated and approved for disbursal.' });
+      setTimeout(() => setStatusBanner(null), 4000);
     } catch (err) {
-      alert(err.message || 'Validation failed');
+      setStatusBanner({ type: 'error', text: err.message || 'Validation failed' });
     }
   };
 
@@ -141,17 +149,20 @@ export default function PayrunsPage() {
     try {
       await payrunApi.markPayrunPaid(id);
       await loadPayruns();
+      setStatusBanner({ type: 'success', text: 'Payrun marked as paid.' });
+      setTimeout(() => setStatusBanner(null), 4000);
     } catch (err) {
-      alert(err.message || 'Failed to mark as paid');
+      setStatusBanner({ type: 'error', text: err.message || 'Failed to mark as paid' });
     }
   };
 
   const handleSendPayslips = async (id) => {
     try {
       const res = await payrunApi.sendPayslips(id);
-      alert(res.message || 'Payslips dispatched to employees');
+      setStatusBanner({ type: 'success', text: res.message || 'Payslips dispatched to employees.' });
+      setTimeout(() => setStatusBanner(null), 4000);
     } catch (err) {
-      alert(err.message || 'Failed to send payslips');
+      setStatusBanner({ type: 'error', text: err.message || 'Failed to send payslips' });
     }
   };
 
@@ -171,6 +182,25 @@ export default function PayrunsPage() {
           </button>
         }
       />
+
+      {statusBanner && (
+        <div
+          className={`p-3.5 rounded-xl border text-xs font-semibold flex items-center justify-between animate-fadeIn ${
+            statusBanner.type === 'success'
+              ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+              : 'bg-red-50 border-red-200 text-red-800'
+          }`}
+        >
+          <span>{statusBanner.text}</span>
+          <button
+            type='button'
+            onClick={() => setStatusBanner(null)}
+            className='font-bold ml-2 cursor-pointer'
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       {loading ? (
         <LoadingState message='Loading payruns and computation status...' />
@@ -471,13 +501,7 @@ export default function PayrunsPage() {
                 </div>
 
                 <div className='pt-2 flex items-center justify-end gap-2 border-t border-gray-100'>
-                  <button
-                    type='button'
-                    onClick={() => setIsCreateModalOpen(false)}
-                    className='px-3.5 py-2 font-bold text-gray-600 hover:bg-gray-100 rounded-xl cursor-pointer'
-                  >
-                    Cancel
-                  </button>
+                  <BackButton label='Cancel' onClick={() => setIsCreateModalOpen(false)} />
                   <button
                     type='submit'
                     className='px-4 py-2 font-bold text-white bg-[#714B67] hover:bg-[#5E3E56] rounded-xl shadow-xs cursor-pointer'
@@ -538,13 +562,7 @@ export default function PayrunsPage() {
                 </div>
 
                 <div className='pt-2 flex items-center justify-between border-t border-gray-100'>
-                  <button
-                    type='button'
-                    onClick={() => setCreateStep(1)}
-                    className='px-3.5 py-2 font-bold text-gray-600 hover:bg-gray-100 rounded-xl cursor-pointer'
-                  >
-                    &larr; Back
-                  </button>
+                  <BackButton label='Back' onClick={() => setCreateStep(1)} />
                   <button
                     type='button'
                     onClick={handleFinalizeCreate}
@@ -613,13 +631,7 @@ export default function PayrunsPage() {
             </div>
 
             <div className='pt-2 flex justify-end border-t border-gray-100'>
-              <button
-                type='button'
-                onClick={() => setValidationModalPayrun(null)}
-                className='px-4 py-2 font-bold text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-xl cursor-pointer text-xs'
-              >
-                Close
-              </button>
+              <BackButton label='Close' onClick={() => setValidationModalPayrun(null)} />
             </div>
           </div>
         </div>

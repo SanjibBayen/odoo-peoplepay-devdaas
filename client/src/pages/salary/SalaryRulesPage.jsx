@@ -3,6 +3,7 @@ import PageHeader from '../../components/common/PageHeader.jsx';
 import LoadingState from '../../components/common/LoadingState.jsx';
 import ErrorState from '../../components/common/ErrorState.jsx';
 import EmptyState from '../../components/common/EmptyState.jsx';
+import BackButton from '../../components/common/BackButton.jsx';
 import salaryRuleApi from '../../services/salaryRuleApi.js';
 import { getSalaryRulesFromStorage, RULE_TYPES } from '../../data/salaryData.js';
 
@@ -16,6 +17,8 @@ export default function SalaryRulesPage() {
   const [error, setError] = useState(null);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formError, setFormError] = useState(null);
   const [editingRule, setEditingRule] = useState(null);
 
   const [formData, setFormData] = useState({
@@ -96,6 +99,8 @@ export default function SalaryRulesPage() {
     };
 
     try {
+      setFormError(null);
+      setIsSubmitting(true);
       if (editingRule) {
         await salaryRuleApi.updateSalaryRule(editingRule.id, payload);
       } else {
@@ -104,7 +109,9 @@ export default function SalaryRulesPage() {
       setIsModalOpen(false);
       await loadRules();
     } catch (err) {
-      alert(err.message || 'Failed to save rule');
+      setFormError(err.message || 'Failed to save rule');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -230,10 +237,17 @@ export default function SalaryRulesPage() {
                 type='button'
                 onClick={() => setIsModalOpen(false)}
                 className='text-gray-400 font-bold'
+                aria-label='Close'
               >
                 ✕
               </button>
             </div>
+
+            {formError && (
+              <div className='p-2.5 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs font-medium'>
+                {formError}
+              </div>
+            )}
 
             <form onSubmit={handleSave} className='space-y-3.5 text-xs'>
               <div className='grid grid-cols-2 gap-3'>
@@ -350,18 +364,15 @@ export default function SalaryRulesPage() {
               </div>
 
               <div className='pt-2 flex items-center justify-end gap-2 border-t border-gray-100'>
-                <button
-                  type='button'
-                  onClick={() => setIsModalOpen(false)}
-                  className='px-3.5 py-2 font-bold text-gray-600 hover:bg-gray-100 rounded-xl cursor-pointer'
-                >
-                  Cancel
-                </button>
+                <BackButton label='Cancel' onClick={() => setIsModalOpen(false)} />
                 <button
                   type='submit'
-                  className='px-4 py-2 font-bold text-white bg-[#714B67] hover:bg-[#5E3E56] rounded-xl shadow-xs cursor-pointer'
+                  disabled={isSubmitting}
+                  className={`px-4 py-2 font-bold text-white bg-[#714B67] hover:bg-[#5E3E56] rounded-xl shadow-xs cursor-pointer ${
+                    isSubmitting ? 'opacity-60 cursor-not-allowed' : ''
+                  }`}
                 >
-                  Save Rule
+                  {isSubmitting ? 'Saving...' : 'Save Rule'}
                 </button>
               </div>
             </form>

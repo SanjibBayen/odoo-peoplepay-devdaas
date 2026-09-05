@@ -4,7 +4,7 @@ import useLogout from '../../hooks/useLogout.js';
 
 /**
  * Accessible, collapsible off-canvas Sidebar Drawer for PeoplePay workspaces.
- * Closed by default on desktop & mobile; slides in from right when opened.
+ * Closed by default on desktop & mobile; slides in from left when opened.
  *
  * @param {Object} props
  * @param {boolean} props.isOpen - Whether the drawer is open

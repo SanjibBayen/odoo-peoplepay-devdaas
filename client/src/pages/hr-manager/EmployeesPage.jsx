@@ -126,7 +126,7 @@ export default function EmployeesPage() {
       <PageHeader
         title='Employees'
         subtitle='Manage your workforce.'
-        handwrittenNote='People ops in total sync 🚀'
+        handwrittenNote='People ops in total sync'
         actions={
           <button
             type='button'
@@ -227,7 +227,9 @@ export default function EmployeesPage() {
       {/* Toast Notification */}
       {toastMessage && (
         <div className='fixed bottom-6 right-6 z-50 bg-[#1E293B] text-white text-xs px-4 py-3 rounded-2xl shadow-xl flex items-center gap-2 animate-fadeIn'>
-          <span>✅</span>
+          <svg className='w-4 h-4 text-emerald-400 shrink-0' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='2.5'>
+            <path strokeLinecap='round' strokeLinejoin='round' d='M5 13l4 4L19 7' />
+          </svg>
           <span>{toastMessage}</span>
         </div>
       )}

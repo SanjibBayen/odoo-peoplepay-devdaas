@@ -6,6 +6,7 @@ import { getEmployees } from '../../data/employeeStore.js';
 
 export default function ProfilePage() {
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
+  const [hrNotice, setHrNotice] = useState(null);
   const employees = getEmployees();
   const currentEmployee = employees[0] || {
     id: 'emp-1',
@@ -55,12 +56,26 @@ export default function ProfilePage() {
         }
       />
 
+      {hrNotice && (
+        <div className='p-3.5 rounded-xl bg-blue-50 border border-blue-200 text-blue-900 text-xs flex items-center justify-between animate-fadeIn'>
+          <span>{hrNotice}</span>
+          <button
+            type='button'
+            onClick={() => setHrNotice(null)}
+            className='text-blue-700 font-bold ml-2 cursor-pointer'
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
       <EmployeeDetails
         employee={currentEmployee}
         onBack={() => window.history.back()}
-        onEdit={() =>
-          alert('Contact HR Manager to update official personnel records.')
-        }
+        onEdit={() => {
+          setHrNotice('To update official employment records or bank details, please contact your assigned HR Manager.');
+          setTimeout(() => setHrNotice(null), 6000);
+        }}
       />
 
       <ChangePasswordModal

@@ -5,6 +5,7 @@ import ErrorState from '../../components/common/ErrorState.jsx';
 import EmptyState from '../../components/common/EmptyState.jsx';
 import Pagination from '../../components/common/Pagination.jsx';
 import ConfirmDialog from '../../components/common/ConfirmDialog.jsx';
+import BackButton from '../../components/common/BackButton.jsx';
 import contractApi from '../../services/contractApi.js';
 import { getContractsFromStorage } from '../../data/contractsData.js';
 import { getEmployees } from '../../data/employeeStore.js';
@@ -25,6 +26,7 @@ export default function ContractsPage() {
   const [editingContract, setEditingContract] = useState(null);
   const [formError, setFormError] = useState(null);
   const [archiveTarget, setArchiveTarget] = useState(null);
+  const [statusBanner, setStatusBanner] = useState(null);
 
   // Reference data
   const employees = getEmployees();
@@ -108,9 +110,12 @@ export default function ContractsPage() {
     try {
       if (editingContract) {
         await contractApi.updateContract(editingContract.id, payload);
+        setStatusBanner({ type: 'success', text: 'Contract updated successfully.' });
       } else {
         await contractApi.createContract(payload);
+        setStatusBanner({ type: 'success', text: 'Contract created successfully.' });
       }
+      setTimeout(() => setStatusBanner(null), 4000);
       setIsModalOpen(false);
       await loadContracts();
     } catch (err) {
@@ -124,8 +129,12 @@ export default function ContractsPage() {
       await contractApi.archiveContract(archiveTarget.id);
       setArchiveTarget(null);
       await loadContracts();
+      setStatusBanner({ type: 'success', text: 'Contract archived successfully.' });
+      setTimeout(() => setStatusBanner(null), 4000);
     } catch (err) {
-      alert(err.message || 'Failed to archive contract');
+      setArchiveTarget(null);
+      setStatusBanner({ type: 'error', text: err.message || 'Failed to archive contract' });
+      setTimeout(() => setStatusBanner(null), 4000);
     }
   };
 
@@ -166,6 +175,18 @@ export default function ContractsPage() {
         }
       />
 
+      {statusBanner && (
+        <div
+          className={`p-3 rounded-xl border text-xs font-semibold ${
+            statusBanner.type === 'success'
+              ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+              : 'bg-rose-50 border-rose-200 text-rose-800'
+          }`}
+        >
+          {statusBanner.text}
+        </div>
+      )}
+
       {/* Filter Toolbar */}
       <div className='bg-white p-3 rounded-2xl border border-[#EAE6DF] shadow-2xs flex flex-wrap items-center justify-between gap-3'>
         <div className='flex flex-wrap items-center gap-2.5 flex-1 min-w-[280px]'>
@@ -180,8 +201,10 @@ export default function ContractsPage() {
               placeholder='Search by contract code, employee, or ID...'
               className='w-full pl-8 pr-3 py-1.5 rounded-xl border border-gray-200 bg-[#FAF8F5] text-xs font-medium text-gray-800 placeholder-gray-400 focus:bg-white focus:outline-none focus:ring-1 focus:ring-[#714B67]'
             />
-            <span className='absolute left-2.5 top-2 text-gray-400 text-xs'>
-              🔍
+            <span className='absolute left-2.5 top-2 text-gray-400'>
+              <svg className='w-3.5 h-3.5' fill='none' stroke='currentColor' viewBox='0 0 24 24' strokeWidth='2'>
+                <path strokeLinecap='round' strokeLinejoin='round' d='M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z' />
+              </svg>
             </span>
           </div>
 
@@ -447,13 +470,7 @@ export default function ContractsPage() {
               </div>
 
               <div className='pt-2 flex items-center justify-end gap-2 border-t border-gray-100'>
-                <button
-                  type='button'
-                  onClick={() => setIsModalOpen(false)}
-                  className='px-3.5 py-2 font-bold text-gray-600 hover:bg-gray-100 rounded-xl cursor-pointer'
-                >
-                  Cancel
-                </button>
+                <BackButton label='Cancel' onClick={() => setIsModalOpen(false)} />
                 <button
                   type='submit'
                   className='px-4 py-2 font-bold text-white bg-[#714B67] hover:bg-[#5E3E56] rounded-xl shadow-xs cursor-pointer'

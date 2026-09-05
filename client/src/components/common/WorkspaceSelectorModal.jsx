@@ -100,8 +100,34 @@ export default function WorkspaceSelectorModal({ isOpen, onClose }) {
               >
                 <div className='flex items-center gap-3.5'>
                   {/* Role Icon */}
-                  <div className='w-11 h-11 rounded-xl bg-purple-50/70 border border-purple-100 flex items-center justify-center text-2xl group-hover:scale-105 transition-transform shrink-0 select-none'>
-                    {role.icon}
+                  <div className='w-11 h-11 rounded-xl bg-[#FAF8F5] border border-[#EAE6DF] flex items-center justify-center group-hover:scale-105 transition-transform shrink-0 select-none'>
+                    {role.id === 'employee' ? (
+                      <svg className='w-5 h-5 text-emerald-700' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='2'>
+                        <path d='M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2' />
+                        <circle cx='9' cy='7' r='4' />
+                      </svg>
+                    ) : role.id === 'hr-manager' ? (
+                      <svg className='w-5 h-5 text-blue-700' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='2'>
+                        <path d='M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2' />
+                        <circle cx='9' cy='7' r='4' />
+                        <path d='M23 21v-2a4 4 0 0 0-3-3.87' />
+                        <path d='M16 3.13a4 4 0 0 1 0 7.75' />
+                      </svg>
+                    ) : role.id === 'hr-payroll-user' ? (
+                      <svg className='w-5 h-5 text-amber-700' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='2'>
+                        <line x1='12' x2='12' y1='2' y2='22' />
+                        <path d='M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6' />
+                      </svg>
+                    ) : role.id === 'hr-payroll-manager' ? (
+                      <svg className='w-5 h-5 text-purple-700' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='2'>
+                        <path d='M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10' />
+                      </svg>
+                    ) : (
+                      <svg className='w-5 h-5 text-rose-700' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='2'>
+                        <circle cx='12' cy='12' r='3' />
+                        <path d='M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z' />
+                      </svg>
+                    )}
                   </div>
 
                   {/* Role Details */}

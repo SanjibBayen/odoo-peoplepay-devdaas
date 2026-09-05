@@ -8,10 +8,10 @@ export const ROLES = {
     subtitle: 'Access your PeoplePay workspace.',
     loginRoute: '/login/employee',
     dashboardRoute: '/dashboard/employee',
-    icon: '🧑‍💻',
+    icon: 'EMP',
     tagline:
       'Your self-service workspace for clocking in, time off, and digital payslips.',
-    handwrittenNote: 'Attendance & payslips made easy ✨',
+    handwrittenNote: 'Attendance & payslips made easy',
     accentColor: '#10B981',
     badgeStyles: {
       bg: 'bg-emerald-50',
@@ -34,10 +34,10 @@ export const ROLES = {
     subtitle: 'Manage your people and HR operations.',
     loginRoute: '/login/hr-manager',
     dashboardRoute: '/dashboard/hr-manager',
-    icon: '👩‍💼',
+    icon: 'HRM',
     tagline:
       'Coordinate team structures, leave approvals, and employee onboarding.',
-    handwrittenNote: 'People ops in total sync 🚀',
+    handwrittenNote: 'People ops in total sync',
     accentColor: '#2563EB',
     badgeStyles: {
       bg: 'bg-blue-50',
@@ -60,10 +60,10 @@ export const ROLES = {
     subtitle: 'Manage payroll operations with confidence.',
     loginRoute: '/login/hr-payroll-user',
     dashboardRoute: '/dashboard/hr-payroll-user',
-    icon: '📊',
+    icon: 'HPU',
     tagline:
       'Execute precise salary runs, deductions, and attendance synchronizations.',
-    handwrittenNote: 'Precision in every calculation 🧮',
+    handwrittenNote: 'Precision in every calculation',
     accentColor: '#D97706',
     badgeStyles: {
       bg: 'bg-amber-50',
@@ -86,10 +86,10 @@ export const ROLES = {
     subtitle: 'Review, validate and manage payroll.',
     loginRoute: '/login/hr-payroll-manager',
     dashboardRoute: '/dashboard/hr-payroll-manager',
-    icon: '🛡️',
+    icon: 'HPM',
     tagline:
       'Authorize disbursements, review audit logs, and oversee payroll compliance.',
-    handwrittenNote: '100% compliant & approved 🔒',
+    handwrittenNote: '100% compliant & approved',
     accentColor: '#714B67',
     badgeStyles: {
       bg: 'bg-purple-50',
@@ -112,10 +112,10 @@ export const ROLES = {
     subtitle: 'Manage your PeoplePay organization.',
     loginRoute: '/login/admin',
     dashboardRoute: '/dashboard/admin',
-    icon: '⚙️',
+    icon: 'ADM',
     tagline:
       'Govern organization settings, user roles, security rules, and integrations.',
-    handwrittenNote: 'Total security & control ⚡',
+    handwrittenNote: 'Total security & control',
     accentColor: '#E11D48',
     badgeStyles: {
       bg: 'bg-rose-50',

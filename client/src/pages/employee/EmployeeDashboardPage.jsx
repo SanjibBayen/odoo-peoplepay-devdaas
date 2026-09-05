@@ -25,9 +25,9 @@ export default function EmployeeDashboardPage() {
     <div className='space-y-5'>
       {/* Compact Page Header */}
       <PageHeader
-        title={`Good morning, ${user.firstName} 👋`}
+        title={`Good morning, ${user.firstName}`}
         subtitle="Here's what's happening with your work today."
-        handwrittenNote='Your work, all in one place. ✨'
+        handwrittenNote='Your work, all in one place.'
         actions={
           <span className='text-[10px] font-bold px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200'>
             ● Shift Active

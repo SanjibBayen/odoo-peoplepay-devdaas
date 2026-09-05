@@ -7,7 +7,12 @@ export default function RolesSection() {
       name: 'Employee',
       desc: 'Clock in, request time off, and download digital payslips anytime.',
       badge: 'Self-Service',
-      icon: '🧑‍💻',
+      icon: (
+        <svg className='w-5 h-5 text-emerald-700' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='2'>
+          <path d='M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2' />
+          <circle cx='9' cy='7' r='4' />
+        </svg>
+      ),
       cardStyle:
         'bg-emerald-50/60 border-emerald-200/80 hover:border-emerald-300',
       badgeStyle: 'bg-emerald-100 text-emerald-800',
@@ -17,7 +22,14 @@ export default function RolesSection() {
       name: 'HR Manager',
       desc: 'Manage staff profiles, department structures, and approve leave requests.',
       badge: 'People Ops',
-      icon: '👩‍💼',
+      icon: (
+        <svg className='w-5 h-5 text-blue-700' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='2'>
+          <path d='M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2' />
+          <circle cx='9' cy='7' r='4' />
+          <path d='M23 21v-2a4 4 0 0 0-3-3.87' />
+          <path d='M16 3.13a4 4 0 0 1 0 7.75' />
+        </svg>
+      ),
       cardStyle: 'bg-blue-50/60 border-blue-200/80 hover:border-blue-300',
       badgeStyle: 'bg-blue-100 text-blue-800',
       route: '/login/hr-manager',
@@ -26,7 +38,12 @@ export default function RolesSection() {
       name: 'Payroll User',
       desc: 'Reconcile attendance logs and compute monthly salary batches.',
       badge: 'Calculations',
-      icon: '📊',
+      icon: (
+        <svg className='w-5 h-5 text-amber-700' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='2'>
+          <line x1='12' x2='12' y1='2' y2='22' />
+          <path d='M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6' />
+        </svg>
+      ),
       cardStyle: 'bg-amber-50/60 border-amber-200/80 hover:border-amber-300',
       badgeStyle: 'bg-amber-100 text-amber-800',
       route: '/login/hr-payroll-user',
@@ -35,7 +52,11 @@ export default function RolesSection() {
       name: 'Payroll Manager',
       desc: 'Verify wage computations and authorize final pay disbursements.',
       badge: 'Authorization',
-      icon: '🛡️',
+      icon: (
+        <svg className='w-5 h-5 text-purple-700' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='2'>
+          <path d='M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10' />
+        </svg>
+      ),
       cardStyle: 'bg-purple-50/60 border-purple-200/80 hover:border-purple-300',
       badgeStyle: 'bg-purple-100 text-purple-800',
       route: '/login/hr-payroll-manager',
@@ -44,7 +65,12 @@ export default function RolesSection() {
       name: 'Admin',
       desc: 'Configure organization settings, roles, and system security controls.',
       badge: 'Management',
-      icon: '⚙️',
+      icon: (
+        <svg className='w-5 h-5 text-rose-700' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='2'>
+          <circle cx='12' cy='12' r='3' />
+          <path d='M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z' />
+        </svg>
+      ),
       cardStyle: 'bg-rose-50/60 border-rose-200/80 hover:border-rose-300',
       badgeStyle: 'bg-rose-100 text-rose-800',
       route: '/login/admin',
@@ -86,9 +112,9 @@ export default function RolesSection() {
             >
               <div>
                 <div className='flex items-center justify-between mb-3'>
-                  <span className='text-3xl group-hover:scale-110 transition-transform select-none'>
+                  <div className='w-9 h-9 rounded-xl flex items-center justify-center bg-white shadow-2xs border border-gray-100 group-hover:scale-105 transition-transform'>
                     {role.icon}
-                  </span>
+                  </div>
                   <span
                     className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${role.badgeStyle}`}
                   >

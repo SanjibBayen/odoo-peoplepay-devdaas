@@ -4,6 +4,7 @@ import LoadingState from '../../components/common/LoadingState.jsx';
 import ErrorState from '../../components/common/ErrorState.jsx';
 import EmptyState from '../../components/common/EmptyState.jsx';
 import Pagination from '../../components/common/Pagination.jsx';
+import BackButton from '../../components/common/BackButton.jsx';
 import attendanceApi from '../../services/attendanceApi.js';
 import { ATTENDANCE_STATUSES, getAttendanceFromStorage } from '../../data/attendanceData.js';
 
@@ -11,6 +12,7 @@ export default function AttendancePage() {
   const [records, setRecords] = useState(() => getAttendanceFromStorage());
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [statusBanner, setStatusBanner] = useState(null);
 
   const [selectedStatus, setSelectedStatus] = useState('All Statuses');
   const [searchQuery, setSearchQuery] = useState('');
@@ -52,8 +54,10 @@ export default function AttendancePage() {
         notes: 'Manual punch',
       });
       await loadAttendance();
+      setStatusBanner({ type: 'success', text: `Check-in recorded at ${timeNow}.` });
+      setTimeout(() => setStatusBanner(null), 4000);
     } catch (err) {
-      alert(err.message || 'Check-in failed');
+      setStatusBanner({ type: 'error', text: err.message || 'Check-in failed' });
     }
   };
 
@@ -66,8 +70,10 @@ export default function AttendancePage() {
         notes: 'Evening shift end',
       });
       await loadAttendance();
+      setStatusBanner({ type: 'success', text: `Check-out recorded at ${timeNow}.` });
+      setTimeout(() => setStatusBanner(null), 4000);
     } catch (err) {
-      alert(err.message || 'Check-out failed');
+      setStatusBanner({ type: 'error', text: err.message || 'Check-out failed' });
     }
   };
 
@@ -92,8 +98,10 @@ export default function AttendancePage() {
       });
       setCorrectionTarget(null);
       await loadAttendance();
+      setStatusBanner({ type: 'success', text: 'Attendance record updated.' });
+      setTimeout(() => setStatusBanner(null), 4000);
     } catch (err) {
-      alert(err.message || 'Failed to update attendance');
+      setStatusBanner({ type: 'error', text: err.message || 'Failed to update attendance' });
     }
   };
 
@@ -141,6 +149,25 @@ export default function AttendancePage() {
         }
       />
 
+      {statusBanner && (
+        <div
+          className={`p-3.5 rounded-xl border text-xs font-semibold flex items-center justify-between animate-fadeIn ${
+            statusBanner.type === 'success'
+              ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+              : 'bg-red-50 border-red-200 text-red-800'
+          }`}
+        >
+          <span>{statusBanner.text}</span>
+          <button
+            type='button'
+            onClick={() => setStatusBanner(null)}
+            className='font-bold ml-2 cursor-pointer'
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
       {/* Filter Bar */}
       <div className='bg-white p-3 rounded-2xl border border-[#EAE6DF] shadow-2xs flex flex-wrap items-center justify-between gap-3'>
         <div className='flex flex-wrap items-center gap-2.5 flex-1 min-w-[280px]'>
@@ -155,8 +182,10 @@ export default function AttendancePage() {
               placeholder='Search by employee or department...'
               className='w-full pl-8 pr-3 py-1.5 rounded-xl border border-gray-200 bg-[#FAF8F5] text-xs font-medium text-gray-800 placeholder-gray-400 focus:bg-white focus:outline-none focus:ring-1 focus:ring-[#714B67]'
             />
-            <span className='absolute left-2.5 top-2 text-gray-400 text-xs'>
-              🔍
+            <span className='absolute left-2.5 top-2 text-gray-400'>
+              <svg className='w-3.5 h-3.5' fill='none' stroke='currentColor' viewBox='0 0 24 24' strokeWidth='2'>
+                <path strokeLinecap='round' strokeLinejoin='round' d='M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z' />
+              </svg>
             </span>
           </div>
 
@@ -376,13 +405,7 @@ export default function AttendancePage() {
               </div>
 
               <div className='pt-2 flex items-center justify-end gap-2 border-t border-gray-100'>
-                <button
-                  type='button'
-                  onClick={() => setCorrectionTarget(null)}
-                  className='px-3 py-1.5 font-bold text-gray-600 rounded-lg hover:bg-gray-100 cursor-pointer'
-                >
-                  Cancel
-                </button>
+                <BackButton label='Cancel' onClick={() => setCorrectionTarget(null)} />
                 <button
                   type='submit'
                   className='px-3.5 py-1.5 font-bold text-white bg-[#714B67] rounded-lg cursor-pointer'

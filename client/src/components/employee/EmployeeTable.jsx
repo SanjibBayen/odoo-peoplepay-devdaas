@@ -19,8 +19,10 @@ export default function EmployeeTable({
   if (employees.length === 0) {
     return (
       <div className='bg-white rounded-2xl border border-[#EAE6DF] p-10 text-center space-y-3 shadow-2xs'>
-        <div className='w-12 h-12 mx-auto rounded-2xl bg-purple-50 text-[#714B67] flex items-center justify-center text-xl'>
-          🔍
+        <div className='w-12 h-12 mx-auto rounded-2xl bg-purple-50 text-[#714B67] flex items-center justify-center'>
+          <svg className='w-5 h-5' fill='none' stroke='currentColor' viewBox='0 0 24 24' strokeWidth='2'>
+            <path strokeLinecap='round' strokeLinejoin='round' d='M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z' />
+          </svg>
         </div>
         <h3 className='text-sm font-bold text-[#1E293B]'>No employees found</h3>
         <p className='text-xs text-gray-500 max-w-sm mx-auto'>

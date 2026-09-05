@@ -67,8 +67,13 @@ export default function DashboardPlaceholder({ roleSlug }) {
       <main className='flex-1 flex items-center justify-center p-6'>
         <div className='max-w-md w-full bg-white rounded-3xl p-8 sm:p-10 border border-[#EAE6DF] shadow-lg text-center space-y-6'>
           {/* Role Icon Circle */}
-          <div className='w-20 h-20 mx-auto rounded-2xl bg-purple-50 border border-purple-200/80 flex items-center justify-center text-4xl shadow-inner select-none'>
-            {role.icon}
+          <div className='w-20 h-20 mx-auto rounded-2xl bg-[#FAF8F5] border border-[#EAE6DF] flex items-center justify-center text-[#714B67] shadow-inner select-none'>
+            <svg className='w-10 h-10' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='1.75'>
+              <rect width='7' height='9' x='3' y='3' rx='1' />
+              <rect width='7' height='5' x='14' y='3' rx='1' />
+              <rect width='7' height='9' x='14' y='12' rx='1' />
+              <rect width='7' height='5' x='3' y='16' rx='1' />
+            </svg>
           </div>
 
           <div>

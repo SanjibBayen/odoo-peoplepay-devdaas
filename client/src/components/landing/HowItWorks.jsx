@@ -1,6 +1,8 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 
 export default function HowItWorks() {
+  const navigate = useNavigate();
   const steps = [
     {
       num: '01',
@@ -319,14 +321,14 @@ export default function HowItWorks() {
                 <button
                   type='button'
                   className='px-7 py-3 text-sm font-bold text-white bg-[#714B67] hover:bg-[#5E3E56] rounded-full shadow-md hover:shadow-lg transition-all transform hover:-translate-y-0.5 cursor-pointer flex items-center gap-2'
-                  onClick={() => alert('Start Your Journey')}
+                  onClick={() => navigate('/login')}
                 >
                   <span>Start Your Journey</span>
                   <span className='text-base'>→</span>
                 </button>
 
                 <span className='font-handwriting text-xl text-teal-900 font-bold hidden sm:inline select-none -rotate-2'>
-                  No complicated setup required! ✨
+                  No complicated setup required!
                 </span>
               </div>
             </div>

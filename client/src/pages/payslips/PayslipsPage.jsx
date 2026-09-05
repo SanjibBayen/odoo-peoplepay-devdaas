@@ -4,6 +4,7 @@ import LoadingState from '../../components/common/LoadingState.jsx';
 import ErrorState from '../../components/common/ErrorState.jsx';
 import EmptyState from '../../components/common/EmptyState.jsx';
 import Pagination from '../../components/common/Pagination.jsx';
+import BackButton from '../../components/common/BackButton.jsx';
 import payslipApi from '../../services/payslipApi.js';
 import { getPayslipsFromStorage } from '../../data/payslipsData.js';
 
@@ -11,6 +12,7 @@ export default function PayslipsPage() {
   const [payslips, setPayslips] = useState(() => getPayslipsFromStorage());
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [statusBanner, setStatusBanner] = useState(null);
 
   const [selectedStatus, setSelectedStatus] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
@@ -40,17 +42,20 @@ export default function PayslipsPage() {
   const handleDownload = async (id) => {
     try {
       await payslipApi.downloadPayslip(id);
+      setStatusBanner({ type: 'success', text: 'Payslip downloaded successfully.' });
+      setTimeout(() => setStatusBanner(null), 4000);
     } catch (err) {
-      alert(err.message || 'Download failed');
+      setStatusBanner({ type: 'error', text: err.message || 'Download failed' });
     }
   };
 
   const handleSend = async (id) => {
     try {
       const res = await payslipApi.sendPayslip(id);
-      alert(res.message || 'Payslip sent to employee.');
+      setStatusBanner({ type: 'success', text: res.message || 'Payslip emailed to employee.' });
+      setTimeout(() => setStatusBanner(null), 4000);
     } catch (err) {
-      alert(err.message || 'Failed to send');
+      setStatusBanner({ type: 'error', text: err.message || 'Failed to send' });
     }
   };
 
@@ -77,6 +82,25 @@ export default function PayslipsPage() {
         subtitle='Itemized earnings, deductions, tax withholdings, and net salary disbursal records.'
       />
 
+      {statusBanner && (
+        <div
+          className={`p-3.5 rounded-xl border text-xs font-semibold flex items-center justify-between animate-fadeIn ${
+            statusBanner.type === 'success'
+              ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+              : 'bg-red-50 border-red-200 text-red-800'
+          }`}
+        >
+          <span>{statusBanner.text}</span>
+          <button
+            type='button'
+            onClick={() => setStatusBanner(null)}
+            className='font-bold ml-2 cursor-pointer'
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
       {/* Filter Toolbar */}
       <div className='bg-white p-3 rounded-2xl border border-[#EAE6DF] shadow-2xs flex flex-wrap items-center justify-between gap-3'>
         <div className='flex flex-wrap items-center gap-2.5 flex-1 min-w-[280px]'>
@@ -91,8 +115,10 @@ export default function PayslipsPage() {
               placeholder='Search by slip ID, employee, or period...'
               className='w-full pl-8 pr-3 py-1.5 rounded-xl border border-gray-200 bg-[#FAF8F5] text-xs font-medium text-gray-800 placeholder-gray-400 focus:bg-white focus:outline-none focus:ring-1 focus:ring-[#714B67]'
             />
-            <span className='absolute left-2.5 top-2 text-gray-400 text-xs'>
-              🔍
+            <span className='absolute left-2.5 top-2 text-gray-400'>
+              <svg className='w-3.5 h-3.5' fill='none' stroke='currentColor' viewBox='0 0 24 24' strokeWidth='2'>
+                <path strokeLinecap='round' strokeLinejoin='round' d='M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z' />
+              </svg>
             </span>
           </div>
 
@@ -311,13 +337,7 @@ export default function PayslipsPage() {
               >
                 Download Receipt (.txt)
               </button>
-              <button
-                type='button'
-                onClick={() => setSelectedPayslip(null)}
-                className='px-4 py-1.5 text-xs font-bold text-white bg-[#714B67] hover:bg-[#5E3E56] rounded-xl cursor-pointer'
-              >
-                Close
-              </button>
+              <BackButton label='Close' onClick={() => setSelectedPayslip(null)} />
             </div>
           </div>
         </div>
