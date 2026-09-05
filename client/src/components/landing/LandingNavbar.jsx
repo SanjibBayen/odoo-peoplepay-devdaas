@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-export default function LandingNavbar() {
+export default function LandingNavbar({ onOpenWorkspaceModal }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const navLinks = [
@@ -45,7 +45,7 @@ export default function LandingNavbar() {
                 </svg>
               </div>
               <span className='text-2xl font-extrabold tracking-tight text-[#1E293B]'>
-                PeoplePay<span className='text-[#714B67]'>360</span>
+                PeoplePay
               </span>
             </a>
           </div>
@@ -95,7 +95,7 @@ export default function LandingNavbar() {
             <button
               type='button'
               className='px-5 py-2 text-sm font-semibold text-[#1E293B] hover:text-[#714B67] bg-white hover:bg-gray-50 border border-gray-300 rounded-full transition-all shadow-2xs cursor-pointer'
-              onClick={() => alert('Login')}
+              onClick={onOpenWorkspaceModal}
             >
               Login
             </button>
@@ -104,7 +104,7 @@ export default function LandingNavbar() {
             <button
               type='button'
               className='px-6 py-2.5 text-sm font-bold text-white bg-[#714B67] hover:bg-[#5E3E56] rounded-full shadow-sm hover:shadow transition-all transform hover:-translate-y-0.5 cursor-pointer'
-              onClick={() => alert('Get Started')}
+              onClick={onOpenWorkspaceModal}
             >
               Get Started
             </button>
@@ -172,20 +172,20 @@ export default function LandingNavbar() {
           <div className='pt-3 border-t border-gray-200 flex flex-col gap-2.5'>
             <button
               type='button'
-              className='w-full text-center py-2.5 text-sm font-semibold text-[#1E293B] bg-white border border-gray-300 rounded-full'
+              className='w-full text-center py-2.5 text-sm font-semibold text-[#1E293B] bg-white border border-gray-300 rounded-full cursor-pointer'
               onClick={() => {
                 setMobileMenuOpen(false);
-                alert('Login');
+                onOpenWorkspaceModal?.();
               }}
             >
               Login
             </button>
             <button
               type='button'
-              className='w-full text-center py-2.5 text-sm font-bold text-white bg-[#714B67] rounded-full shadow-sm'
+              className='w-full text-center py-2.5 text-sm font-bold text-white bg-[#714B67] rounded-full shadow-sm cursor-pointer'
               onClick={() => {
                 setMobileMenuOpen(false);
-                alert('Get Started');
+                onOpenWorkspaceModal?.();
               }}
             >
               Get Started

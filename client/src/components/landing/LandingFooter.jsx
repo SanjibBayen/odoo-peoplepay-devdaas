@@ -1,12 +1,12 @@
 import React from 'react';
 
-export default function LandingFooter() {
+export default function LandingFooter({ onOpenWorkspaceModal }) {
   return (
     <footer
       className='bg-[#FAF8F5] border-t border-[#EAE6DF]'
       aria-label='Site Footer'
     >
-      <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12'>
+      <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-10'>
         <div className='flex flex-col md:flex-row items-center justify-between gap-6'>
           {/* Logo & Tagline */}
           <div className='flex flex-col sm:flex-row items-center gap-3 text-center sm:text-left'>
@@ -15,7 +15,7 @@ export default function LandingFooter() {
                 <span className='font-extrabold text-sm'>P</span>
               </div>
               <span className='text-xl font-bold tracking-tight text-[#1E293B]'>
-                PeoplePay<span className='text-[#714B67]'>360</span>
+                PeoplePay
               </span>
             </div>
             <span className='hidden sm:inline text-gray-300'>•</span>
@@ -46,7 +46,7 @@ export default function LandingFooter() {
             </a>
             <button
               type='button'
-              onClick={() => alert('Login')}
+              onClick={onOpenWorkspaceModal}
               className='hover:text-[#714B67] transition-colors cursor-pointer'
             >
               Login
@@ -56,7 +56,7 @@ export default function LandingFooter() {
 
         {/* Bottom Bar: Copyright & Legal */}
         <div className='mt-8 pt-6 border-t border-gray-200/60 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-gray-500'>
-          <div>© 2026 PeoplePay360. All rights reserved.</div>
+          <div>© 2026 PeoplePay. All rights reserved.</div>
           <div className='flex items-center gap-6 font-medium'>
             <a
               href='#privacy'
