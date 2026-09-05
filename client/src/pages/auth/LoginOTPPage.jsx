@@ -8,12 +8,13 @@ import OTPForm from '../../components/auth/OTPForm.jsx';
  */
 export default function LoginOTPPage() {
   const location = useLocation();
-  const email = location.state?.email;
+  const searchParams = new URLSearchParams(location.search);
+  const email = searchParams.get('email') || location.state?.email;
   const roleSlug = location.state?.roleSlug || 'employee';
 
-  // If no email was passed via state (e.g. direct visit), redirect to default login
+  // If no email was passed via state or query param, redirect to /login
   if (!email) {
-    return <Navigate to={`/login/${roleSlug}`} replace />;
+    return <Navigate to='/login' replace />;
   }
 
   return (

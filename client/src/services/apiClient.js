@@ -4,7 +4,7 @@ import { logout, setCredentials } from '../redux/slices/authSlice.js';
 
 const baseURL =
   (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL) ||
-  'http://localhost:3000/api';
+  'http://localhost:5000/api';
 
 export const apiClient = axios.create({
   baseURL,
@@ -23,7 +23,9 @@ apiClient.interceptors.request.use(
       const token =
         state.auth?.token ||
         (typeof window !== 'undefined' &&
-          (localStorage.getItem('peoplepay_token') ||
+          (localStorage.getItem('token') ||
+            localStorage.getItem('peoplepay_token') ||
+            sessionStorage.getItem('token') ||
             sessionStorage.getItem('peoplepay_token')));
 
       if (token) {
@@ -56,19 +58,28 @@ let isRedirectingToLogin = false;
 
 const redirectToLogin = () => {
   store.dispatch(logout());
-  if (typeof window !== 'undefined' && !isRedirectingToLogin) {
-    const pathname = window.location.pathname;
-    if (!pathname.startsWith('/login') && pathname !== '/') {
-      isRedirectingToLogin = true;
-      const role =
-        localStorage.getItem('peoplepay_role') ||
-        sessionStorage.getItem('peoplepay_role') ||
-        'employee';
-      const roleSlug = role.replace('_', '-');
-      window.location.href = `/login/${roleSlug}`;
-      setTimeout(() => {
-        isRedirectingToLogin = false;
-      }, 3000);
+  if (typeof window !== 'undefined') {
+    try {
+      localStorage.removeItem('token');
+      localStorage.removeItem('peoplepay_token');
+      localStorage.removeItem('peoplepay_user');
+      localStorage.removeItem('peoplepay_role');
+      sessionStorage.removeItem('token');
+      sessionStorage.removeItem('peoplepay_token');
+      sessionStorage.removeItem('peoplepay_user');
+      sessionStorage.removeItem('peoplepay_role');
+    } catch {
+      // Ignore storage errors
+    }
+    if (!isRedirectingToLogin) {
+      const pathname = window.location.pathname;
+      if (!pathname.startsWith('/login') && pathname !== '/') {
+        isRedirectingToLogin = true;
+        window.location.href = '/login';
+        setTimeout(() => {
+          isRedirectingToLogin = false;
+        }, 3000);
+      }
     }
   }
 };

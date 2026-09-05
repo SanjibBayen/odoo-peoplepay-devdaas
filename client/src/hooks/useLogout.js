@@ -1,7 +1,6 @@
 import { useNavigate } from 'react-router-dom';
-import { useDispatch, useSelector } from 'react-redux';
+import { useDispatch } from 'react-redux';
 import { logout } from '../redux/slices/authSlice.js';
-import { selectCurrentRole } from '../redux/selectors/authSelectors.js';
 import authApi from '../services/authApi.js';
 
 /**
@@ -12,17 +11,33 @@ import authApi from '../services/authApi.js';
 export function useLogout() {
   const navigate = useNavigate();
   const dispatch = useDispatch();
-  const currentRole = useSelector(selectCurrentRole) || 'employee';
 
-  const handleLogout = async (customRoleSlug) => {
+  const handleLogout = async () => {
     try {
       await authApi.logout();
     } catch (err) {
       console.warn('Backend logout warning', err);
     } finally {
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.removeItem('token');
+          localStorage.removeItem('peoplepay_token');
+          localStorage.removeItem('user');
+          localStorage.removeItem('peoplepay_user');
+          localStorage.removeItem('role');
+          localStorage.removeItem('peoplepay_role');
+          sessionStorage.removeItem('token');
+          sessionStorage.removeItem('peoplepay_token');
+          sessionStorage.removeItem('user');
+          sessionStorage.removeItem('peoplepay_user');
+          sessionStorage.removeItem('role');
+          sessionStorage.removeItem('peoplepay_role');
+        } catch {
+          // ignore
+        }
+      }
       dispatch(logout());
-      const roleSlug = (customRoleSlug || currentRole).replace('_', '-');
-      navigate(`/login/${roleSlug}`, { replace: true });
+      navigate('/login', { replace: true });
     }
   };
 

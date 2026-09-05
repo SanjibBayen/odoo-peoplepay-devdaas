@@ -16,6 +16,14 @@ export default function LoginForm({ role }) {
   const navigate = useNavigate();
   const dispatch = useDispatch();
 
+  const defaultRole = {
+    name: 'PeoplePay',
+    title: 'Sign In to PeoplePay',
+    subtitle: 'Enter your work credentials to access your workspace',
+    slug: 'employee',
+  };
+  const activeRole = role || defaultRole;
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
@@ -67,58 +75,57 @@ export default function LoginForm({ role }) {
     setIsSubmitting(true);
 
     try {
+      const normalizedEmail = email.trim().toLowerCase();
       const result = await authApi.login({
-        email: email.trim().toLowerCase(),
+        email: normalizedEmail,
         password,
       });
 
       if (result.requiresOTP) {
-        navigate('/login/verify-otp', {
+        navigate(`/login/verify-otp?email=${encodeURIComponent(normalizedEmail)}`, {
           state: {
-            email: email.trim().toLowerCase(),
-            roleSlug: role.slug,
+            email: normalizedEmail,
+            roleSlug: activeRole.slug,
           },
         });
       } else if (result.token) {
-        let authoritativeUser = result.user || {
-          email: email.trim(),
-          roles: [role.slug],
-        };
-
-        try {
-          const meRes = await authApi.getMe();
-          if (meRes?.user) {
-            authoritativeUser = meRes.user;
-          }
-        } catch (meErr) {
-          console.warn('Could not fetch /auth/me on login', meErr.message);
-        }
-
         dispatch(
           setCredentials({
-            user: authoritativeUser,
+            user: result.user,
             token: result.token,
           })
         );
 
-        const userRoles = authoritativeUser?.roles || [];
+        const userRoles = result.user?.roles || [];
         const primaryRole = (
           typeof userRoles[0] === 'string'
             ? userRoles[0]
-            : userRoles[0]?.code || role.slug
-        )
-          .toLowerCase()
-          .replace('-', '_');
-        const targetSlug = primaryRole.replace('_', '-');
+            : userRoles[0]?.code || activeRole.slug
+        ).toUpperCase();
 
-        navigate(`/dashboard/${targetSlug}`);
+        if (primaryRole === 'ADMIN') navigate('/admin/dashboard');
+        else if (primaryRole === 'HR_PAYROLL_MANAGER') navigate('/hr-payroll-manager/dashboard');
+        else if (primaryRole === 'HR_PAYROLL_USER') navigate('/hr-payroll-user/dashboard');
+        else if (primaryRole === 'HR_MANAGER') navigate('/hr-manager/dashboard');
+        else navigate('/employee/dashboard');
       }
     } catch (err) {
-      const msg =
+      const status = err.response?.status;
+      const rawMsg =
         err.response?.data?.message ||
+        err.response?.data?.error ||
         err.message ||
-        'Invalid email or password. Please try again.';
-      setErrors({ form: msg });
+        '';
+
+      if (status === 403 && (rawMsg.toLowerCase().includes('password not set') || rawMsg.toLowerCase().includes('password'))) {
+        setErrors({
+          form: 'Your password has not been set yet. Please check your email for the magic link invitation to set your password.',
+        });
+      } else {
+        setErrors({
+          form: rawMsg || 'Invalid email or password. Please try again.',
+        });
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -230,7 +237,7 @@ export default function LoginForm({ role }) {
 
           {/* Portal Badge + Autofill button */}
           <div className='flex items-center justify-center gap-2'>
-            <RoleBadge role={role} />
+            <RoleBadge role={activeRole} />
             <button
               type='button'
               onClick={handleAutofillDemo}
@@ -244,10 +251,10 @@ export default function LoginForm({ role }) {
           {/* Title & Subtitle */}
           <div>
             <h1 className='text-xl sm:text-2xl font-black text-[#1E293B] tracking-tight'>
-              {role.title}
+              {activeRole.title}
             </h1>
             <p className='text-xs sm:text-sm text-gray-500 mt-0.5 font-normal'>
-              {role.subtitle}
+              {activeRole.subtitle}
             </p>
           </div>
         </div>
@@ -332,7 +339,7 @@ export default function LoginForm({ role }) {
               <button
                 type='button'
                 onClick={() => {
-                  setForgotSent(false);
+                  setForgotStep(1);
                   setForgotEmail(email);
                   setForgotModalOpen(true);
                 }}
@@ -481,7 +488,7 @@ export default function LoginForm({ role }) {
                 </>
               ) : (
                 <>
-                  <span>Sign In to {role.name}</span>
+                  <span>Sign In to {activeRole.name}</span>
                   <span aria-hidden='true'>→</span>
                 </>
               )}
@@ -492,7 +499,7 @@ export default function LoginForm({ role }) {
         {/* Alternate Role Switching & Back Links */}
         <div className='mt-8 pt-6 border-t border-gray-100 space-y-3 text-center'>
           <p className='text-xs text-gray-500'>
-            Not an {role.name}?{' '}
+            Not an {activeRole.name}?{' '}
             <Link
               to='/'
               className='font-bold text-[#714B67] hover:underline focus:outline-none focus:ring-1 focus:ring-[#714B67] rounded'

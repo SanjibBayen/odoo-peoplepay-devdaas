@@ -1,77 +1,136 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import PageHeader from '../../components/common/PageHeader.jsx';
 import LoadingState from '../../components/common/LoadingState.jsx';
 import ErrorState from '../../components/common/ErrorState.jsx';
 import EmptyState from '../../components/common/EmptyState.jsx';
-import BackButton from '../../components/common/BackButton.jsx';
+import ConfirmDialog from '../../components/common/ConfirmDialog.jsx';
+import DepartmentCard from '../../components/department/DepartmentCard.jsx';
+import DepartmentForm from '../../components/department/DepartmentForm.jsx';
+import DepartmentHierarchy from '../../components/department/DepartmentHierarchy.jsx';
 import departmentApi from '../../services/departmentApi.js';
+import employeeApi from '../../services/employeeApi.js';
 import { extractErrorMessage } from '../../services/apiClient.js';
 
 export default function DepartmentsPage() {
   const [departments, setDepartments] = useState([]);
+  const [hierarchy, setHierarchy] = useState(null);
+  const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [statusBanner, setStatusBanner] = useState(null);
 
+  const [viewMode, setViewMode] = useState('cards'); // 'cards' | 'table' | 'hierarchy'
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [formError, setFormError] = useState(null);
-  const [formData, setFormData] = useState({
-    name: '',
-    code: '',
-    description: '',
-  });
+  const [editingDepartment, setEditingDepartment] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
 
-  const loadDepartments = async () => {
+  const loadData = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await departmentApi.getDepartments();
-      const list = res.data || (Array.isArray(res) ? res : []);
-      setDepartments(list);
+      const [deptRes, hierRes, empRes] = await Promise.allSettled([
+        departmentApi.getDepartments(),
+        departmentApi.getDepartmentHierarchy(),
+        employeeApi.getEmployees({ limit: 150 }),
+      ]);
+
+      if (deptRes.status === 'fulfilled') {
+        const list = deptRes.value.data || (Array.isArray(deptRes.value) ? deptRes.value : []);
+        setDepartments(list);
+      } else {
+        setError(extractErrorMessage(deptRes.reason, 'Failed to load departments.'));
+      }
+
+      if (hierRes.status === 'fulfilled') {
+        setHierarchy(hierRes.value.data || hierRes.value);
+      }
+
+      if (empRes.status === 'fulfilled') {
+        setEmployees(empRes.value.data || []);
+      }
     } catch (err) {
       setError(extractErrorMessage(err, 'Failed to load organizational departments.'));
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     let active = true;
     (async () => {
       try {
-        const res = await departmentApi.getDepartments();
+        const [deptRes, hierRes, empRes] = await Promise.allSettled([
+          departmentApi.getDepartments(),
+          departmentApi.getDepartmentHierarchy(),
+          employeeApi.getEmployees({ limit: 150 }),
+        ]);
+
         if (!active) return;
-        const list = res.data || (Array.isArray(res) ? res : []);
-        setDepartments(list);
+
+        if (deptRes.status === 'fulfilled') {
+          const list = deptRes.value.data || (Array.isArray(deptRes.value) ? deptRes.value : []);
+          setDepartments(list);
+        } else {
+          setError(extractErrorMessage(deptRes.reason, 'Failed to load departments.'));
+        }
+
+        if (hierRes.status === 'fulfilled') {
+          setHierarchy(hierRes.value.data || hierRes.value);
+        }
+
+        if (empRes.status === 'fulfilled') {
+          setEmployees(empRes.value.data || []);
+        }
       } catch (err) {
-        if (!active) return;
-        setError(extractErrorMessage(err, 'Failed to load organizational departments.'));
+        if (active) setError(extractErrorMessage(err, 'Failed to load organizational departments.'));
       } finally {
         if (active) setLoading(false);
       }
     })();
+
     return () => {
       active = false;
     };
   }, []);
 
-  const handleSave = async (e) => {
-    e.preventDefault();
-    setFormError(null);
-    setIsSubmitting(true);
+  const handleOpenAdd = () => {
+    setEditingDepartment(null);
+    setIsModalOpen(true);
+  };
+
+  const handleOpenEdit = (dept) => {
+    setEditingDepartment(dept);
+    setIsModalOpen(true);
+  };
+
+  const handleSave = async (deptData) => {
     try {
-      await departmentApi.createDepartment({
-        name: formData.name.trim(),
-        code: formData.code.trim().toUpperCase(),
-        description: formData.description.trim() || undefined,
-      });
+      if (editingDepartment) {
+        await departmentApi.updateDepartment(editingDepartment.id, deptData);
+        setStatusBanner({ type: 'success', text: 'Department updated successfully.' });
+      } else {
+        await departmentApi.createDepartment(deptData);
+        setStatusBanner({ type: 'success', text: 'New department created successfully.' });
+      }
       setIsModalOpen(false);
-      setFormData({ name: '', code: '', description: '' });
-      await loadDepartments();
+      await loadData();
+      setTimeout(() => setStatusBanner(null), 4000);
     } catch (err) {
-      setFormError(extractErrorMessage(err, 'Failed to create department.'));
-    } finally {
-      setIsSubmitting(false);
+      throw new Error(extractErrorMessage(err, 'Failed to save department.'));
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    try {
+      await departmentApi.deleteDepartment(deleteTarget.id);
+      setDeleteTarget(null);
+      await loadData();
+      setStatusBanner({ type: 'success', text: 'Department deleted successfully.' });
+      setTimeout(() => setStatusBanner(null), 4000);
+    } catch (err) {
+      setStatusBanner({ type: 'error', text: extractErrorMessage(err, 'Failed to delete department.') });
+      setTimeout(() => setStatusBanner(null), 4000);
     }
   };
 
@@ -83,7 +142,7 @@ export default function DepartmentsPage() {
         actions={
           <button
             type='button'
-            onClick={() => setIsModalOpen(true)}
+            onClick={handleOpenAdd}
             className='px-4 py-2 text-xs font-bold text-white bg-[#714B67] hover:bg-[#5E3E56] rounded-xl shadow-xs transition-all cursor-pointer flex items-center gap-1'
           >
             <span>+</span>
@@ -92,136 +151,179 @@ export default function DepartmentsPage() {
         }
       />
 
+      {statusBanner && (
+        <div
+          className={`p-3.5 rounded-xl border text-xs font-semibold flex items-center justify-between animate-fadeIn ${
+            statusBanner.type === 'success'
+              ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+              : 'bg-red-50 border-red-200 text-red-800'
+          }`}
+        >
+          <span>{statusBanner.text}</span>
+          <button
+            type='button'
+            onClick={() => setStatusBanner(null)}
+            className='font-bold ml-2 cursor-pointer'
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
+      {/* View Mode Switcher Toolbar */}
+      <div className='flex items-center justify-between bg-white p-2.5 rounded-2xl border border-[#EAE6DF] shadow-2xs'>
+        <div className='flex items-center gap-1'>
+          <button
+            type='button'
+            onClick={() => setViewMode('cards')}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+              viewMode === 'cards'
+                ? 'bg-[#714B67] text-white shadow-xs'
+                : 'text-gray-600 hover:text-gray-900 hover:bg-[#FAF8F5]'
+            }`}
+          >
+            <span>🗂️</span>
+            <span>Cards Grid</span>
+          </button>
+
+          <button
+            type='button'
+            onClick={() => setViewMode('table')}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+              viewMode === 'table'
+                ? 'bg-[#714B67] text-white shadow-xs'
+                : 'text-gray-600 hover:text-gray-900 hover:bg-[#FAF8F5]'
+            }`}
+          >
+            <span>📋</span>
+            <span>Table List</span>
+          </button>
+
+          <button
+            type='button'
+            onClick={() => setViewMode('hierarchy')}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+              viewMode === 'hierarchy'
+                ? 'bg-[#714B67] text-white shadow-xs'
+                : 'text-gray-600 hover:text-gray-900 hover:bg-[#FAF8F5]'
+            }`}
+          >
+            <span>🌳</span>
+            <span>Org Hierarchy</span>
+          </button>
+        </div>
+
+        <span className='text-xs font-bold text-gray-500 pr-2'>
+          {departments.length} Departments
+        </span>
+      </div>
+
       {loading ? (
         <LoadingState message='Loading organizational departments...' />
       ) : error ? (
-        <ErrorState message={error} onRetry={loadDepartments} />
+        <ErrorState message={error} onRetry={loadData} />
       ) : departments.length === 0 ? (
         <EmptyState
           title='No departments yet'
           description='Get started by creating your first organizational department.'
           actionLabel='+ Add Department'
-          onAction={() => setIsModalOpen(true)}
+          onAction={handleOpenAdd}
         />
-      ) : (
+      ) : viewMode === 'cards' ? (
         <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4'>
-          {departments.map((dept) => {
-            const managerName = dept.manager?.firstName
-              ? `${dept.manager.firstName} ${dept.manager.lastName || ''}`.trim()
-              : typeof dept.manager === 'string'
-              ? dept.manager
-              : 'Unassigned';
-            const count = dept.employeeCount ?? dept.headCount ?? 0;
-
-            return (
-              <div
-                key={dept.id}
-                className='bg-white rounded-2xl p-5 border border-[#EAE6DF] shadow-2xs space-y-3'
-              >
-                <div className='flex items-start justify-between'>
-                  <div>
-                    <h4 className='text-sm font-black text-[#1E293B]'>{dept.name}</h4>
-                    <span className='text-[10px] font-bold text-[#714B67]'>
-                      CODE: {dept.code}
-                    </span>
-                  </div>
-                  <span className='px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200'>
-                    {count} Members
-                  </span>
-                </div>
-
-                <div className='pt-2 border-t border-gray-100 text-xs space-y-1 text-gray-600'>
-                  <div>
-                    Manager: <strong className='text-gray-900'>{managerName}</strong>
-                  </div>
-                  {dept.description && (
-                    <div className='text-[11px] text-gray-500 line-clamp-2'>
-                      {dept.description}
-                    </div>
-                  )}
-                </div>
-              </div>
-            );
-          })}
+          {departments.map((dept) => (
+            <DepartmentCard
+              key={dept.id}
+              department={dept}
+              onEdit={handleOpenEdit}
+              onDelete={() => setDeleteTarget(dept)}
+            />
+          ))}
         </div>
-      )}
+      ) : viewMode === 'table' ? (
+        <div className='bg-white rounded-2xl border border-[#EAE6DF] shadow-2xs overflow-hidden'>
+          <div className='overflow-x-auto'>
+            <table className='w-full text-left text-xs'>
+              <thead className='bg-[#FAF8F5] border-b border-[#EAE6DF] text-gray-500 font-bold uppercase tracking-wider text-[10px]'>
+                <tr>
+                  <th className='py-3 px-4'>Department Name</th>
+                  <th className='py-3 px-4'>Code</th>
+                  <th className='py-3 px-4'>Manager</th>
+                  <th className='py-3 px-4'>Parent Unit</th>
+                  <th className='py-3 px-4'>Headcount</th>
+                  <th className='py-3 px-4 text-right'>Actions</th>
+                </tr>
+              </thead>
+              <tbody className='divide-y divide-gray-100'>
+                {departments.map((dept) => {
+                  const managerName = dept.manager?.firstName
+                    ? `${dept.manager.firstName} ${dept.manager.lastName || ''}`.trim()
+                    : typeof dept.manager === 'string'
+                    ? dept.manager
+                    : 'Unassigned';
+                  const count = dept.employeeCount ?? dept.headCount ?? 0;
 
-      {/* Add Department Modal */}
-      {isModalOpen && (
-        <div
-          className='fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs animate-fadeIn'
-          role='dialog'
-          aria-modal='true'
-        >
-          <div className='bg-white rounded-2xl max-w-sm w-full p-5 sm:p-6 border border-[#EAE6DF] shadow-xl space-y-4'>
-            <div className='flex items-center justify-between border-b border-gray-100 pb-2.5'>
-              <h3 className='text-sm font-black text-[#1E293B]'>Add Department</h3>
-              <button
-                type='button'
-                onClick={() => setIsModalOpen(false)}
-                className='text-gray-400 font-bold hover:text-gray-600'
-              >
-                ✕
-              </button>
-            </div>
-
-            {formError && (
-              <div className='p-2.5 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs font-medium'>
-                {formError}
-              </div>
-            )}
-
-            <form onSubmit={handleSave} className='space-y-3 text-xs'>
-              <div>
-                <label className='block font-bold text-gray-700 mb-1'>Department Name *</label>
-                <input
-                  type='text'
-                  required
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder='e.g. Engineering'
-                  className='w-full px-3 py-2 rounded-xl border border-gray-200 bg-[#FAF8F5]'
-                />
-              </div>
-
-              <div>
-                <label className='block font-bold text-gray-700 mb-1'>Code *</label>
-                <input
-                  type='text'
-                  required
-                  value={formData.code}
-                  onChange={(e) => setFormData({ ...formData, code: e.target.value })}
-                  placeholder='e.g. ENG'
-                  className='w-full px-3 py-2 rounded-xl border border-gray-200 bg-[#FAF8F5]'
-                />
-              </div>
-
-              <div>
-                <label className='block font-bold text-gray-700 mb-1'>Description</label>
-                <textarea
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  placeholder='Department mission and responsibilities'
-                  rows={2}
-                  className='w-full px-3 py-2 rounded-xl border border-gray-200 bg-[#FAF8F5]'
-                />
-              </div>
-
-              <div className='pt-2 flex justify-end gap-2 border-t border-gray-100'>
-                <BackButton label='Cancel' onClick={() => setIsModalOpen(false)} />
-                <button
-                  type='submit'
-                  disabled={isSubmitting}
-                  className={`px-4 py-1.5 font-bold text-white bg-[#714B67] hover:bg-[#5E3E56] rounded-xl cursor-pointer ${
-                    isSubmitting ? 'opacity-60 cursor-not-allowed' : ''
-                  }`}
-                >
-                  {isSubmitting ? 'Creating...' : 'Create'}
-                </button>
-              </div>
-            </form>
+                  return (
+                    <tr key={dept.id} className='hover:bg-[#FAF8F5]/60 transition-colors'>
+                      <td className='py-3 px-4 font-bold text-gray-900'>{dept.name}</td>
+                      <td className='py-3 px-4 font-mono font-bold text-[#714B67]'>{dept.code}</td>
+                      <td className='py-3 px-4 text-gray-700'>{managerName}</td>
+                      <td className='py-3 px-4 text-gray-500'>
+                        {dept.parentDepartment?.name || '--'}
+                      </td>
+                      <td className='py-3 px-4 font-bold text-gray-800'>
+                        {count} {count === 1 ? 'staff' : 'staff'}
+                      </td>
+                      <td className='py-3 px-4 text-right space-x-2'>
+                        <button
+                          type='button'
+                          onClick={() => handleOpenEdit(dept)}
+                          className='text-[#714B67] hover:underline font-bold cursor-pointer'
+                        >
+                          Edit
+                        </button>
+                        <button
+                          type='button'
+                          onClick={() => setDeleteTarget(dept)}
+                          className='text-rose-600 hover:underline font-bold cursor-pointer'
+                        >
+                          Delete
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         </div>
+      ) : (
+        <DepartmentHierarchy hierarchy={hierarchy} departments={departments} />
+      )}
+
+      {/* Add / Edit Department Modal */}
+      {isModalOpen && (
+        <DepartmentForm
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          onSave={handleSave}
+          initialData={editingDepartment}
+          employees={employees}
+          departments={departments}
+        />
+      )}
+
+      {/* Confirm Delete Dialog */}
+      {deleteTarget && (
+        <ConfirmDialog
+          isOpen={Boolean(deleteTarget)}
+          title='Delete Department'
+          message={`Are you sure you want to delete the "${deleteTarget.name}" department?`}
+          confirmLabel='Delete'
+          isDestructive={true}
+          onConfirm={handleDelete}
+          onCancel={() => setDeleteTarget(null)}
+        />
       )}
     </div>
   );

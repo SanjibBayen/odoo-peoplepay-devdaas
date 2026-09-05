@@ -1,6 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import EmployeeStatusBadge from './EmployeeStatusBadge.jsx';
+import EmployeeTabs from './EmployeeTabs.jsx';
 import BackButton from '../common/BackButton.jsx';
 
 /**
@@ -150,154 +151,151 @@ export default function EmployeeDetails({ employee, onBack, onEdit }) {
         </div>
       </div>
 
-      {/* 3 Compact Information Cards */}
-      <div className='grid grid-cols-1 md:grid-cols-3 gap-5'>
-        {/* Card 1: Personal Information */}
-        <div className='bg-white rounded-3xl p-5 border border-[#EAE6DF] shadow-xs space-y-3.5'>
-          <div className='flex items-center gap-2 pb-2 border-b border-gray-100'>
-            <svg className='w-4 h-4 text-gray-500' fill='none' stroke='currentColor' viewBox='0 0 24 24' strokeWidth='2'>
-              <path strokeLinecap='round' strokeLinejoin='round' d='M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z' />
-            </svg>
-            <h3 className='text-xs font-bold uppercase tracking-wider text-[#1E293B]'>
-              Personal Information
-            </h3>
-          </div>
-          <div className='space-y-2.5 text-xs'>
-            <div>
-              <span className='text-[10px] text-gray-400 uppercase font-semibold block'>
-                Full Name
-              </span>
-              <span className='font-bold text-[#1E293B]'>{employee.name}</span>
+      {/* Sub-Records & Overview Tabs */}
+      <EmployeeTabs
+        employee={employee}
+        overviewContent={
+          <div className='grid grid-cols-1 md:grid-cols-3 gap-5'>
+            {/* Card 1: Personal Information */}
+            <div className='bg-white rounded-3xl p-5 border border-[#EAE6DF] shadow-xs space-y-3.5'>
+              <div className='flex items-center gap-2 pb-2 border-b border-gray-100'>
+                <svg className='w-4 h-4 text-gray-500' fill='none' stroke='currentColor' viewBox='0 0 24 24' strokeWidth='2'>
+                  <path strokeLinecap='round' strokeLinejoin='round' d='M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z' />
+                </svg>
+                <h3 className='text-xs font-bold uppercase tracking-wider text-[#1E293B]'>
+                  Personal Information
+                </h3>
+              </div>
+              <div className='space-y-2.5 text-xs'>
+                <div>
+                  <span className='text-[10px] text-gray-400 uppercase font-semibold block'>
+                    Full Name
+                  </span>
+                  <span className='font-bold text-[#1E293B]'>{employee.name}</span>
+                </div>
+                <div>
+                  <span className='text-[10px] text-gray-400 uppercase font-semibold block'>
+                    Date of Birth
+                  </span>
+                  <span className='font-medium text-gray-700'>
+                    {employee.dateOfBirth || 'Not specified'}
+                  </span>
+                </div>
+                <div>
+                  <span className='text-[10px] text-gray-400 uppercase font-semibold block'>
+                    Emergency Contact
+                  </span>
+                  <span className='font-medium text-gray-700'>
+                    {employee.emergencyContact || 'None on file'}
+                  </span>
+                </div>
+                <div>
+                  <span className='text-[10px] text-gray-400 uppercase font-semibold block'>
+                    Residential Address
+                  </span>
+                  <span className='font-medium text-gray-600 leading-snug block'>
+                    {employee.address || 'Company HQ Corporate Housing'}
+                  </span>
+                </div>
+              </div>
             </div>
-            <div>
-              <span className='text-[10px] text-gray-400 uppercase font-semibold block'>
-                Date of Birth
-              </span>
-              <span className='font-medium text-gray-700'>
-                {employee.dateOfBirth || 'Not specified'}
-              </span>
-            </div>
-            <div>
-              <span className='text-[10px] text-gray-400 uppercase font-semibold block'>
-                Emergency Contact
-              </span>
-              <span className='font-medium text-gray-700'>
-                {employee.emergencyContact || 'None on file'}
-              </span>
-            </div>
-            <div>
-              <span className='text-[10px] text-gray-400 uppercase font-semibold block'>
-                Residential Address
-              </span>
-              <span className='font-medium text-gray-600 leading-snug block'>
-                {employee.address || 'Company HQ Corporate Housing'}
-              </span>
-            </div>
-          </div>
-        </div>
 
-        {/* Card 2: Work Information */}
-        <div className='bg-white rounded-3xl p-5 border border-[#EAE6DF] shadow-xs space-y-3.5'>
-          <div className='flex items-center gap-2 pb-2 border-b border-gray-100'>
-            <svg className='w-4 h-4 text-gray-500' fill='none' stroke='currentColor' viewBox='0 0 24 24' strokeWidth='2'>
-              <path strokeLinecap='round' strokeLinejoin='round' d='M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z' />
-            </svg>
-            <h3 className='text-xs font-bold uppercase tracking-wider text-[#1E293B]'>
-              Work Information
-            </h3>
-          </div>
-          <div className='space-y-2.5 text-xs'>
-            <div>
-              <span className='text-[10px] text-gray-400 uppercase font-semibold block'>
-                Department
-              </span>
-              <span className='font-bold text-[#1E293B]'>{employee.department}</span>
+            {/* Card 2: Work Information */}
+            <div className='bg-white rounded-3xl p-5 border border-[#EAE6DF] shadow-xs space-y-3.5'>
+              <div className='flex items-center gap-2 pb-2 border-b border-gray-100'>
+                <svg className='w-4 h-4 text-gray-500' fill='none' stroke='currentColor' viewBox='0 0 24 24' strokeWidth='2'>
+                  <path strokeLinecap='round' strokeLinejoin='round' d='M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z' />
+                </svg>
+                <h3 className='text-xs font-bold uppercase tracking-wider text-[#1E293B]'>
+                  Work Information
+                </h3>
+              </div>
+              <div className='space-y-2.5 text-xs'>
+                <div>
+                  <span className='text-[10px] text-gray-400 uppercase font-semibold block'>
+                    Department
+                  </span>
+                  <span className='font-bold text-[#1E293B]'>{employee.department}</span>
+                </div>
+                <div>
+                  <span className='text-[10px] text-gray-400 uppercase font-semibold block'>
+                    Job Position
+                  </span>
+                  <span className='font-semibold text-gray-700'>{employee.jobPosition}</span>
+                </div>
+                <div>
+                  <span className='text-[10px] text-gray-400 uppercase font-semibold block'>
+                    Date of Joining
+                  </span>
+                  <span className='font-medium text-gray-700'>{employee.joiningDate}</span>
+                </div>
+                <div>
+                  <span className='text-[10px] text-gray-400 uppercase font-semibold block'>
+                    Contract Status
+                  </span>
+                  <span className='font-bold text-blue-700'>{employee.contractStatus}</span>
+                </div>
+                <div>
+                  <span className='text-[10px] text-gray-400 uppercase font-semibold block'>
+                    Reporting Manager
+                  </span>
+                  <span className='font-medium text-gray-700'>{employee.manager}</span>
+                </div>
+              </div>
             </div>
-            <div>
-              <span className='text-[10px] text-gray-400 uppercase font-semibold block'>
-                Job Position
-              </span>
-              <span className='font-semibold text-gray-700'>{employee.jobPosition}</span>
-            </div>
-            <div>
-              <span className='text-[10px] text-gray-400 uppercase font-semibold block'>
-                Date of Joining
-              </span>
-              <span className='font-medium text-gray-700'>{employee.joiningDate}</span>
-            </div>
-            <div>
-              <span className='text-[10px] text-gray-400 uppercase font-semibold block'>
-                Contract Status
-              </span>
-              <span className='font-bold text-blue-700'>{employee.contractStatus}</span>
-            </div>
-            <div>
-              <span className='text-[10px] text-gray-400 uppercase font-semibold block'>
-                Reporting Manager
-              </span>
-              <span className='font-medium text-gray-700'>{employee.manager}</span>
-            </div>
-          </div>
-        </div>
 
-        {/* Card 3: Contact Information */}
-        <div className='bg-white rounded-3xl p-5 border border-[#EAE6DF] shadow-xs space-y-3.5'>
-          <div className='flex items-center gap-2 pb-2 border-b border-gray-100'>
-            <svg className='w-4 h-4 text-gray-500' fill='none' stroke='currentColor' viewBox='0 0 24 24' strokeWidth='2'>
-              <path strokeLinecap='round' strokeLinejoin='round' d='M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z' />
-            </svg>
-            <h3 className='text-xs font-bold uppercase tracking-wider text-[#1E293B]'>
-              Contact Information
-            </h3>
+            {/* Card 3: Contact Information */}
+            <div className='bg-white rounded-3xl p-5 border border-[#EAE6DF] shadow-xs space-y-3.5'>
+              <div className='flex items-center gap-2 pb-2 border-b border-gray-100'>
+                <svg className='w-4 h-4 text-gray-500' fill='none' stroke='currentColor' viewBox='0 0 24 24' strokeWidth='2'>
+                  <path strokeLinecap='round' strokeLinejoin='round' d='M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z' />
+                </svg>
+                <h3 className='text-xs font-bold uppercase tracking-wider text-[#1E293B]'>
+                  Contact Information
+                </h3>
+              </div>
+              <div className='space-y-2.5 text-xs'>
+                <div>
+                  <span className='text-[10px] text-gray-400 uppercase font-semibold block'>
+                    Work Email
+                  </span>
+                  <a
+                    href={`mailto:${employee.email}`}
+                    className='font-bold text-[#714B67] hover:underline'
+                  >
+                    {employee.email}
+                  </a>
+                </div>
+                <div>
+                  <span className='text-[10px] text-gray-400 uppercase font-semibold block'>
+                    Phone Number
+                  </span>
+                  <span className='font-medium text-gray-700'>
+                    {employee.phone || '+91 98000 00000'}
+                  </span>
+                </div>
+                <div>
+                  <span className='text-[10px] text-gray-400 uppercase font-semibold block'>
+                    Work Location
+                  </span>
+                  <span className='font-medium text-gray-700'>
+                    {employee.workLocation || 'HQ Campus • Floor 3'}
+                  </span>
+                </div>
+                <div>
+                  <span className='text-[10px] text-gray-400 uppercase font-semibold block'>
+                    Internal Communication
+                  </span>
+                  <span className='font-medium text-emerald-700 flex items-center gap-1'>
+                    <span className='w-1.5 h-1.5 rounded-full bg-emerald-500' />
+                    Available on PeoplePay Chat
+                  </span>
+                </div>
+              </div>
+            </div>
           </div>
-          <div className='space-y-2.5 text-xs'>
-            <div>
-              <span className='text-[10px] text-gray-400 uppercase font-semibold block'>
-                Work Email
-              </span>
-              <a
-                href={`mailto:${employee.email}`}
-                className='font-bold text-[#714B67] hover:underline'
-              >
-                {employee.email}
-              </a>
-            </div>
-            <div>
-              <span className='text-[10px] text-gray-400 uppercase font-semibold block'>
-                Phone Number
-              </span>
-              <span className='font-medium text-gray-700'>
-                {employee.phone || '+91 98000 00000'}
-              </span>
-            </div>
-            <div>
-              <span className='text-[10px] text-gray-400 uppercase font-semibold block'>
-                Work Location
-              </span>
-              <span className='font-medium text-gray-700'>
-                {employee.workLocation || 'HQ Campus • Floor 3'}
-              </span>
-            </div>
-            <div>
-              <span className='text-[10px] text-gray-400 uppercase font-semibold block'>
-                Internal Communication
-              </span>
-              <span className='font-medium text-emerald-700 flex items-center gap-1'>
-                <span className='w-1.5 h-1.5 rounded-full bg-emerald-500' />
-                Available on PeoplePay Chat
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Linked Records Toast Notification */}
-      {relatedToast && (
-        <div className='fixed bottom-6 right-6 z-50 bg-[#1E293B] text-white text-xs px-4 py-3 rounded-2xl shadow-xl flex items-center gap-2 animate-fadeIn'>
-          <span>ℹ️</span>
-          <span>{relatedToast}</span>
-        </div>
-      )}
+        }
+      />
     </div>
   );
 }

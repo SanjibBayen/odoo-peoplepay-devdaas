@@ -22,10 +22,8 @@ export default function UsersPage() {
     firstName: '',
     lastName: '',
     email: '',
-    password: '',
     roleCode: 'EMPLOYEE',
   });
-  const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState(null);
   const [formSuccess, setFormSuccess] = useState(null);
@@ -87,26 +85,10 @@ export default function UsersPage() {
     };
   }, []);
 
-  const validatePasswordStrength = (pass) => {
-    const errs = [];
-    if (!pass || pass.length < 8) errs.push('At least 8 characters');
-    if (!/[A-Z]/.test(pass)) errs.push('One uppercase letter');
-    if (!/[a-z]/.test(pass)) errs.push('One lowercase letter');
-    if (!/[0-9]/.test(pass)) errs.push('One number');
-    if (!/[!@#$%^&*(),.?":{}|<>]/.test(pass)) errs.push('One special character');
-    return errs;
-  };
-
   const handleAddSubmit = async (e) => {
     e.preventDefault();
     setFormError(null);
     setFormSuccess(null);
-
-    const passErrors = validatePasswordStrength(addFormData.password);
-    if (passErrors.length > 0) {
-      setFormError(`Password requirements missing: ${passErrors.join(', ')}`);
-      return;
-    }
 
     setIsSubmitting(true);
 
@@ -115,13 +97,12 @@ export default function UsersPage() {
         firstName: addFormData.firstName.trim(),
         lastName: addFormData.lastName.trim(),
         email: addFormData.email.trim().toLowerCase(),
-        password: addFormData.password,
         roleCodes: [addFormData.roleCode],
       };
 
       const res = await authApi.register(payload);
 
-      setFormSuccess(res.message || 'User created successfully in authentication database.');
+      setFormSuccess(res.message || 'User created. Magic link sent for password setup.');
 
       const newUserObj = {
         id: res.user?.id || `usr-${Date.now()}`,
@@ -141,17 +122,12 @@ export default function UsersPage() {
           firstName: '',
           lastName: '',
           email: '',
-          password: '',
           roleCode: 'EMPLOYEE',
         });
         setFormSuccess(null);
-      }, 1500);
+      }, 2000);
     } catch (err) {
-      const msg =
-        err.response?.data?.message ||
-        err.message ||
-        'Failed to register user. Please verify credentials.';
-      setFormError(msg);
+      setFormError(extractErrorMessage(err, 'Failed to create user account.'));
     } finally {
       setIsSubmitting(false);
     }
@@ -411,28 +387,14 @@ export default function UsersPage() {
                 />
               </div>
 
-              <div>
-                <div className='flex items-center justify-between mb-1'>
-                  <label className='font-semibold text-gray-700'>Temporary Password *</label>
-                  <button
-                    type='button'
-                    onClick={() => setShowPassword(!showPassword)}
-                    className='text-[11px] font-bold text-[#714B67] hover:underline cursor-pointer'
-                  >
-                    {showPassword ? 'Hide' : 'Show'}
-                  </button>
+              <div className='p-3 bg-purple-50/70 border border-purple-200 rounded-xl text-xs text-[#714B67] flex items-start gap-2'>
+                <span className='font-bold text-sm leading-none'>✉</span>
+                <div>
+                  <p className='font-bold text-[#1E293B]'>Magic Link Password Setup</p>
+                  <p className='text-gray-600 mt-0.5'>
+                    No password required. A secure activation magic link will be automatically emailed to this user to configure their credentials.
+                  </p>
                 </div>
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  required
-                  value={addFormData.password}
-                  onChange={(e) => setAddFormData({ ...addFormData, password: e.target.value })}
-                  placeholder='Min 8 chars, mixed case, number, symbol'
-                  className='w-full px-3 py-2 rounded-xl border border-gray-200 bg-[#FAF8F5] focus:bg-white focus:outline-none focus:ring-1 focus:ring-[#714B67]'
-                />
-                <p className='text-[10px] text-gray-500 mt-1'>
-                  Must contain: uppercase, lowercase, number, and special character.
-                </p>
               </div>
 
               <div>

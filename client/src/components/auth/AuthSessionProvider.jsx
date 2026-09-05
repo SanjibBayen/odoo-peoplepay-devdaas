@@ -16,7 +16,9 @@ export default function AuthSessionProvider({ children }) {
   const token = useSelector((state) => state.auth?.token);
   const storedToken =
     token ||
-    (typeof window !== 'undefined' ? localStorage.getItem('token') : null);
+    (typeof window !== 'undefined'
+      ? localStorage.getItem('token') || localStorage.getItem('peoplepay_token')
+      : null);
 
   const [isInitializing, setIsInitializing] = useState(Boolean(storedToken));
 
@@ -34,17 +36,31 @@ export default function AuthSessionProvider({ children }) {
         if (isMounted && response?.user) {
           dispatch(
             updateUser({
-              user: response.user,
+              ...response.user,
               roles: response.user.roles,
+              permissions: response.user.permissions,
             })
           );
         }
       } catch (err) {
         console.warn('Session hydration failed:', err.message);
-        // If 401 or token is invalid, clear state
-        if (err.response?.status === 401) {
-          if (isMounted) {
-            dispatch(logout());
+        if (isMounted) {
+          dispatch(logout());
+          if (typeof window !== 'undefined') {
+            try {
+              localStorage.removeItem('token');
+              localStorage.removeItem('peoplepay_token');
+              localStorage.removeItem('user');
+              localStorage.removeItem('peoplepay_user');
+              localStorage.removeItem('role');
+              localStorage.removeItem('peoplepay_role');
+            } catch {
+              // ignore
+            }
+            const pathname = window.location.pathname;
+            if (!pathname.startsWith('/login') && pathname !== '/' && !pathname.startsWith('/set-password')) {
+              window.location.href = '/login';
+            }
           }
         }
       } finally {

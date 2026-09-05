@@ -7,70 +7,111 @@ import apiClient from './apiClient.js';
 export const authApi = {
   /**
    * Step 1: Verify credentials and trigger 2FA OTP
-   * @param {Object} data - { email, password }
+   * POST /auth/login
+   * @param {string|Object} emailOrData - email string or { email, password }
+   * @param {string} [maybePassword] - password string
    * @returns {Promise<Object>} - { success, message, requiresOTP, email }
    */
-  async login({ email, password }) {
-    const response = await apiClient.post('/auth/login', {
-      email,
-      password,
-    });
+  async login(emailOrData, maybePassword) {
+    const payload =
+      typeof emailOrData === 'object' && emailOrData !== null
+        ? {
+            email: emailOrData.email?.trim().toLowerCase(),
+            password: emailOrData.password,
+          }
+        : {
+            email: typeof emailOrData === 'string' ? emailOrData.trim().toLowerCase() : '',
+            password: maybePassword,
+          };
+
+    const response = await apiClient.post('/auth/login', payload);
     return response.data;
   },
 
   /**
    * Step 2: Verify login OTP and complete authentication
-   * @param {Object} data - { email, otp }
-   * @returns {Promise<Object>} - { success, token, user }
+   * POST /auth/verify-login-otp
+   * @param {string|Object} emailOrData - email string or { email, otp }
+   * @param {string} [maybeOtp] - 6-digit OTP string
+   * @returns {Promise<Object>} - { success, message, token, user }
    */
-  async verifyLoginOTP({ email, otp }) {
-    const response = await apiClient.post('/auth/verify-login-otp', {
-      email,
-      otp,
-    });
+  async verifyLoginOTP(emailOrData, maybeOtp) {
+    const payload =
+      typeof emailOrData === 'object' && emailOrData !== null
+        ? {
+            email: emailOrData.email?.trim().toLowerCase(),
+            otp: String(emailOrData.otp).trim(),
+          }
+        : {
+            email: typeof emailOrData === 'string' ? emailOrData.trim().toLowerCase() : '',
+            otp: String(maybeOtp).trim(),
+          };
+
+    const response = await apiClient.post('/auth/verify-login-otp', payload);
     return response.data;
   },
 
   /**
    * Resend login OTP to email
-   * @param {Object} data - { email }
+   * POST /auth/resend-login-otp
+   * @param {string|Object} emailOrData - email string or { email }
    * @returns {Promise<Object>} - { success, message }
    */
-  async resendLoginOTP({ email }) {
-    const response = await apiClient.post('/auth/resend-login-otp', {
-      email,
-    });
+  async resendLoginOTP(emailOrData) {
+    const email =
+      typeof emailOrData === 'object' && emailOrData !== null
+        ? emailOrData.email?.trim().toLowerCase()
+        : String(emailOrData || '').trim().toLowerCase();
+
+    const response = await apiClient.post('/auth/resend-login-otp', { email });
     return response.data;
   },
 
   /**
    * Trigger password reset OTP
-   * @param {Object} data - { email }
+   * POST /auth/forgot-password
+   * @param {string|Object} emailOrData - email string or { email }
    * @returns {Promise<Object>} - { success, message }
    */
-  async forgotPassword({ email }) {
-    const response = await apiClient.post('/auth/forgot-password', {
-      email,
-    });
+  async forgotPassword(emailOrData) {
+    const email =
+      typeof emailOrData === 'object' && emailOrData !== null
+        ? emailOrData.email?.trim().toLowerCase()
+        : String(emailOrData || '').trim().toLowerCase();
+
+    const response = await apiClient.post('/auth/forgot-password', { email });
     return response.data;
   },
 
   /**
    * Reset password with OTP
-   * @param {Object} data - { email, otp, newPassword }
+   * POST /auth/reset-password
+   * @param {string|Object} emailOrData - email string or { email, otp, newPassword }
+   * @param {string} [maybeOtp] - 6-digit OTP string
+   * @param {string} [maybeNewPassword] - new password string
    * @returns {Promise<Object>} - { success, message }
    */
-  async resetPassword({ email, otp, newPassword }) {
-    const response = await apiClient.post('/auth/reset-password', {
-      email,
-      otp,
-      newPassword,
-    });
+  async resetPassword(emailOrData, maybeOtp, maybeNewPassword) {
+    const payload =
+      typeof emailOrData === 'object' && emailOrData !== null
+        ? {
+            email: emailOrData.email?.trim().toLowerCase(),
+            otp: String(emailOrData.otp).trim(),
+            newPassword: emailOrData.newPassword,
+          }
+        : {
+            email: typeof emailOrData === 'string' ? emailOrData.trim().toLowerCase() : '',
+            otp: String(maybeOtp).trim(),
+            newPassword: maybeNewPassword,
+          };
+
+    const response = await apiClient.post('/auth/reset-password', payload);
     return response.data;
   },
 
   /**
    * Refresh access token via HTTP-only refreshToken cookie
+   * POST /auth/refresh-token
    * @returns {Promise<Object>} - { success, token }
    */
   async refreshToken() {
@@ -80,6 +121,7 @@ export const authApi = {
 
   /**
    * Retrieve current authenticated user profile and permissions
+   * GET /auth/me
    * @returns {Promise<Object>} - { success, user: { id, email, fullName, roles, permissions } }
    */
   async getMe() {
@@ -96,19 +138,30 @@ export const authApi = {
 
   /**
    * Change password for logged-in user
-   * @param {Object} data - { currentPassword, newPassword }
+   * POST /auth/change-password
+   * @param {string|Object} currentPasswordOrData - currentPassword string or { currentPassword, newPassword }
+   * @param {string} [maybeNewPassword] - new password string
    * @returns {Promise<Object>} - { success, message }
    */
-  async changePassword({ currentPassword, newPassword }) {
-    const response = await apiClient.post('/auth/change-password', {
-      currentPassword,
-      newPassword,
-    });
+  async changePassword(currentPasswordOrData, maybeNewPassword) {
+    const payload =
+      typeof currentPasswordOrData === 'object' && currentPasswordOrData !== null
+        ? {
+            currentPassword: currentPasswordOrData.currentPassword,
+            newPassword: currentPasswordOrData.newPassword,
+          }
+        : {
+            currentPassword: currentPasswordOrData,
+            newPassword: maybeNewPassword,
+          };
+
+    const response = await apiClient.post('/auth/change-password', payload);
     return response.data;
   },
 
   /**
    * Invalidate session and logout
+   * POST /auth/logout
    * @returns {Promise<Object>} - { success, message }
    */
   async logout() {
@@ -122,54 +175,89 @@ export const authApi = {
   },
 
   /**
-   * Register new user (Admin only)
-   * @param {Object} data - { email, password, firstName, lastName, roleCodes }
+   * Register new user (Admin only - NO PASSWORD, magic link sent)
+   * POST /auth/register
+   * @param {Object} data - { email, firstName, lastName, roleCodes }
    */
   async register(data) {
-    const response = await apiClient.post('/auth/register', data);
+    const { password: _p, ...cleanData } = data || {};
+    if (cleanData.email) {
+      cleanData.email = cleanData.email.trim().toLowerCase();
+    }
+    const response = await apiClient.post('/auth/register', cleanData);
     return response.data;
   },
 
   /**
-   * Register employee with user (Admin only)
-   * @param {Object} data - { email, password, firstName, lastName, employeeCode, departmentId, jobPositionId, employeeTypeId, joiningDate, phone, roleCodes }
+   * Register employee with user (Admin/HR - NO PASSWORD, magic link sent)
+   * POST /auth/register-employee
+   * @param {Object} data - { email, firstName, lastName, employeeCode, departmentId, jobPositionId, employeeTypeId, joiningDate, phone, roleCodes }
    */
   async registerEmployee(data) {
-    const response = await apiClient.post('/auth/register-employee', data);
+    const { password: _p, ...cleanData } = data || {};
+    if (cleanData.email) {
+      cleanData.email = cleanData.email.trim().toLowerCase();
+    }
+    const response = await apiClient.post('/auth/register-employee', cleanData);
     return response.data;
   },
 
   /**
    * Verify magic link token
-   * @param {string} token
-   * @returns {Promise<Object>}
+   * POST /auth/verify-magic-link
+   * @param {string|Object} tokenOrData - magic-link token string or { token }
+   * @returns {Promise<Object>} - { success, valid, user: { email, firstName, lastName } }
    */
-  async verifyMagicLink(token) {
+  async verifyMagicLink(tokenOrData) {
+    const token =
+      typeof tokenOrData === 'object' && tokenOrData !== null
+        ? tokenOrData.token
+        : tokenOrData;
+
     const response = await apiClient.post('/auth/verify-magic-link', { token });
     return response.data;
   },
 
   /**
    * Set password via magic link
-   * @param {Object} data - { token, newPassword, password, confirmPassword }
-   * @returns {Promise<Object>}
+   * POST /auth/set-password-magic-link
+   * @param {string|Object} tokenOrData - token string or { token, newPassword, confirmPassword }
+   * @param {string} [maybeNewPassword] - new password string
+   * @returns {Promise<Object>} - { success, message }
    */
-  async setPasswordViaMagicLink({ token, newPassword, password, confirmPassword }) {
-    const pwd = newPassword || password;
-    const response = await apiClient.post('/auth/set-password-magic-link', {
-      token,
-      newPassword: pwd,
-      confirmPassword: confirmPassword || pwd,
-    });
+  async setPasswordViaMagicLink(tokenOrData, maybeNewPassword) {
+    let payload;
+    if (typeof tokenOrData === 'object' && tokenOrData !== null) {
+      const pwd = tokenOrData.newPassword || tokenOrData.password;
+      payload = {
+        token: tokenOrData.token,
+        newPassword: pwd,
+        confirmPassword: tokenOrData.confirmPassword || pwd,
+      };
+    } else {
+      payload = {
+        token: tokenOrData,
+        newPassword: maybeNewPassword,
+        confirmPassword: maybeNewPassword,
+      };
+    }
+
+    const response = await apiClient.post('/auth/set-password-magic-link', payload);
     return response.data;
   },
 
   /**
    * Resend magic link (Admin/HR)
-   * @param {Object} data - { email }
-   * @returns {Promise<Object>}
+   * POST /auth/resend-magic-link
+   * @param {string|Object} emailOrData - email string or { email }
+   * @returns {Promise<Object>} - { success, message }
    */
-  async resendMagicLink({ email }) {
+  async resendMagicLink(emailOrData) {
+    const email =
+      typeof emailOrData === 'object' && emailOrData !== null
+        ? emailOrData.email?.trim().toLowerCase()
+        : String(emailOrData || '').trim().toLowerCase();
+
     const response = await apiClient.post('/auth/resend-magic-link', { email });
     return response.data;
   },

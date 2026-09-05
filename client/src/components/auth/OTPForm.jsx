@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import { setCredentials } from '../../redux/slices/authSlice.js';
 import authApi from '../../services/authApi.js';
@@ -8,13 +8,18 @@ import authApi from '../../services/authApi.js';
  * Clean, compact PeoplePay 2FA Login OTP verification form.
  *
  * @param {Object} props
- * @param {string} props.email - Target user work email
+ * @param {string} [props.email] - Target user work email
  * @param {string} [props.roleSlug] - Prior role context for fallback redirect
  * @param {Function} [props.onSuccess] - Callback when verification completes
  */
-export default function OTPForm({ email, roleSlug = 'employee', onSuccess }) {
+export default function OTPForm({ email: propEmail, _roleSlug = 'employee', onSuccess }) {
   const navigate = useNavigate();
+  const location = useLocation();
   const dispatch = useDispatch();
+
+  const searchParams = new URLSearchParams(location.search);
+  const email =
+    (propEmail || searchParams.get('email') || location.state?.email || '').trim().toLowerCase();
 
   const [otp, setOtp] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -32,9 +37,31 @@ export default function OTPForm({ email, roleSlug = 'employee', onSuccess }) {
     return () => clearInterval(timer);
   }, [cooldown]);
 
+  const getRoleRedirect = (roles) => {
+    const rawList = Array.isArray(roles) ? roles : roles ? [roles] : [];
+    const codes = rawList
+      .map((r) => {
+        if (typeof r === 'string') return r.toUpperCase().replace('-', '_');
+        if (r && typeof r === 'object' && r.code) return r.code.toUpperCase().replace('-', '_');
+        return '';
+      })
+      .filter(Boolean);
+
+    if (codes.includes('ADMIN')) return '/admin/dashboard';
+    if (codes.includes('HR_PAYROLL_MANAGER')) return '/hr-payroll-manager/dashboard';
+    if (codes.includes('HR_PAYROLL_USER')) return '/hr-payroll-user/dashboard';
+    if (codes.includes('HR_MANAGER')) return '/hr-manager/dashboard';
+    return '/employee/dashboard';
+  };
+
   const handleVerify = async (e) => {
     e.preventDefault();
     const cleanOtp = otp.trim();
+
+    if (!email) {
+      setError('Email address is missing. Please return to login.');
+      return;
+    }
 
     if (!cleanOtp) {
       setError('Please enter the 6-digit verification code.');
@@ -70,7 +97,13 @@ export default function OTPForm({ email, roleSlug = 'employee', onSuccess }) {
         console.warn('Could not fetch /auth/me profile immediately', meErr.message);
       }
 
-      // 3. Commit credentials to Redux store
+      // 3. Save token to localStorage
+      if (token && typeof window !== 'undefined') {
+        localStorage.setItem('token', token);
+        localStorage.setItem('peoplepay_token', token);
+      }
+
+      // 4. Commit credentials to Redux store
       dispatch(
         setCredentials({
           user: authoritativeUser,
@@ -78,22 +111,13 @@ export default function OTPForm({ email, roleSlug = 'employee', onSuccess }) {
         })
       );
 
-      // 4. Navigate to authoritative role dashboard
-      const userRoles = authoritativeUser.roles || [];
-      const primaryRole = (
-        typeof userRoles[0] === 'string'
-          ? userRoles[0]
-          : userRoles[0]?.code || roleSlug
-      )
-        .toLowerCase()
-        .replace('-', '_');
-
-      const targetSlug = primaryRole.replace('_', '-');
+      // 5. Navigate to authoritative role dashboard
+      const targetRoute = getRoleRedirect(authoritativeUser?.roles);
 
       if (onSuccess) {
-        onSuccess(targetSlug);
+        onSuccess(targetRoute);
       } else {
-        navigate(`/dashboard/${targetSlug}`, { replace: true });
+        navigate(targetRoute, { replace: true });
       }
     } catch (err) {
       const msg =
@@ -128,7 +152,7 @@ export default function OTPForm({ email, roleSlug = 'employee', onSuccess }) {
     }
   };
 
-  const loginFallbackRoute = `/login/${roleSlug ? roleSlug.replace('_', '-') : 'employee'}`;
+  const loginFallbackRoute = '/login';
 
   return (
     <div className='w-full max-w-md mx-auto'>

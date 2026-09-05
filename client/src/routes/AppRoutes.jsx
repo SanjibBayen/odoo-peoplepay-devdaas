@@ -31,13 +31,24 @@ import AdminDashboardPage from '../pages/admin/AdminDashboardPage.jsx';
 import EmployeesPage from '../pages/hr-manager/EmployeesPage.jsx';
 import EmployeeDetailPage from '../pages/hr-manager/EmployeeDetailPage.jsx';
 import ContractsPage from '../pages/contracts/ContractsPage.jsx';
+import ContractFormPage from '../pages/contracts/ContractFormPage.jsx';
+import ContractDetailPage from '../pages/contracts/ContractDetailPage.jsx';
 import SchedulesPage from '../pages/schedules/SchedulesPage.jsx';
+import ScheduleFormPage from '../pages/schedules/ScheduleFormPage.jsx';
 import AttendancePage from '../pages/attendance/AttendancePage.jsx';
 import TimeOffPage from '../pages/time-off/TimeOffPage.jsx';
+import TimeOffRequestsPage from '../pages/time-off/TimeOffRequestsPage.jsx';
+import TimeOffAllocationsPage from '../pages/time-off/TimeOffAllocationsPage.jsx';
+import TimeOffTypesPage from '../pages/time-off/TimeOffTypesPage.jsx';
 import SalaryStructuresPage from '../pages/salary/SalaryStructuresPage.jsx';
+import SalaryStructureFormPage from '../pages/salary/SalaryStructureFormPage.jsx';
 import SalaryRulesPage from '../pages/salary/SalaryRulesPage.jsx';
+import SalaryRuleFormPage from '../pages/salary/SalaryRuleFormPage.jsx';
 import PayrunsPage from '../pages/payroll/PayrunsPage.jsx';
+import PayrunWizardPage from '../pages/payroll/PayrunWizardPage.jsx';
+import PayrunDetailPage from '../pages/payroll/PayrunDetailPage.jsx';
 import PayslipsPage from '../pages/payslips/PayslipsPage.jsx';
+import PayslipDetailPage from '../pages/payslips/PayslipDetailPage.jsx';
 import ReportsPage from '../pages/reports/ReportsPage.jsx';
 
 // Admin & Self-Service Pages
@@ -92,6 +103,7 @@ export default function AppRoutes() {
         {/* Public Landing & Login Pages */}
         <Route element={<PublicRoutes />}>
           <Route path='/' element={<LandingPage />} />
+          <Route path='/login' element={<EmployeeLoginPage />} />
           <Route path='/login/employee' element={<EmployeeLoginPage />} />
           <Route path='/login/hr-manager' element={<HRManagerLoginPage />} />
           <Route path='/login/hr-payroll-user' element={<HRPayrollUserLoginPage />} />
@@ -105,6 +117,14 @@ export default function AppRoutes() {
         <Route element={<ProtectedRoute />}>
           {/* 1. Employee Dashboard */}
           <Route element={<RoleRoute allowedRoles={['employee']} />}>
+            <Route
+              path='/employee/dashboard'
+              element={
+                <AppShell title='Employee Dashboard' activeNav='dashboard'>
+                  <EmployeeDashboardPage />
+                </AppShell>
+              }
+            />
             <Route
               path='/dashboard/employee'
               element={
@@ -126,6 +146,14 @@ export default function AppRoutes() {
           {/* 2. HR Manager Dashboard */}
           <Route element={<RoleRoute allowedRoles={['hr_manager']} />}>
             <Route
+              path='/hr-manager/dashboard'
+              element={
+                <AppShell title='HR Manager' activeNav='dashboard'>
+                  <HRManagerDashboardPage />
+                </AppShell>
+              }
+            />
+            <Route
               path='/dashboard/hr-manager'
               element={
                 <AppShell title='HR Manager' activeNav='dashboard'>
@@ -137,6 +165,14 @@ export default function AppRoutes() {
 
           {/* 3. HR Payroll User Dashboard */}
           <Route element={<RoleRoute allowedRoles={['hr_payroll_user']} />}>
+            <Route
+              path='/hr-payroll-user/dashboard'
+              element={
+                <AppShell title='Payroll Operations' activeNav='dashboard'>
+                  <HRPayrollUserDashboardPage />
+                </AppShell>
+              }
+            />
             <Route
               path='/dashboard/hr-payroll-user'
               element={
@@ -150,6 +186,14 @@ export default function AppRoutes() {
           {/* 4. HR Payroll Manager Dashboard */}
           <Route element={<RoleRoute allowedRoles={['hr_payroll_manager']} />}>
             <Route
+              path='/hr-payroll-manager/dashboard'
+              element={
+                <AppShell title='Payroll Manager' activeNav='dashboard'>
+                  <HRPayrollManagerDashboardPage />
+                </AppShell>
+              }
+            />
+            <Route
               path='/dashboard/hr-payroll-manager'
               element={
                 <AppShell title='Payroll Manager' activeNav='dashboard'>
@@ -161,6 +205,14 @@ export default function AppRoutes() {
 
           {/* 5. Admin Dashboard */}
           <Route element={<RoleRoute allowedRoles={['admin']} />}>
+            <Route
+              path='/admin/dashboard'
+              element={
+                <AppShell title='Administration' activeNav='dashboard'>
+                  <AdminDashboardPage />
+                </AppShell>
+              }
+            />
             <Route
               path='/dashboard/admin'
               element={
@@ -221,6 +273,22 @@ export default function AppRoutes() {
                 </AppShell>
               }
             />
+            <Route
+              path='/schedules/new'
+              element={
+                <AppShell title='Create Work Schedule' activeNav='schedules'>
+                  <ScheduleFormPage />
+                </AppShell>
+              }
+            />
+            <Route
+              path='/schedules/:id/edit'
+              element={
+                <AppShell title='Edit Work Schedule' activeNav='schedules'>
+                  <ScheduleFormPage />
+                </AppShell>
+              }
+            />
           </Route>
 
           {/* Contracts Module */}
@@ -234,6 +302,30 @@ export default function AppRoutes() {
               element={
                 <AppShell title='Contracts' activeNav='contracts'>
                   <ContractsPage />
+                </AppShell>
+              }
+            />
+            <Route
+              path='/contracts/new'
+              element={
+                <AppShell title='Create Contract' activeNav='contracts'>
+                  <ContractFormPage />
+                </AppShell>
+              }
+            />
+            <Route
+              path='/contracts/:id'
+              element={
+                <AppShell title='Contract Details' activeNav='contracts'>
+                  <ContractDetailPage />
+                </AppShell>
+              }
+            />
+            <Route
+              path='/contracts/:id/edit'
+              element={
+                <AppShell title='Edit Contract' activeNav='contracts'>
+                  <ContractFormPage />
                 </AppShell>
               }
             />
@@ -276,6 +368,30 @@ export default function AppRoutes() {
                 </AppShell>
               }
             />
+            <Route
+              path='/time-off/requests'
+              element={
+                <AppShell title='Leave Requests' activeNav='time-off'>
+                  <TimeOffRequestsPage />
+                </AppShell>
+              }
+            />
+            <Route
+              path='/time-off/allocations'
+              element={
+                <AppShell title='Leave Allocations' activeNav='time-off'>
+                  <TimeOffAllocationsPage />
+                </AppShell>
+              }
+            />
+            <Route
+              path='/time-off/types'
+              element={
+                <AppShell title='Leave Types' activeNav='time-off'>
+                  <TimeOffTypesPage />
+                </AppShell>
+              }
+            />
           </Route>
 
           {/* 7. Payroll & Payslips Modules */}
@@ -295,6 +411,22 @@ export default function AppRoutes() {
               }
             />
             <Route
+              path='/salary-structures/new'
+              element={
+                <AppShell title='Create Salary Structure' activeNav='salary-structures'>
+                  <SalaryStructureFormPage />
+                </AppShell>
+              }
+            />
+            <Route
+              path='/salary-structures/:id/edit'
+              element={
+                <AppShell title='Edit Salary Structure' activeNav='salary-structures'>
+                  <SalaryStructureFormPage />
+                </AppShell>
+              }
+            />
+            <Route
               path='/salary-rules'
               element={
                 <AppShell title='Salary Rules' activeNav='salary-rules'>
@@ -303,10 +435,42 @@ export default function AppRoutes() {
               }
             />
             <Route
+              path='/salary-rules/new'
+              element={
+                <AppShell title='Create Salary Rule' activeNav='salary-rules'>
+                  <SalaryRuleFormPage />
+                </AppShell>
+              }
+            />
+            <Route
+              path='/salary-rules/:id/edit'
+              element={
+                <AppShell title='Edit Salary Rule' activeNav='salary-rules'>
+                  <SalaryRuleFormPage />
+                </AppShell>
+              }
+            />
+            <Route
               path='/payruns'
               element={
                 <AppShell title='Payroll Runs' activeNav='payruns'>
                   <PayrunsPage />
+                </AppShell>
+              }
+            />
+            <Route
+              path='/payruns/new'
+              element={
+                <AppShell title='New Payrun Wizard' activeNav='payruns'>
+                  <PayrunWizardPage />
+                </AppShell>
+              }
+            />
+            <Route
+              path='/payruns/:id'
+              element={
+                <AppShell title='Payrun Details' activeNav='payruns'>
+                  <PayrunDetailPage />
                 </AppShell>
               }
             />
@@ -330,6 +494,14 @@ export default function AppRoutes() {
               element={
                 <AppShell title='Payslips' activeNav='payslips'>
                   <PayslipsPage />
+                </AppShell>
+              }
+            />
+            <Route
+              path='/payslips/:id'
+              element={
+                <AppShell title='Payslip Breakdown' activeNav='payslips'>
+                  <PayslipDetailPage />
                 </AppShell>
               }
             />

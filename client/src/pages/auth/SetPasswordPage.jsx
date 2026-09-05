@@ -104,8 +104,8 @@ export default function SetPasswordPage() {
       });
       setSuccess(true);
       setTimeout(() => {
-        navigate('/login/employee');
-      }, 3000);
+        navigate('/login');
+      }, 2500);
     } catch (err) {
       const status = err.response?.status;
       const msg = err.response?.data?.message || err.message || '';
@@ -209,7 +209,7 @@ export default function SetPasswordPage() {
             </form>
 
             <div className='mt-6 pt-4 border-t border-[#EAE6DF] text-center'>
-              <Link to='/login/employee' className='text-xs text-[#714B67] hover:underline font-bold'>
+              <Link to='/login' className='text-xs text-[#714B67] hover:underline font-bold'>
                 Return to Login
               </Link>
             </div>
@@ -318,7 +318,7 @@ export default function SetPasswordPage() {
             </button>
 
             <div className='pt-2 text-center'>
-              <Link to='/login/employee' className='text-xs text-gray-500 hover:text-gray-800 font-medium'>
+              <Link to='/login' className='text-xs text-gray-500 hover:text-gray-800 font-medium'>
                 Back to sign in
               </Link>
             </div>
@@ -336,7 +336,7 @@ export default function SetPasswordPage() {
             </p>
             <div className='pt-2'>
               <Link
-                to='/login/employee'
+                to='/login'
                 className='inline-block px-5 py-2.5 rounded-xl bg-[#714B67] text-white text-xs font-bold hover:bg-[#5E3E56] transition-all shadow-xs'
               >
                 Go to Login
