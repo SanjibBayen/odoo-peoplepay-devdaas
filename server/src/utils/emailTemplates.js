@@ -301,6 +301,71 @@ export const attendanceAlertTemplate = (employee, alert) => {
   return emailWrapper(content, 'Attendance Alert - PeoplePay');
 };
 
+
+/**
+ * Magic Link Welcome Email Template
+ * @param {Object} user - User object
+ * @param {string} magicLink - Complete magic link URL
+ * @param {number} expiryHours - Expiry time in hours
+ */
+export const magicLinkWelcomeEmailTemplate = (user, magicLink, expiryHours = 24) => {
+  const content = `
+    <h2>Welcome to PeoplePay!</h2>
+    <p>Dear ${user.firstName} ${user.lastName || ''},</p>
+    
+    <p>Your account has been created successfully. Here are your account details:</p>
+    
+    <div class="info-box">
+      <strong>Email:</strong> ${user.email}<br>
+      <strong>Employee Code:</strong> ${user.employeeCode || 'N/A'}<br>
+      <strong>Department:</strong> ${user.department || 'N/A'}
+    </div>
+    
+    <p style="margin-top: 25px;">To activate your account, please set your password by clicking the button below:</p>
+    
+    <div style="text-align: center; margin: 30px 0;">
+      <a href="${magicLink}" class="button" style="font-size: 16px;">Set Your Password</a>
+    </div>
+    
+    <div class="warning-box">
+      <strong>Security Notice:</strong><br>
+      - This link will expire in ${expiryHours} hours<br>
+      - This link can only be used once<br>
+      - If you didn't request this, please ignore this email
+    </div>
+    
+    <p style="margin-top: 25px; color: #6c757d; font-size: 14px;">
+      If the button doesn't work, copy and paste this link into your browser:<br>
+      <span style="color: #667eea; word-break: break-all;">${magicLink}</span>
+    </p>
+    
+    <p>If you have any questions, please contact your HR department.</p>
+  `;
+
+  return emailWrapper(content, 'Set Your Password - PeoplePay');
+};
+
+/**
+ * Magic Link Expired Email Template
+ */
+export const magicLinkExpiredEmailTemplate = (user, resendLink) => {
+  const content = `
+    <h2>Password Setup Link Expired</h2>
+    <p>Dear ${user.firstName},</p>
+    
+    <p>Your password setup link has expired. Please click the button below to request a new one:</p>
+    
+    <div style="text-align: center; margin: 30px 0;">
+      <a href="${resendLink}" class="button">Request New Link</a>
+    </div>
+    
+    <div class="warning-box">
+      <strong>Note:</strong> For security reasons, password setup links expire after 24 hours.
+    </div>
+  `;
+
+  return emailWrapper(content, 'Link Expired - PeoplePay');
+};
 export default {
   otpEmailTemplate,
   welcomeEmailTemplate,
@@ -308,5 +373,9 @@ export default {
   passwordChangeTemplate,
   payslipEmailTemplate,
   leaveRequestTemplate,
-  attendanceAlertTemplate
+  attendanceAlertTemplate ,
+  magicLinkWelcomeEmailTemplate,      
+  magicLinkExpiredEmailTemplate, 
 };
+
+
