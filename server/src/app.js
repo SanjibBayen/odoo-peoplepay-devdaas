@@ -3,7 +3,7 @@ import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import morgan from 'morgan';
 import { errorHandler, notFound } from './middleware/error.middleware.js';
-import authRoutes from './routes/auth.routes.js';
+
 
 const app = express();
 
@@ -51,7 +51,12 @@ app.get('/api/health', async (req, res) => {
 });
 
 // API routes
+import authRoutes from './routes/auth.routes.js';
+import employeeRoutes from './routes/employee.routes.js';
+
+// Mount routes
 app.use('/api/auth', authRoutes);
+app.use('/api/employees', employeeRoutes);
 
 // 404 handler
 app.use(notFound);
