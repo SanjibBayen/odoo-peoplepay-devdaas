@@ -64,6 +64,8 @@ import timeOffAllocationRoutes from './routes/timeOffAllocation.routes.js';
 import timeOffRequestRoutes from './routes/timeOffRequest.routes.js';
 import salaryStructureRoutes from './routes/salaryStructure.routes.js';
 import salaryRuleRoutes from './routes/salaryRule.routes.js';
+import payrunRoutes from './routes/payrun.routes.js';
+import dashboardRoutes from './routes/dashboard.routes.js';
 
 // API routes
 app.use('/api/auth', authRoutes);
@@ -79,6 +81,8 @@ app.use('/api/time-off-allocations', timeOffAllocationRoutes);
 app.use('/api/time-off-requests', timeOffRequestRoutes);
 app.use('/api/salary-structures', salaryStructureRoutes);
 app.use('/api/salary-rules', salaryRuleRoutes);
+app.use('/api/payruns', payrunRoutes);
+app.use('/api/dashboard', dashboardRoutes);
 
 
 // 404 handler
