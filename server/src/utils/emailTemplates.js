@@ -1,5 +1,5 @@
 /**
- * Email Templates for PeoplePay360
+ * Email Templates for PeoplePay
  */
 
 // Brand colors
@@ -13,7 +13,7 @@ const brandColors = {
 };
 
 // Base email wrapper
-const emailWrapper = (content, title = 'PeoplePay360') => {
+const emailWrapper = (content, title = 'PeoplePay') => {
   return `
     <!DOCTYPE html>
     <html lang="en">
@@ -105,15 +105,15 @@ const emailWrapper = (content, title = 'PeoplePay360') => {
     <body>
       <div class="container">
         <div class="header">
-          <h1>PeoplePay360</h1>
+          <h1>PeoplePay</h1>
           <p>HR & Payroll Management System</p>
         </div>
         <div class="content">
           ${content}
         </div>
         <div class="footer">
-          <p>This is an automated email from PeoplePay360. Please do not reply.</p>
-          <p>© ${new Date().getFullYear()} PeoplePay360. All rights reserved.</p>
+          <p>This is an automated email from PeoplePay. Please do not reply.</p>
+          <p>© ${new Date().getFullYear()} PeoplePay. All rights reserved.</p>
         </div>
       </div>
     </body>
@@ -153,7 +153,7 @@ export const otpEmailTemplate = (otp, purpose = 'login') => {
     <p>If you didn't request this, please ignore this email or contact HR immediately.</p>
   `;
 
-  return emailWrapper(content, `${purposeText} - PeoplePay360`);
+  return emailWrapper(content, `${purposeText} - PeoplePay`);
 };
 
 /**
@@ -161,7 +161,7 @@ export const otpEmailTemplate = (otp, purpose = 'login') => {
  */
 export const welcomeEmailTemplate = (user) => {
   const content = `
-    <h2>Welcome to PeoplePay360!</h2>
+    <h2>Welcome to PeoplePay!</h2>
     <p>Dear ${user.firstName} ${user.lastName || ''},</p>
     
     <p>Your account has been created successfully. Here are your account details:</p>
@@ -172,12 +172,12 @@ export const welcomeEmailTemplate = (user) => {
       <strong>Department:</strong> ${user.department || 'N/A'}
     </div>
     
-    <p>You can now access your HR and payroll information through the PeoplePay360 portal.</p>
+    <p>You can now access your HR and payroll information through the PeoplePay portal.</p>
     
     <p>If you have any questions, please contact your HR department.</p>
   `;
 
-  return emailWrapper(content, 'Welcome to PeoplePay360');
+  return emailWrapper(content, 'Welcome to PeoplePay');
 };
 
 /**
@@ -199,7 +199,7 @@ export const passwordResetSuccessTemplate = (user) => {
     </div>
   `;
 
-  return emailWrapper(content, 'Password Reset - PeoplePay360');
+  return emailWrapper(content, 'Password Reset - PeoplePay');
 };
 
 /**
@@ -222,7 +222,7 @@ export const passwordChangeTemplate = (user) => {
     </div>
   `;
 
-  return emailWrapper(content, 'Password Changed - PeoplePay360');
+  return emailWrapper(content, 'Password Changed - PeoplePay');
 };
 
 /**
@@ -248,7 +248,7 @@ export const payslipEmailTemplate = (employee, payslip, attachmentUrl) => {
     <p>If you have any questions about your salary, please contact HR.</p>
   `;
 
-  return emailWrapper(content, 'Payslip Available - PeoplePay360');
+  return emailWrapper(content, 'Payslip Available - PeoplePay');
 };
 
 /**
@@ -275,7 +275,7 @@ export const leaveRequestTemplate = (employee, leaveRequest) => {
     ` : ''}
   `;
 
-  return emailWrapper(content, `Leave Request ${leaveRequest.status} - PeoplePay360`);
+  return emailWrapper(content, `Leave Request ${leaveRequest.status} - PeoplePay`);
 };
 
 /**
@@ -298,7 +298,7 @@ export const attendanceAlertTemplate = (employee, alert) => {
     <p>Please contact HR if you believe this is an error.</p>
   `;
 
-  return emailWrapper(content, 'Attendance Alert - PeoplePay360');
+  return emailWrapper(content, 'Attendance Alert - PeoplePay');
 };
 
 export default {
