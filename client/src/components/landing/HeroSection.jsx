@@ -20,17 +20,6 @@ export default function HeroSection({ onOpenWorkspaceModal }) {
             {/* Main Heading with Playful Doodles */}
             <div className='relative'>
               {/* Doodle Spark on top-left of heading */}
-              <svg
-                className='absolute -top-6 -left-6 w-8 h-8 text-[#714B67] select-none'
-                viewBox='0 0 24 24'
-                fill='none'
-                stroke='currentColor'
-                strokeWidth='2.5'
-                strokeLinecap='round'
-              >
-                <path d='M12 2v4M12 18v4M2 12h4M18 12h4' />
-              </svg>
-
               <h1 className='text-4xl sm:text-5xl lg:text-6xl font-extrabold text-[#1E293B] tracking-tight leading-[1.12]'>
                 Powering People. <br />
                 <span className='text-[#714B67] relative inline-block'>
@@ -81,18 +70,6 @@ export default function HeroSection({ onOpenWorkspaceModal }) {
 
               {/* Hand-drawn Annotation below CTAs: Arrow + Smiley */}
               <div className='hidden sm:flex items-center gap-2 mt-4 ml-2 select-none'>
-                <svg
-                  className='w-8 h-8 text-[#714B67] -rotate-12'
-                  viewBox='0 0 40 40'
-                  fill='none'
-                  stroke='currentColor'
-                  strokeWidth='2.2'
-                  strokeLinecap='round'
-                  strokeLinejoin='round'
-                >
-                  <path d='M30 10 C 22 18, 14 26, 8 20' />
-                  <path d='M6 25 L 8 19 L 14 21' />
-                </svg>
                 <span className='font-handwriting text-xl text-gray-700 font-semibold'>
                   Less manual work → More time for people
                 </span>
@@ -104,24 +81,24 @@ export default function HeroSection({ onOpenWorkspaceModal }) {
               <div className='flex -space-x-2.5 overflow-hidden'>
                 {/* Avatar 1 */}
                 <div className='w-10 h-10 rounded-full border-2 border-white bg-blue-100 flex items-center justify-center text-xs font-bold text-blue-700 shadow-xs'>
-                  AM
+                  SB
                 </div>
                 {/* Avatar 2 */}
                 <div className='w-10 h-10 rounded-full border-2 border-white bg-amber-100 flex items-center justify-center text-xs font-bold text-amber-700 shadow-xs'>
-                  SK
+                  SM
                 </div>
                 {/* Avatar 3 */}
                 <div className='w-10 h-10 rounded-full border-2 border-white bg-emerald-100 flex items-center justify-center text-xs font-bold text-emerald-700 shadow-xs'>
-                  RJ
+                  UM
                 </div>
                 {/* Avatar 4 */}
                 <div className='w-10 h-10 rounded-full border-2 border-white bg-purple-100 flex items-center justify-center text-xs font-bold text-purple-700 shadow-xs'>
-                  LT
+                  AA
                 </div>
               </div>
               <div className='flex items-center gap-2'>
                 <p className='text-xs font-semibold text-gray-600 leading-snug'>
-                  Trusted by HR teams <br />
+                  Created By Team DEVDASS <br />
                   across growing organizations
                 </p>
               </div>

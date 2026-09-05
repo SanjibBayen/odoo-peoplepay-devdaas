@@ -185,10 +185,7 @@ export default function FeaturesSection() {
               </div>
 
               <div className='mt-5 pt-3 border-t border-gray-200/50 flex items-center justify-between text-xs text-gray-500'>
-                <span className='font-medium'>{card.badge}</span>
-                <span className='font-handwriting text-base font-bold text-[#714B67] group-hover:translate-x-1 transition-transform'>
-                  Explore →
-                </span>
+                
               </div>
             </div>
           ))}
