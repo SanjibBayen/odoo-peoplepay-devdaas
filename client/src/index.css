@@ -1,25 +1,64 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 
-/* 1. Force Tailwind v4 to listen to the .dark class on html/root */
+/* Force Tailwind v4 dark variant */
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
-  --font-odoo: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-sans:
+    'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont,
+    'Segoe UI', Roboto, sans-serif;
+  --font-handwriting: 'Caveat', cursive, sans-serif;
 
-  --color-odoo-primary: #714B67;
-  --color-odoo-primary-hover: #5E3E56;
-  --color-odoo-secondary: #017E84;
-  --color-odoo-secondary-hover: #00656A;
+  --color-odoo-primary: #714b67;
+  --color-odoo-primary-hover: #5e3e56;
+  --color-odoo-secondary: #017e84;
+}
 
-  --color-odoo-light-bg: #F8F9FA;
-  --color-odoo-light-surface: #FFFFFF;
-  --color-odoo-light-border: #E2E8F0;
-  --color-odoo-light-text: #212529;
-  --color-odoo-light-muted: #6C757D;
+body {
+  font-family:
+    'Plus Jakarta Sans',
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    Roboto,
+    sans-serif;
+  background-color: #faf8f5;
+  color: #1e293b;
+  -webkit-font-smoothing: antialiased;
+}
 
-  --color-odoo-dark-bg: #121417;
-  --color-odoo-dark-surface: #1E2125;
-  --color-odoo-dark-border: #2E343A;
-  --color-odoo-dark-text: #F8F9FA;
-  --color-odoo-dark-muted: #9CA3AF;
+.font-handwriting {
+  font-family: 'Caveat', cursive, sans-serif;
+}
+
+/* Subtle Marker Highlight */
+.marker-yellow {
+  background: linear-gradient(
+    180deg,
+    transparent 55%,
+    #fef08a 55%,
+    #fef08a 92%,
+    transparent 92%
+  );
+}
+
+.marker-mint {
+  background: linear-gradient(
+    180deg,
+    transparent 55%,
+    #a7f3d0 55%,
+    #a7f3d0 92%,
+    transparent 92%
+  );
+}
+
+.marker-pink {
+  background: linear-gradient(
+    180deg,
+    transparent 55%,
+    #fecdd3 55%,
+    #fecdd3 92%,
+    transparent 92%
+  );
 }
