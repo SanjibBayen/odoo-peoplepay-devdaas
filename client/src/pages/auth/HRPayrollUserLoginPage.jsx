@@ -1,19 +1,23 @@
 import React from 'react';
 import LoginForm from '../../components/auth/LoginForm.jsx';
-import LoginVisual from '../../components/auth/LoginVisual.jsx';
 import { ROLES } from '../../constants/roles.js';
 
 export default function HRPayrollUserLoginPage() {
   const role = ROLES.HR_PAYROLL_USER;
 
   return (
-    <div className='min-h-screen bg-[#FAF8F5] flex flex-col lg:grid lg:grid-cols-12 selection:bg-amber-100 selection:text-amber-900'>
-      <div className='lg:col-span-5 xl:col-span-5 h-auto lg:h-screen lg:sticky lg:top-0'>
-        <LoginVisual role={role} />
-      </div>
-      <div className='lg:col-span-7 xl:col-span-7 flex items-center justify-center p-6 sm:p-10 lg:p-16'>
-        <LoginForm role={role} />
-      </div>
+    <div className='min-h-screen bg-[#FAF8F5] flex items-center justify-center p-4 sm:p-6 relative overflow-hidden'>
+      {/* Subtle pastel background decorative shapes */}
+      <div
+        className='absolute -top-32 -left-32 w-96 h-96 rounded-full bg-amber-100/40 blur-3xl pointer-events-none'
+        aria-hidden='true'
+      />
+      <div
+        className='absolute -bottom-32 -right-32 w-96 h-96 rounded-full bg-purple-100/40 blur-3xl pointer-events-none'
+        aria-hidden='true'
+      />
+
+      <LoginForm role={role} />
     </div>
   );
 }

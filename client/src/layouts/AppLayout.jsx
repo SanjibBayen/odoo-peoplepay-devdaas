@@ -19,10 +19,11 @@ export default function AppLayout({
   title = 'Dashboard',
   portalName = 'Portal',
   user,
+  activeNav: initialActiveNav = 'dashboard',
   children,
 }) {
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [activeNav, setActiveNav] = useState('dashboard');
+  const [activeNav, setActiveNav] = useState(initialActiveNav);
 
   return (
     <div className='min-h-screen bg-[#FAF8F5] text-[#1E293B] flex flex-col'>

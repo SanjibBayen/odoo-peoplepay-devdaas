@@ -93,7 +93,6 @@ export default function SidebarDrawer({
           loginRoute: '/login/hr-payroll-manager',
           navItems: [
             { id: 'dashboard', label: 'Dashboard', icon: 'grid' },
-            { id: 'employees', label: 'Employees', icon: 'users' },
             {
               id: 'salary-structures',
               label: 'Salary Structures',
@@ -308,6 +307,11 @@ export default function SidebarDrawer({
   };
 
   const handleNavClick = (itemId) => {
+    if (itemId === 'dashboard') {
+      navigate(config.dashboardRoute);
+    } else if (itemId === 'employees') {
+      navigate('/employees');
+    }
     if (onNavSelect) {
       onNavSelect(itemId);
     }

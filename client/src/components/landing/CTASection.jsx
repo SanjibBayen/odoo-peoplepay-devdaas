@@ -3,7 +3,7 @@ import React from 'react';
 export default function CTASection({ onOpenWorkspaceModal }) {
   return (
     <section
-      className='pt-6 pb-8 lg:pt-8 lg:pb-10 bg-[#FAF8F5] relative overflow-hidden'
+      className='pt-6 pb-16 lg:pt-8 lg:pb-20 bg-[#FAF8F5] relative overflow-hidden'
       aria-labelledby='final-cta-heading'
     >
       <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8'>

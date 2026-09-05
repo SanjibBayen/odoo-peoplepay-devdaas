@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import PageHeader from '../../components/common/PageHeader.jsx';
 import StatCard from '../../components/common/StatCard.jsx';
 import ActivityList from '../../components/dashboard/ActivityList.jsx';
@@ -11,6 +12,7 @@ import { ADMIN_DATA } from '../../data/adminDashboardData.js';
  * 4 KPIs • 2 Main Content Cards • 3 Quick Actions
  */
 export default function AdminDashboardPage() {
+  const navigate = useNavigate();
   const { kpis, roleDistribution, auditEvents, quickActions } = ADMIN_DATA;
 
   const [modalMessage, setModalMessage] = useState(null);
@@ -125,7 +127,13 @@ export default function AdminDashboardPage() {
             <QuickActionCard
               key={action.id}
               action={action}
-              onClick={() => setModalMessage(`Opening ${action.title}...`)}
+              onClick={() => {
+                if (action.id === 'manage-users') {
+                  navigate('/employees');
+                } else {
+                  setModalMessage(`Opening ${action.title}...`);
+                }
+              }}
             />
           ))}
         </div>

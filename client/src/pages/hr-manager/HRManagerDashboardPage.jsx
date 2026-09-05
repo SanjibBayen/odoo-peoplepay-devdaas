@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import PageHeader from '../../components/common/PageHeader.jsx';
 import StatCard from '../../components/common/StatCard.jsx';
 import DashboardSection from '../../components/dashboard/DashboardSection.jsx';
@@ -10,6 +11,7 @@ import { HR_MANAGER_DATA } from '../../data/hrManagerDashboardData.js';
  * 4 KPIs • 2 Main Content Cards • 3 Quick Actions
  */
 export default function HRManagerDashboardPage() {
+  const navigate = useNavigate();
   const { kpis, departments, pendingLeaves, quickActions } = HR_MANAGER_DATA;
 
   const [leavesList, setLeavesList] = useState(pendingLeaves);
@@ -175,9 +177,13 @@ export default function HRManagerDashboardPage() {
             <QuickActionCard
               key={action.id}
               action={action}
-              onClick={() =>
-                setModalMessage(`Opening ${action.title} modal...`)
-              }
+              onClick={() => {
+                if (action.id === 'add-employee') {
+                  navigate('/employees');
+                } else {
+                  setModalMessage(`Opening ${action.title} modal...`);
+                }
+              }}
             />
           ))}
         </div>

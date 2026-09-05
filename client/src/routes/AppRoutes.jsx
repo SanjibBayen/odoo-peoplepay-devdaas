@@ -13,12 +13,50 @@ import HRManagerLoginPage from '../pages/auth/HRManagerLoginPage.jsx';
 import HRPayrollManagerLoginPage from '../pages/auth/HRPayrollManagerLoginPage.jsx';
 import HRPayrollUserLoginPage from '../pages/auth/HRPayrollUserLoginPage.jsx';
 import EmployeeDashboardPage from '../pages/employee/EmployeeDashboardPage.jsx';
+import EmployeeDetailPage from '../pages/hr-manager/EmployeeDetailPage.jsx';
+import EmployeesPage from '../pages/hr-manager/EmployeesPage.jsx';
 import HRManagerDashboardPage from '../pages/hr-manager/HRManagerDashboardPage.jsx';
 import HRPayrollManagerDashboardPage from '../pages/hr-payroll-manager/HRPayrollManagerDashboardPage.jsx';
 import HRPayrollUserDashboardPage from '../pages/hr-payroll-user/HRPayrollUserDashboardPage.jsx';
 import LandingPage from '../pages/public/LandingPage.jsx';
 import ProtectedRoute from './ProtectedRoute.jsx';
 import PublicRoutes from './PublicRoutes.jsx';
+
+/**
+ * Shell wrapper for Employee Management module accessible to HR Manager and Admin.
+ */
+function EmployeeManagementShell({ children, title = 'Employees' }) {
+  const activeRole =
+    typeof window !== 'undefined'
+      ? sessionStorage.getItem('peoplepay_role')
+      : null;
+
+  // Strict role check: If authenticated as Employee or Payroll user, redirect to own dashboard
+  if (
+    activeRole &&
+    activeRole !== 'hr-manager' &&
+    activeRole !== 'admin'
+  ) {
+    return <Navigate to={`/dashboard/${activeRole}`} replace />;
+  }
+
+  const roleId = activeRole === 'admin' ? 'admin' : 'hr-manager';
+  const user = roleId === 'admin' ? ADMIN_DATA.user : HR_MANAGER_DATA.user;
+  const portalName =
+    roleId === 'admin' ? 'Administrator Portal' : 'HR Manager Portal';
+
+  return (
+    <AppLayout
+      roleId={roleId}
+      title={title}
+      portalName={portalName}
+      user={user}
+      activeNav='employees'
+    >
+      {children}
+    </AppLayout>
+  );
+}
 
 /**
  * Main application routes configuration for PeoplePay.
@@ -116,6 +154,24 @@ export default function AppRoutes() {
             >
               <AdminDashboardPage />
             </AppLayout>
+          }
+        />
+
+        {/* 6. Employee Management Module (Accessible to HR Manager & Admin) */}
+        <Route
+          path='/employees'
+          element={
+            <EmployeeManagementShell title='Employees'>
+              <EmployeesPage />
+            </EmployeeManagementShell>
+          }
+        />
+        <Route
+          path='/employees/:employeeId'
+          element={
+            <EmployeeManagementShell title='Employee Profile'>
+              <EmployeeDetailPage />
+            </EmployeeManagementShell>
           }
         />
       </Route>

@@ -72,65 +72,66 @@ export default function LoginForm({ role }) {
 
   return (
     <div className='w-full max-w-md mx-auto'>
-      {/* Mobile-only Branding Header */}
-      <div className='lg:hidden mb-6 flex items-center justify-between'>
-        <Link
-          to='/'
-          className='flex items-center gap-2 group'
-          aria-label='Back to PeoplePay home'
-        >
-          <div className='w-8 h-8 rounded-lg bg-purple-50 border border-purple-200/80 flex items-center justify-center p-1 shadow-2xs'>
-            <svg
-              viewBox='0 0 40 40'
-              fill='none'
-              className='w-full h-full'
-              aria-hidden='true'
-            >
-              <circle cx='13' cy='17' r='5' fill='#34D399' />
-              <path
-                d='M6 31c0-4 3.5-7 7-7s7 3 7 7'
-                fill='#34D399'
-                opacity='0.85'
-              />
-              <circle cx='20' cy='13' r='6' fill='#714B67' />
-              <path d='M12 29c0-4.5 4-8 8-8s8 3.5 8 8' fill='#714B67' />
-              <circle cx='27' cy='17' r='5' fill='#FB923C' />
-              <path
-                d='M20 31c0-4 3.5-7 7-7s7 3 7 7'
-                fill='#FB923C'
-                opacity='0.85'
-              />
-            </svg>
-          </div>
-          <span className='text-lg font-black text-[#1E293B]'>
-            PeoplePay
-          </span>
-        </Link>
-        <RoleBadge role={role} />
-      </div>
-
       {/* Main Card Container */}
-      <div className='bg-white rounded-3xl p-8 sm:p-10 border border-[#EAE6DF] shadow-xl relative'>
-        {/* Role Pill & Header */}
-        <div className='mb-6'>
-          <div className='flex items-center justify-between mb-3'>
+      <div className='bg-white rounded-3xl p-6 sm:p-8 border border-[#EAE6DF] shadow-xl relative'>
+        {/* Card Header: Brand, Portal Badge, Welcome */}
+        <div className='text-center mb-6 space-y-3'>
+          {/* Logo & Brand */}
+          <Link
+            to='/'
+            className='inline-flex items-center justify-center gap-2.5 group'
+            aria-label='Back to PeoplePay home'
+          >
+            <div className='w-9 h-9 rounded-xl bg-purple-50 border border-purple-200/80 flex items-center justify-center p-1.5 shadow-2xs group-hover:scale-105 transition-transform'>
+              <svg
+                viewBox='0 0 40 40'
+                fill='none'
+                className='w-full h-full'
+                aria-hidden='true'
+              >
+                <circle cx='13' cy='17' r='5' fill='#34D399' />
+                <path
+                  d='M6 31c0-4 3.5-7 7-7s7 3 7 7'
+                  fill='#34D399'
+                  opacity='0.85'
+                />
+                <circle cx='20' cy='13' r='6' fill='#714B67' />
+                <path d='M12 29c0-4.5 4-8 8-8s8 3.5 8 8' fill='#714B67' />
+                <circle cx='27' cy='17' r='5' fill='#FB923C' />
+                <path
+                  d='M20 31c0-4 3.5-7 7-7s7 3 7 7'
+                  fill='#FB923C'
+                  opacity='0.85'
+                />
+              </svg>
+            </div>
+            <span className='text-xl font-black tracking-tight text-[#1E293B]'>
+              PeoplePay
+            </span>
+          </Link>
+
+          {/* Portal Badge + Autofill button */}
+          <div className='flex items-center justify-center gap-2'>
             <RoleBadge role={role} />
             <button
               type='button'
               onClick={handleAutofillDemo}
-              className='text-xs font-semibold text-[#714B67] hover:underline bg-purple-50/70 hover:bg-purple-100/70 px-2.5 py-1 rounded-full transition-colors cursor-pointer'
-              title='Autofill sample credentials for quick review'
+              className='text-[11px] font-semibold text-[#714B67] hover:underline bg-purple-50 hover:bg-purple-100/80 px-2 py-0.5 rounded-full transition-colors cursor-pointer'
+              title='Autofill sample credentials'
             >
-              Autofill Demo
+              Demo
             </button>
           </div>
 
-          <h2 className='text-2xl sm:text-3xl font-black text-[#1E293B] tracking-tight'>
-            {role.title}
-          </h2>
-          <p className='text-sm text-gray-500 mt-1 font-normal'>
-            {role.subtitle}
-          </p>
+          {/* Title & Subtitle */}
+          <div>
+            <h1 className='text-xl sm:text-2xl font-black text-[#1E293B] tracking-tight'>
+              {role.title}
+            </h1>
+            <p className='text-xs sm:text-sm text-gray-500 mt-0.5 font-normal'>
+              {role.subtitle}
+            </p>
+          </div>
         </div>
 
         {/* Login Form */}
