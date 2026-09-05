@@ -51,12 +51,20 @@ app.get('/api/health', async (req, res) => {
 });
 
 // API routes
+
 import authRoutes from './routes/auth.routes.js';
 import employeeRoutes from './routes/employee.routes.js';
+import departmentRoutes from './routes/department.routes.js';
+import jobPositionRoutes from './routes/jobPosition.routes.js';
+import employeeTypeRoutes from './routes/employeeType.routes.js';
 
 // Mount routes
+// API routes
 app.use('/api/auth', authRoutes);
 app.use('/api/employees', employeeRoutes);
+app.use('/api/departments', departmentRoutes);
+app.use('/api/job-positions', jobPositionRoutes);
+app.use('/api/employee-types', employeeTypeRoutes);
 
 // 404 handler
 app.use(notFound);
