@@ -22,6 +22,7 @@ export default function LoginForm({ role }) {
     subtitle: 'Enter your work credentials to access your workspace',
     slug: 'employee',
   };
+
   const activeRole = role || defaultRole;
 
   const [email, setEmail] = useState('');
@@ -48,6 +49,7 @@ export default function LoginForm({ role }) {
       newErrors.email = 'Work email is required.';
     } else {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
       if (!emailRegex.test(email.trim())) {
         newErrors.email = 'Please enter a valid email address.';
       }
@@ -66,6 +68,7 @@ export default function LoginForm({ role }) {
     e.preventDefault();
 
     const validationErrors = validate();
+
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors);
       return;
@@ -76,18 +79,22 @@ export default function LoginForm({ role }) {
 
     try {
       const normalizedEmail = email.trim().toLowerCase();
+
       const result = await authApi.login({
         email: normalizedEmail,
         password,
       });
 
       if (result.requiresOTP) {
-        navigate(`/login/verify-otp?email=${encodeURIComponent(normalizedEmail)}`, {
-          state: {
-            email: normalizedEmail,
-            roleSlug: activeRole.slug,
-          },
-        });
+        navigate(
+          `/login/verify-otp?email=${encodeURIComponent(normalizedEmail)}`,
+          {
+            state: {
+              email: normalizedEmail,
+              roleSlug: activeRole.slug,
+            },
+          }
+        );
       } else if (result.token) {
         dispatch(
           setCredentials({
@@ -97,29 +104,44 @@ export default function LoginForm({ role }) {
         );
 
         const userRoles = result.user?.roles || [];
+
         const primaryRole = (
           typeof userRoles[0] === 'string'
             ? userRoles[0]
             : userRoles[0]?.code || activeRole.slug
         ).toUpperCase();
 
-        if (primaryRole === 'ADMIN') navigate('/admin/dashboard');
-        else if (primaryRole === 'HR_PAYROLL_MANAGER') navigate('/hr-payroll-manager/dashboard');
-        else if (primaryRole === 'HR_PAYROLL_USER') navigate('/hr-payroll-user/dashboard');
-        else if (primaryRole === 'HR_MANAGER') navigate('/hr-manager/dashboard');
-        else navigate('/employee/dashboard');
+        if (primaryRole === 'ADMIN') {
+          navigate('/admin/dashboard');
+        } else if (primaryRole === 'HR_PAYROLL_MANAGER') {
+          navigate('/hr-payroll-manager/dashboard');
+        } else if (primaryRole === 'HR_PAYROLL_USER') {
+          navigate('/hr-payroll-user/dashboard');
+        } else if (primaryRole === 'HR_MANAGER') {
+          navigate('/hr-manager/dashboard');
+        } else {
+          navigate('/employee/dashboard');
+        }
       }
     } catch (err) {
       const status = err.response?.status;
+
       const rawMsg =
         err.response?.data?.message ||
         err.response?.data?.error ||
         err.message ||
         '';
 
-      if (status === 403 && (rawMsg.toLowerCase().includes('password not set') || rawMsg.toLowerCase().includes('password'))) {
+      if (
+        status === 403 &&
+        (
+          rawMsg.toLowerCase().includes('password not set') ||
+          rawMsg.toLowerCase().includes('password')
+        )
+      ) {
         setErrors({
-          form: 'Your password has not been set yet. Please check your email for the magic link invitation to set your password.',
+          form:
+            'Your password has not been set yet. Please check your email for the magic link invitation to set your password.',
         });
       } else {
         setErrors({
@@ -133,6 +155,7 @@ export default function LoginForm({ role }) {
 
   const handleSendResetOTP = async (e) => {
     e.preventDefault();
+
     if (!forgotEmail.trim()) {
       setForgotError('Please enter your work email.');
       return;
@@ -145,11 +168,17 @@ export default function LoginForm({ role }) {
       const res = await authApi.forgotPassword({
         email: forgotEmail.trim().toLowerCase(),
       });
-      setForgotSuccessMsg(res.message || 'Password reset OTP sent to your email.');
+
+      setForgotSuccessMsg(
+        res.message || 'Password reset OTP sent to your email.'
+      );
+
       setForgotStep(2);
     } catch (err) {
       setForgotError(
-        err.response?.data?.message || err.message || 'Failed to send reset code.'
+        err.response?.data?.message ||
+          err.message ||
+          'Failed to send reset code.'
       );
     } finally {
       setForgotLoading(false);
@@ -158,10 +187,12 @@ export default function LoginForm({ role }) {
 
   const handleResetPassword = async (e) => {
     e.preventDefault();
+
     if (!resetOtp.trim()) {
       setForgotError('Please enter the OTP verification code.');
       return;
     }
+
     if (!resetNewPassword || resetNewPassword.length < 8) {
       setForgotError('Password must be at least 8 characters long.');
       return;
@@ -176,13 +207,18 @@ export default function LoginForm({ role }) {
         otp: resetOtp.trim(),
         newPassword: resetNewPassword,
       });
+
       setForgotSuccessMsg(
-        res.message || 'Password reset successful. Please sign in with your new password.'
+        res.message ||
+          'Password reset successful. Please sign in with your new password.'
       );
+
       setForgotStep(3);
     } catch (err) {
       setForgotError(
-        err.response?.data?.message || err.message || 'Password reset failed.'
+        err.response?.data?.message ||
+          err.message ||
+          'Password reset failed.'
       );
     } finally {
       setForgotLoading(false);
@@ -197,10 +233,13 @@ export default function LoginForm({ role }) {
 
   return (
     <div className='w-full max-w-md mx-auto'>
+
       {/* Main Card Container */}
       <div className='bg-white rounded-3xl p-6 sm:p-8 border border-[#EAE6DF] shadow-xl relative'>
+
         {/* Card Header: Brand, Portal Badge, Welcome */}
         <div className='text-center mb-6 space-y-3'>
+
           {/* Logo & Brand */}
           <Link
             to='/'
@@ -215,14 +254,22 @@ export default function LoginForm({ role }) {
                 aria-hidden='true'
               >
                 <circle cx='13' cy='17' r='5' fill='#34D399' />
+
                 <path
                   d='M6 31c0-4 3.5-7 7-7s7 3 7 7'
                   fill='#34D399'
                   opacity='0.85'
                 />
+
                 <circle cx='20' cy='13' r='6' fill='#714B67' />
-                <path d='M12 29c0-4.5 4-8 8-8s8 3.5 8 8' fill='#714B67' />
+
+                <path
+                  d='M12 29c0-4.5 4-8 8-8s8 3.5 8 8'
+                  fill='#714B67'
+                />
+
                 <circle cx='27' cy='17' r='5' fill='#FB923C' />
+
                 <path
                   d='M20 31c0-4 3.5-7 7-7s7 3 7 7'
                   fill='#FB923C'
@@ -230,6 +277,7 @@ export default function LoginForm({ role }) {
                 />
               </svg>
             </div>
+
             <span className='text-xl font-black tracking-tight text-[#1E293B]'>
               PeoplePay
             </span>
@@ -238,6 +286,7 @@ export default function LoginForm({ role }) {
           {/* Portal Badge + Autofill button */}
           <div className='flex items-center justify-center gap-2'>
             <RoleBadge role={activeRole} />
+
             <button
               type='button'
               onClick={handleAutofillDemo}
@@ -253,6 +302,7 @@ export default function LoginForm({ role }) {
             <h1 className='text-xl sm:text-2xl font-black text-[#1E293B] tracking-tight'>
               {activeRole.title}
             </h1>
+
             <p className='text-xs sm:text-sm text-gray-500 mt-0.5 font-normal'>
               {activeRole.subtitle}
             </p>
@@ -271,6 +321,7 @@ export default function LoginForm({ role }) {
 
         {/* Login Form */}
         <form onSubmit={handleSubmit} noValidate className='space-y-4'>
+
           {/* Work Email Field */}
           <div>
             <label
@@ -279,6 +330,7 @@ export default function LoginForm({ role }) {
             >
               Work Email <span className='text-rose-500'>*</span>
             </label>
+
             <div className='relative'>
               <input
                 id='work-email'
@@ -289,14 +341,20 @@ export default function LoginForm({ role }) {
                 value={email}
                 onChange={(e) => {
                   setEmail(e.target.value);
+
                   if (errors.email) {
-                    setErrors((prev) => ({ ...prev, email: null }));
+                    setErrors((prev) => ({
+                      ...prev,
+                      email: null,
+                    }));
                   }
                 }}
                 placeholder={role.demoEmail || 'you@company.com'}
                 aria-required='true'
                 aria-invalid={errors.email ? 'true' : 'false'}
-                aria-describedby={errors.email ? 'email-error' : undefined}
+                aria-describedby={
+                  errors.email ? 'email-error' : undefined
+                }
                 className={`w-full px-4 py-3 rounded-xl text-sm font-medium bg-[#FAF8F5] border transition-all text-[#1E293B] placeholder-gray-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#714B67] focus:border-transparent ${
                   errors.email
                     ? 'border-rose-400 bg-rose-50/30'
@@ -304,6 +362,7 @@ export default function LoginForm({ role }) {
                 }`}
               />
             </div>
+
             {errors.email && (
               <p
                 id='email-error'
@@ -322,6 +381,7 @@ export default function LoginForm({ role }) {
                     clipRule='evenodd'
                   />
                 </svg>
+
                 <span>{errors.email}</span>
               </p>
             )}
@@ -336,6 +396,7 @@ export default function LoginForm({ role }) {
               >
                 Password <span className='text-rose-500'>*</span>
               </label>
+
               <button
                 type='button'
                 onClick={() => {
@@ -348,6 +409,7 @@ export default function LoginForm({ role }) {
                 Forgot password?
               </button>
             </div>
+
             <div className='relative'>
               <input
                 id='password'
@@ -358,8 +420,12 @@ export default function LoginForm({ role }) {
                 value={password}
                 onChange={(e) => {
                   setPassword(e.target.value);
+
                   if (errors.password) {
-                    setErrors((prev) => ({ ...prev, password: null }));
+                    setErrors((prev) => ({
+                      ...prev,
+                      password: null,
+                    }));
                   }
                 }}
                 placeholder='Enter your password'
@@ -374,11 +440,14 @@ export default function LoginForm({ role }) {
                     : 'border-gray-200 hover:border-gray-300'
                 }`}
               />
+
               <button
                 type='button'
                 onClick={() => setShowPassword(!showPassword)}
                 className='absolute right-3 top-1/2 -translate-y-1/2 p-1.5 text-gray-400 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#714B67] rounded-lg cursor-pointer'
-                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                aria-label={
+                  showPassword ? 'Hide password' : 'Show password'
+                }
               >
                 {showPassword ? (
                   <svg
@@ -407,15 +476,17 @@ export default function LoginForm({ role }) {
                       strokeLinejoin='round'
                       d='M15 12a3 3 0 11-6 0 3 3 0 016 0z'
                     />
+
                     <path
                       strokeLinecap='round'
                       strokeLinejoin='round'
-                      d='M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z'
+                      d='M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-3-9.542-7z'
                     />
                   </svg>
                 )}
               </button>
             </div>
+
             {errors.password && (
               <p
                 id='password-error'
@@ -434,6 +505,7 @@ export default function LoginForm({ role }) {
                     clipRule='evenodd'
                   />
                 </svg>
+
                 <span>{errors.password}</span>
               </p>
             )}
@@ -448,6 +520,7 @@ export default function LoginForm({ role }) {
                 onChange={(e) => setRememberMe(e.target.checked)}
                 className='w-4 h-4 rounded border-gray-300 text-[#714B67] focus:ring-[#714B67] accent-[#714B67]'
               />
+
               <span className='text-xs font-medium text-gray-600'>
                 Remember this device
               </span>
@@ -478,12 +551,14 @@ export default function LoginForm({ role }) {
                       stroke='currentColor'
                       strokeWidth='4'
                     />
+
                     <path
                       className='opacity-75'
                       fill='currentColor'
                       d='M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z'
                     />
                   </svg>
+
                   <span>Signing in...</span>
                 </>
               ) : (
@@ -500,6 +575,7 @@ export default function LoginForm({ role }) {
         <div className='mt-8 pt-6 border-t border-gray-100 space-y-3 text-center'>
           <p className='text-xs text-gray-500'>
             Not an {activeRole.name}?{' '}
+
             <Link
               to='/'
               className='font-bold text-[#714B67] hover:underline focus:outline-none focus:ring-1 focus:ring-[#714B67] rounded'
@@ -528,7 +604,9 @@ export default function LoginForm({ role }) {
           aria-modal='true'
           aria-labelledby='forgot-dialog-title'
         >
-          <div className='bg-white rounded-2xl p-6 sm:p-8 max-w-sm w-full border border-gray-200 shadow-2xl space-y-4 animate-fadeIn'>
+          {/* SCROLLBAR REMOVED HERE */}
+          <div className='bg-white rounded-2xl p-6 sm:p-8 max-w-sm w-full border border-gray-200 shadow-2xl space-y-4 animate-fadeIn scrollbar-hide'>
+
             <div className='flex items-center justify-between'>
               <h3
                 id='forgot-dialog-title'
@@ -540,6 +618,7 @@ export default function LoginForm({ role }) {
                   ? 'Enter Verification Code'
                   : 'Reset Password'}
               </h3>
+
               <button
                 type='button'
                 onClick={() => {
@@ -564,14 +643,23 @@ export default function LoginForm({ role }) {
             )}
 
             {forgotStep === 1 && (
-              <form onSubmit={handleSendResetOTP} className='space-y-3'>
+              <form
+                onSubmit={handleSendResetOTP}
+                className='space-y-3'
+              >
                 <p className='text-xs text-gray-600'>
-                  Enter your registered work email to receive a 6-digit password recovery code.
+                  Enter your registered work email to receive a 6-digit
+                  password recovery code.
                 </p>
+
                 <div>
-                  <label htmlFor='modal-forgot-email' className='sr-only'>
+                  <label
+                    htmlFor='modal-forgot-email'
+                    className='sr-only'
+                  >
                     Work Email
                   </label>
+
                   <input
                     id='modal-forgot-email'
                     type='email'
@@ -579,12 +667,16 @@ export default function LoginForm({ role }) {
                     value={forgotEmail}
                     onChange={(e) => {
                       setForgotEmail(e.target.value);
-                      if (forgotError) setForgotError(null);
+
+                      if (forgotError) {
+                        setForgotError(null);
+                      }
                     }}
                     placeholder='work.email@company.com'
                     className='w-full px-3 py-2.5 rounded-xl text-xs bg-[#FAF8F5] border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#714B67]'
                   />
                 </div>
+
                 <div className='flex gap-2 pt-2'>
                   <button
                     type='button'
@@ -593,23 +685,35 @@ export default function LoginForm({ role }) {
                   >
                     Cancel
                   </button>
+
                   <button
                     type='submit'
                     disabled={forgotLoading}
                     className='w-1/2 py-2.5 text-xs font-bold text-white bg-[#714B67] hover:bg-[#5E3E56] disabled:opacity-70 rounded-xl shadow-xs transition-colors cursor-pointer'
                   >
-                    {forgotLoading ? 'Sending...' : 'Send Reset Code'}
+                    {forgotLoading
+                      ? 'Sending...'
+                      : 'Send Reset Code'}
                   </button>
                 </div>
               </form>
             )}
 
             {forgotStep === 2 && (
-              <form onSubmit={handleResetPassword} className='space-y-3'>
+              <form
+                onSubmit={handleResetPassword}
+                className='space-y-3'
+              >
                 <p className='text-xs text-gray-600'>
                   We sent a 6-digit code to{' '}
-                  <span className='font-semibold text-gray-800'>{forgotEmail}</span>. Enter it below along with your new password.
+
+                  <span className='font-semibold text-gray-800'>
+                    {forgotEmail}
+                  </span>.
+
+                  Enter it below along with your new password.
                 </p>
+
                 <div>
                   <label
                     htmlFor='modal-reset-otp'
@@ -617,6 +721,7 @@ export default function LoginForm({ role }) {
                   >
                     6-Digit Code
                   </label>
+
                   <input
                     id='modal-reset-otp'
                     type='text'
@@ -625,12 +730,16 @@ export default function LoginForm({ role }) {
                     value={resetOtp}
                     onChange={(e) => {
                       setResetOtp(e.target.value);
-                      if (forgotError) setForgotError(null);
+
+                      if (forgotError) {
+                        setForgotError(null);
+                      }
                     }}
                     placeholder='123456'
                     className='w-full px-3 py-2.5 rounded-xl text-xs font-mono tracking-widest bg-[#FAF8F5] border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#714B67]'
                   />
                 </div>
+
                 <div>
                   <label
                     htmlFor='modal-reset-new-password'
@@ -638,6 +747,7 @@ export default function LoginForm({ role }) {
                   >
                     New Password
                   </label>
+
                   <input
                     id='modal-reset-new-password'
                     type='password'
@@ -646,15 +756,21 @@ export default function LoginForm({ role }) {
                     value={resetNewPassword}
                     onChange={(e) => {
                       setResetNewPassword(e.target.value);
-                      if (forgotError) setForgotError(null);
+
+                      if (forgotError) {
+                        setForgotError(null);
+                      }
                     }}
                     placeholder='At least 8 characters'
                     className='w-full px-3 py-2.5 rounded-xl text-xs bg-[#FAF8F5] border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#714B67]'
                   />
+
                   <p className='text-[10px] text-gray-500 mt-1'>
-                    Must contain uppercase, lowercase, number, and special character.
+                    Must contain uppercase, lowercase, number, and special
+                    character.
                   </p>
                 </div>
+
                 <div className='flex gap-2 pt-2'>
                   <button
                     type='button'
@@ -666,12 +782,15 @@ export default function LoginForm({ role }) {
                   >
                     Back
                   </button>
+
                   <button
                     type='submit'
                     disabled={forgotLoading}
                     className='w-2/3 py-2.5 text-xs font-bold text-white bg-[#714B67] hover:bg-[#5E3E56] disabled:opacity-70 rounded-xl shadow-xs transition-colors cursor-pointer'
                   >
-                    {forgotLoading ? 'Resetting...' : 'Reset Password'}
+                    {forgotLoading
+                      ? 'Resetting...'
+                      : 'Reset Password'}
                   </button>
                 </div>
               </form>
@@ -685,6 +804,7 @@ export default function LoginForm({ role }) {
                 >
                   {forgotSuccessMsg}
                 </div>
+
                 <button
                   type='button'
                   onClick={() => {

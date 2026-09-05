@@ -7,7 +7,6 @@ export default function LandingNavbar({ onOpenWorkspaceModal }) {
     { name: 'Home', href: '#home' },
     { name: 'Features', href: '#features' },
     { name: 'Solutions', href: '#solutions' },
-    { name: 'About', href: '#about' },
   ];
 
   return (
@@ -59,7 +58,7 @@ export default function LandingNavbar({ onOpenWorkspaceModal }) {
               <a
                 key={link.name}
                 href={link.href}
-                className='text-sm font-semibold text-[#475569] hover:text-[#714B67] transition-colors'
+                className='text-xl font-semibold text-[#475569] hover:text-[#714B67] transition-colors'
               >
                 {link.name}
               </a>
@@ -70,25 +69,7 @@ export default function LandingNavbar({ onOpenWorkspaceModal }) {
           <div className='hidden md:flex items-center gap-5'>
             {/* Playful Handwritten Note with Sun Doodle */}
             <div className='flex items-center gap-1.5 text-right -rotate-2 select-none'>
-              {/* <span className='font-handwriting text-lg text-amber-900/80 leading-none font-semibold'>
-                Better People
-                <br />
-                Brighter Tomorrow
-              </span> */}
-              {/* Sun Doodle SVG */}
-              {/* <svg
-                className='w-5 h-5 text-amber-500 animate-spin-slow'
-                viewBox='0 0 24 24'
-                fill='none'
-                stroke='currentColor'
-                strokeWidth='2'
-              >
-                <circle cx='12' cy='12' r='4' fill='#FDE047' />
-                <path
-                  strokeLinecap='round'
-                  d='M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32l1.41 1.41M2 12h2m16 0h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41'
-                />
-              </svg> */}
+
             </div>
 
             {/* Login Button */}

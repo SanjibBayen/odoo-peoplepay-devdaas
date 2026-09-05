@@ -53,3 +53,13 @@ body {
     transparent 92%
   );
 }
+
+/* Hide scrollbar but keep scrolling functionality */
+.scrollbar-hide {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
