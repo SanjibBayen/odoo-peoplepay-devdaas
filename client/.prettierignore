@@ -1,0 +1,48 @@
+# Dependencies
+node_modules/
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Build outputs
+build/
+dist/
+out/
+.next/
+
+# Coverage
+coverage/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Generated files
+*.min.js
+*.min.css
+*.bundle.js
+*.bundle.css
+*.map
+
+# Images and fonts
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.ico
+*.svg
+*.woff
+*.woff2
+*.ttf
+*.eot
+
+# Public assets
+public/
+static/
+
+# Config files
+.prettierrc
+.prettierignore
+.editorconfig
+.eslintrc*
