@@ -58,6 +58,10 @@ import jobPositionRoutes from './routes/jobPosition.routes.js';
 import employeeTypeRoutes from './routes/employeeType.routes.js';
 import workScheduleRoutes from './routes/workSchedule.routes.js';
 import contractRoutes from './routes/contract.routes.js';
+import attendanceRoutes from './routes/attendance.routes.js';
+import timeOffTypeRoutes from './routes/timeOffType.routes.js';
+import timeOffAllocationRoutes from './routes/timeOffAllocation.routes.js';
+import timeOffRequestRoutes from './routes/timeOffRequest.routes.js';
 
 // API routes
 app.use('/api/auth', authRoutes);
@@ -67,6 +71,10 @@ app.use('/api/job-positions', jobPositionRoutes);
 app.use('/api/employee-types', employeeTypeRoutes);
 app.use('/api/work-schedules', workScheduleRoutes);
 app.use('/api/contracts', contractRoutes);
+app.use('/api/attendance', attendanceRoutes);
+app.use('/api/time-off-types', timeOffTypeRoutes);
+app.use('/api/time-off-allocations', timeOffAllocationRoutes);
+app.use('/api/time-off-requests', timeOffRequestRoutes);
 
 
 // 404 handler
