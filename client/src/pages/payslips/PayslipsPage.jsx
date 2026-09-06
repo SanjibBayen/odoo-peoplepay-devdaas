@@ -9,6 +9,7 @@ import BackButton from '../../components/common/BackButton.jsx';
 import payslipApi from '../../services/payslipApi.js';
 import { extractErrorMessage } from '../../services/apiClient.js';
 import { formatCurrency } from '../../utils/formatCurrency.js';
+import useAuth from '../../hooks/useAuth.js';
 
 function normalizePayslip(slip) {
   if (!slip) return null;
@@ -37,6 +38,8 @@ function normalizePayslip(slip) {
 
 export default function PayslipsPage() {
   const navigate = useNavigate();
+  const { hasPermission } = useAuth();
+  const canSendPayslip = hasPermission('payslips', 'send_email');
 
   const [payslips, setPayslips] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -182,9 +185,11 @@ export default function PayslipsPage() {
                       <button type='button' onClick={() => navigate(`/payslips/${p.id}`)} className='text-[#714B67] hover:underline font-bold cursor-pointer'>
                         View
                       </button>
-                      <button type='button' onClick={() => handleSend(p.id)} className='text-emerald-700 hover:underline font-bold cursor-pointer'>
-                        Send
-                      </button>
+                      {canSendPayslip && (
+                        <button type='button' onClick={() => handleSend(p.id)} className='text-emerald-700 hover:underline font-bold cursor-pointer'>
+                          Send
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))}

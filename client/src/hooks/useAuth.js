@@ -24,10 +24,19 @@ export function useAuth() {
 
   const normalizedRole = (role || '').toLowerCase();
 
+  const permissions = user?.permissions || [];
+
+  const hasPermission = (module, action) => {
+    if (normalizedRole === 'admin') return true;
+    return permissions.includes(`${module}:${action}`);
+  };
+
   return {
     user,
     role,
     token,
+    permissions,
+    hasPermission,
     isAuthenticated,
     loading,
     error,

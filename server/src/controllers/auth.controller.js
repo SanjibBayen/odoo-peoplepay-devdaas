@@ -164,6 +164,8 @@ export const verifyLoginOTP = asyncHandler(async (req, res, next) => {
     attributes: ['id', 'name', 'code'],
   });
 
+  const permissions = await user.getAllPermissions();
+
   res.status(200).json({
     success: true,
     message: 'Login successful',
@@ -177,6 +179,7 @@ export const verifyLoginOTP = asyncHandler(async (req, res, next) => {
       avatarUrl: user.avatarUrl,
       roles: roles.map((r) => r.code),
       lastLoginAt: user.lastLoginAt,
+      permissions: permissions.map((p) => `${p.module}:${p.action}`),
       employee: user.employee
         ? {
             id: user.employee.id,

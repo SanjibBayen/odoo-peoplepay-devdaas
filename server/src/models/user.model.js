@@ -153,7 +153,7 @@ export default class User extends Model {
       const isAdmin = await this.hasRole('ADMIN');
       if (isAdmin) return true;
 
-      const { sequelize } = this.sequelize || {};
+      const sequelize = this.sequelize || User.sequelize;
       if (!sequelize) return false;
 
       const [result] = await sequelize.query(
@@ -200,18 +200,16 @@ export default class User extends Model {
   async getAllPermissions() {
     try {
       const isAdmin = await this.hasRole('ADMIN');
+      const sequelize = this.sequelize || User.sequelize;
+      if (!sequelize) return [];
+
       if (isAdmin) {
-        const { sequelize } = this.sequelize || {};
-        if (!sequelize) return [];
         const results = await sequelize.query(
           `SELECT module, action FROM permissions ORDER BY module, action`,
           { type: sequelize.QueryTypes.SELECT }
         );
         return results;
       }
-
-      const { sequelize } = this.sequelize || {};
-      if (!sequelize) return [];
 
       const results = await sequelize.query(
         `SELECT DISTINCT p.module, p.action

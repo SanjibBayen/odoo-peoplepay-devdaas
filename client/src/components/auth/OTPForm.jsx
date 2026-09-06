@@ -85,31 +85,34 @@ export default function OTPForm({ email: propEmail, _roleSlug = 'employee', onSu
       });
 
       const token = verifyRes.token;
-
-      // 2. Fetch authoritative user profile and permissions from GET /auth/me
       let authoritativeUser = verifyRes.user;
-      try {
-        const meRes = await authApi.getMe();
-        if (meRes?.user) {
-          authoritativeUser = meRes.user;
-        }
-      } catch (meErr) {
-        console.warn('Could not fetch /auth/me profile immediately', meErr.message);
-      }
 
-      // 3. Save token to localStorage
+      // 2. Save token to localStorage immediately so request interceptors have it
       if (token && typeof window !== 'undefined') {
         localStorage.setItem('token', token);
         localStorage.setItem('peoplepay_token', token);
+        sessionStorage.setItem('token', token);
+        sessionStorage.setItem('peoplepay_token', token);
       }
 
-      // 4. Commit credentials to Redux store
+      // 3. Commit initial credentials to Redux store
       dispatch(
         setCredentials({
           user: authoritativeUser,
           token,
         })
       );
+
+      // 4. Fetch authoritative user profile and permissions from GET /auth/me with active token
+      try {
+        const meRes = await authApi.getMe();
+        if (meRes?.user) {
+          authoritativeUser = meRes.user;
+          dispatch(updateUser(authoritativeUser));
+        }
+      } catch (meErr) {
+        console.warn('Could not fetch /auth/me profile immediately', meErr.message);
+      }
 
       // 5. Navigate to authoritative role dashboard
       const targetRoute = getRoleRedirect(authoritativeUser?.roles);

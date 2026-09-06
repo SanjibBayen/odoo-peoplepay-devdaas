@@ -81,6 +81,26 @@ export default function LoginForm({ role }) {
     try {
       const normalizedEmail = email.trim().toLowerCase();
 
+      // Clear any previous stale session from storage before new login attempt
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.removeItem('token');
+          localStorage.removeItem('peoplepay_token');
+          localStorage.removeItem('user');
+          localStorage.removeItem('peoplepay_user');
+          localStorage.removeItem('role');
+          localStorage.removeItem('peoplepay_role');
+          sessionStorage.removeItem('token');
+          sessionStorage.removeItem('peoplepay_token');
+          sessionStorage.removeItem('user');
+          sessionStorage.removeItem('peoplepay_user');
+          sessionStorage.removeItem('role');
+          sessionStorage.removeItem('peoplepay_role');
+        } catch {
+          // ignore
+        }
+      }
+
       const result = await authApi.login({
         email: normalizedEmail,
         password,

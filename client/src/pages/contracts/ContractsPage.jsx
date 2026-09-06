@@ -9,6 +9,7 @@ import contractApi from '../../services/contractApi.js';
 import employeeApi from '../../services/employeeApi.js';
 import salaryStructureApi from '../../services/salaryStructureApi.js';
 import { extractErrorMessage } from '../../services/apiClient.js';
+import useAuth from '../../hooks/useAuth.js';
 
 function normalizeContract(c) {
   if (!c) return null;
@@ -56,6 +57,8 @@ export default function ContractsPage() {
 
   const [employees, setEmployees] = useState([]);
   const [salaryStructures, setSalaryStructures] = useState([]);
+  const { hasPermission } = useAuth();
+  const canReadSalaryStructures = hasPermission('salary_structures', 'read');
 
   const [formData, setFormData] = useState({
     employeeId: '',
@@ -70,11 +73,10 @@ export default function ContractsPage() {
     setError(null);
     try {
       const res = await contractApi.getContracts();
-      // FIX: Backend returns { success, data } - use "data" key
-      const list = res?.data || [];
-      setContracts(Array.isArray(list) ? list.map(normalizeContract) : []);
+      const raw = res?.data || res?.contracts || (Array.isArray(res) ? res : []);
+      setContracts(raw.map(normalizeContract).filter(Boolean));
     } catch (err) {
-      setError(extractErrorMessage(err, 'Failed to fetch contracts.'));
+      setError(extractErrorMessage(err, 'Failed to load contracts.'));
     } finally {
       setLoading(false);
     }
@@ -87,10 +89,12 @@ export default function ContractsPage() {
   useEffect(() => {
     const loadRefData = async () => {
       try {
-        const [empRes, strRes] = await Promise.allSettled([
-          employeeApi.getEmployees({ limit: 100 }),
-          salaryStructureApi.getSalaryStructures(),
-        ]);
+        const empPromise = employeeApi.getEmployees({ limit: 100 });
+        const strPromise = canReadSalaryStructures
+          ? salaryStructureApi.getSalaryStructures()
+          : Promise.resolve({ data: [] });
+
+        const [empRes, strRes] = await Promise.allSettled([empPromise, strPromise]);
         if (empRes.status === 'fulfilled') {
           setEmployees(empRes.value?.employees || empRes.value?.data || []);
         }
@@ -102,7 +106,7 @@ export default function ContractsPage() {
       }
     };
     loadRefData();
-  }, []);
+  }, [canReadSalaryStructures]);
 
   const handleOpenAdd = () => {
     setEditingContract(null);

@@ -9,11 +9,14 @@ import employeeApi from '../../services/employeeApi.js';
 import salaryStructureApi from '../../services/salaryStructureApi.js';
 import scheduleApi from '../../services/scheduleApi.js';
 import { extractErrorMessage } from '../../services/apiClient.js';
+import useAuth from '../../hooks/useAuth.js';
 
 export default function ContractFormPage() {
   const { id } = useParams();
   const isEdit = Boolean(id);
   const navigate = useNavigate();
+  const { hasPermission } = useAuth();
+  const canReadSalaryStructures = hasPermission('salary_structures', 'read');
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -41,10 +44,16 @@ export default function ContractFormPage() {
     setLoading(true);
     setError(null);
     try {
+      const empPromise = employeeApi.getEmployees({ limit: 100 });
+      const strPromise = canReadSalaryStructures
+        ? salaryStructureApi.getSalaryStructures()
+        : Promise.resolve({ data: [] });
+      const schPromise = scheduleApi.getSchedules();
+
       const [empRes, strRes, schRes] = await Promise.allSettled([
-        employeeApi.getEmployees({ limit: 100 }),
-        salaryStructureApi.getSalaryStructures(),
-        scheduleApi.getSchedules(),
+        empPromise,
+        strPromise,
+        schPromise,
       ]);
 
       let empList = [];
@@ -99,7 +108,7 @@ export default function ContractFormPage() {
     } finally {
       setLoading(false);
     }
-  }, [id, isEdit]);
+  }, [id, isEdit, canReadSalaryStructures]);
 
   useEffect(() => {
     loadFormData();

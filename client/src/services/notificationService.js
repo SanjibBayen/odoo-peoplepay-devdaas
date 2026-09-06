@@ -1,5 +1,6 @@
 import dashboardApi from './dashboardApi.js';
 import notificationApi from './notificationApi.js';
+import store from '../redux/store/store.js';
 
 /**
  * Service to fetch and normalize real system alerts and status items into user notifications.
@@ -99,9 +100,17 @@ export const notificationService = {
           });
         }
       } else if (['admin', 'hr-manager', 'hr-payroll-manager', 'hr-payroll-user'].includes(normalizedRole)) {
-        // Management roles: fetch real alerts from dashboardApi (requires reports:read)
-        const alertsRes = await dashboardApi.getAlerts().catch(() => null);
-        const alerts = alertsRes?.data || [];
+        // Management roles: fetch real alerts from dashboardApi only if role/permissions permit reports:read
+        const state = store.getState();
+        const user = state.auth?.user;
+        const perms = Array.isArray(user?.permissions) ? user.permissions : [];
+        const hasReportsRead = normalizedRole === 'admin' || perms.includes('reports:read');
+
+        let alerts = [];
+        if (hasReportsRead) {
+          const alertsRes = await dashboardApi.getAlerts().catch(() => null);
+          alerts = alertsRes?.data || [];
+        }
 
         alerts.forEach((alert, idx) => {
           let category = 'System';

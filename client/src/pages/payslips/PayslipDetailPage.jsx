@@ -8,10 +8,13 @@ import payslipApi from '../../services/payslipApi.js';
 import { extractErrorMessage } from '../../services/apiClient.js';
 import { formatDate } from '../../utils/formatDate.js';
 import { downloadPayslipPdf } from '../../utils/pdfGenerator.js';
+import useAuth from '../../hooks/useAuth.js';
 
 export default function PayslipDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { hasPermission } = useAuth();
+  const canSendPayslip = hasPermission('payslips', 'send_email');
 
   const [payslip, setPayslip] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -138,14 +141,16 @@ export default function PayslipDetailPage() {
             <span>{isGeneratingPdf ? 'Generating PDF...' : 'Download PDF'}</span>
           </button>
 
-          <button
-            type='button'
-            onClick={handleSendEmail}
-            className='px-3.5 py-1.5 text-xs font-bold text-gray-700 bg-white border border-gray-200 hover:bg-gray-50 rounded-xl shadow-2xs transition-all cursor-pointer flex items-center gap-1.5'
-          >
-            <span>✉️</span>
-            <span>Email</span>
-          </button>
+          {canSendPayslip && (
+            <button
+              type='button'
+              onClick={handleSendEmail}
+              className='px-3.5 py-1.5 text-xs font-bold text-gray-700 bg-white border border-gray-200 hover:bg-gray-50 rounded-xl shadow-2xs transition-all cursor-pointer flex items-center gap-1.5'
+            >
+              <span>✉️</span>
+              <span>Email</span>
+            </button>
+          )}
 
           <button
             type='button'
