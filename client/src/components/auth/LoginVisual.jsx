@@ -13,7 +13,6 @@ export default function LoginVisual({ role }) {
 
   return (
     <div className='relative w-full h-full flex flex-col justify-between p-8 sm:p-12 lg:p-16 bg-gradient-to-br from-[#F5F0E8] via-[#FAF8F5] to-[#EFE7DC] border-b lg:border-b-0 lg:border-r border-[#EAE6DF] overflow-hidden'>
-      {/* Subtle Background Decorative Circles */}
       <div
         className='absolute -top-24 -left-24 w-96 h-96 rounded-full bg-purple-200/20 blur-3xl pointer-events-none'
         aria-hidden='true'
