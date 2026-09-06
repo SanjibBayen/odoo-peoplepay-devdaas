@@ -7,6 +7,7 @@ import { setCredentials } from '../../redux/slices/authSlice.js';
 
 /**
  * Reusable, accessible login form component for PeoplePay.
+ *
  * Connects to real backend POST /auth/login and triggers OTP verification.
  *
  * @param {Object} props
@@ -225,12 +226,6 @@ export default function LoginForm({ role }) {
     }
   };
 
-  const handleAutofillDemo = () => {
-    setEmail(role.demoEmail || 'user@company.com');
-    setPassword('DemoPass2026!');
-    setErrors({});
-  };
-
   return (
     <div className='w-full max-w-md mx-auto'>
 
@@ -253,6 +248,7 @@ export default function LoginForm({ role }) {
                 className='w-full h-full'
                 aria-hidden='true'
               >
+                {/* Person 1 - Left */}
                 <circle cx='13' cy='17' r='5' fill='#34D399' />
 
                 <path
@@ -261,6 +257,7 @@ export default function LoginForm({ role }) {
                   opacity='0.85'
                 />
 
+                {/* Person 2 - Center */}
                 <circle cx='20' cy='13' r='6' fill='#714B67' />
 
                 <path
@@ -268,6 +265,7 @@ export default function LoginForm({ role }) {
                   fill='#714B67'
                 />
 
+                {/* Person 3 - Right */}
                 <circle cx='27' cy='17' r='5' fill='#FB923C' />
 
                 <path
@@ -283,18 +281,9 @@ export default function LoginForm({ role }) {
             </span>
           </Link>
 
-          {/* Portal Badge + Autofill button */}
-          <div className='flex items-center justify-center gap-2'>
+          {/* Portal Badge - Demo Removed */}
+          <div className='flex items-center justify-center'>
             <RoleBadge role={activeRole} />
-
-            <button
-              type='button'
-              onClick={handleAutofillDemo}
-              className='text-[11px] font-semibold text-[#714B67] hover:underline bg-purple-50 hover:bg-purple-100/80 px-2 py-0.5 rounded-full transition-colors cursor-pointer'
-              title='Autofill sample credentials'
-            >
-              Demo
-            </button>
           </div>
 
           {/* Title & Subtitle */}
@@ -349,7 +338,7 @@ export default function LoginForm({ role }) {
                     }));
                   }
                 }}
-                placeholder={role.demoEmail || 'you@company.com'}
+                placeholder='you@company.com'
                 aria-required='true'
                 aria-invalid={errors.email ? 'true' : 'false'}
                 aria-describedby={
@@ -387,7 +376,7 @@ export default function LoginForm({ role }) {
             )}
           </div>
 
-          {/* Password Field with Visibility Toggle */}
+          {/* Password Field */}
           <div>
             <div className='flex items-center justify-between mb-1.5'>
               <label
@@ -441,6 +430,7 @@ export default function LoginForm({ role }) {
                 }`}
               />
 
+              {/* Show / Hide Password */}
               <button
                 type='button'
                 onClick={() => setShowPassword(!showPassword)}
@@ -480,7 +470,7 @@ export default function LoginForm({ role }) {
                     <path
                       strokeLinecap='round'
                       strokeLinejoin='round'
-                      d='M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-3-9.542-7z'
+                      d='M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 3.057 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-3-9.542-7z'
                     />
                   </svg>
                 )}
@@ -604,7 +594,6 @@ export default function LoginForm({ role }) {
           aria-modal='true'
           aria-labelledby='forgot-dialog-title'
         >
-          {/* SCROLLBAR REMOVED HERE */}
           <div className='bg-white rounded-2xl p-6 sm:p-8 max-w-sm w-full border border-gray-200 shadow-2xl space-y-4 animate-fadeIn scrollbar-hide'>
 
             <div className='flex items-center justify-between'>
@@ -642,6 +631,7 @@ export default function LoginForm({ role }) {
               </div>
             )}
 
+            {/* Step 1 - Send Reset OTP */}
             {forgotStep === 1 && (
               <form
                 onSubmit={handleSendResetOTP}
@@ -699,6 +689,7 @@ export default function LoginForm({ role }) {
               </form>
             )}
 
+            {/* Step 2 - Reset Password */}
             {forgotStep === 2 && (
               <form
                 onSubmit={handleResetPassword}
@@ -796,6 +787,7 @@ export default function LoginForm({ role }) {
               </form>
             )}
 
+            {/* Step 3 - Success */}
             {forgotStep === 3 && (
               <div className='space-y-3'>
                 <div
