@@ -312,7 +312,9 @@ export const updateEmployee = asyncHandler(async (req, res, next) => {
   if (jobPositionId !== undefined) employee.jobPositionId = jobPositionId;
   if (employeeTypeId !== undefined) employee.employeeTypeId = employeeTypeId;
   if (scheduleId !== undefined) employee.scheduleId = scheduleId;
-  if (status) employee.status = status;
+  if (status) {
+    employee.status = status.toUpperCase().replace(/\s+/g, '_');
+  }
   if (bankAccountNumber !== undefined) employee.bankAccountNumber = bankAccountNumber;
   if (bankName !== undefined) employee.bankName = bankName;
   if (ifscCode !== undefined) employee.ifscCode = ifscCode;
@@ -476,7 +478,10 @@ export const getEmployeeLeaveBalances = asyncHandler(async (req, res, next) => {
       leaveType: a.timeOffType?.name,
       allocated: parseFloat(a.allocatedAmount) || 0,
       used: parseFloat(a.usedAmount) || 0,
-      remaining: a.remainingAmount !== null ? parseFloat(a.remainingAmount) : (parseFloat(a.allocatedAmount) - parseFloat(a.usedAmount)),
+      remaining:
+        a.remainingAmount !== null
+          ? parseFloat(a.remainingAmount)
+          : parseFloat(a.allocatedAmount) - parseFloat(a.usedAmount),
       validFrom: a.validFrom,
       validTo: a.validTo,
     })),
