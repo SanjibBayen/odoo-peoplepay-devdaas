@@ -64,9 +64,9 @@ export default function EmployeesPage() {
     setLoading(true);
     setFetchError(null);
     try {
-      const res = await employeeApi.getEmployees({ limit: 100 });
+      const res = await employeeApi.getEmployees({ limit: 500 });
       
-      // FIX: Backend returns { success, count, employees } - use "employees" key
+      
       const items = res?.employees || res?.data || [];
       
       setRawEmployees(Array.isArray(items) ? items.map(normalizeEmployee) : []);
