@@ -20,7 +20,7 @@ const router = express.Router();
 
 // ============ EMPLOYEE CRUD ROUTES ============
 
-// Get all employees (with caching - 5 minutes)
+// Get all employees
 router.get(
   '/',
   protect,
@@ -29,16 +29,16 @@ router.get(
   getAllEmployees
 );
 
-// Get single employee (with caching - 5 minutes)
+// Get single employee - FIX: Use read_all instead of read_one
 router.get(
   '/:id',
   protect,
-  requirePermission('employees', 'read_one'),
+  requirePermission('employees', 'read_all'),
   cacheMiddleware('employees:detail', 300),
   getEmployeeById
 );
 
-// Create employee (invalidate cache)
+// Create employee
 router.post(
   '/',
   protect,
@@ -50,7 +50,7 @@ router.post(
   createEmployee
 );
 
-// Update employee (invalidate cache)
+// Update employee
 router.put(
   '/:id',
   protect,
@@ -63,7 +63,7 @@ router.put(
   updateEmployee
 );
 
-// Delete employee (invalidate cache)
+// Delete employee
 router.delete(
   '/:id',
   protect,
@@ -78,7 +78,7 @@ router.delete(
 
 // ============ EMPLOYEE RELATED RECORDS ============
 
-// Get employee's contracts 
+// Get employee's contracts
 router.get(
   '/:id/contracts',
   protect,
@@ -87,7 +87,7 @@ router.get(
   getEmployeeContracts
 );
 
-// Get employee's attendance 
+// Get employee's attendance
 router.get(
   '/:id/attendance',
   protect,
@@ -96,7 +96,7 @@ router.get(
   getEmployeeAttendance
 );
 
-// Get employee's time off requests 
+// Get employee's time off requests
 router.get(
   '/:id/time-off-requests',
   protect,
@@ -105,7 +105,7 @@ router.get(
   getEmployeeTimeOffRequests
 );
 
-// Get employee's leave balances 
+// Get employee's leave balances
 router.get(
   '/:id/leave-balances',
   protect,
@@ -114,7 +114,7 @@ router.get(
   getEmployeeLeaveBalances
 );
 
-// Get employee's active contract 
+// Get employee's active contract
 router.get(
   '/:id/active-contract',
   protect,

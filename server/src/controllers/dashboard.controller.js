@@ -18,11 +18,6 @@ const { Op, fn, col } = Sequelize;
 
 // ============ EMPLOYEE DASHBOARD ============
 
-/**
- * @desc    Get employee dashboard KPIs
- * @route   GET /api/dashboard/employee-kpis
- * @access  Private (Employee - own data)
- */
 export const getEmployeeDashboardKPIs = asyncHandler(async (req, res, next) => {
   const employee = await Employee.findOne({
     where: { userId: req.user.id },
@@ -32,32 +27,34 @@ export const getEmployeeDashboardKPIs = asyncHandler(async (req, res, next) => {
     throw new AppError('Employee record not found', 404);
   }
 
-  const today = new Date().toISOString().split('T')[0];
-  const currentMonth = new Date().getMonth();
-  const currentYear = new Date().getFullYear();
+  const now = new Date();
+  const today = now.toISOString().split('T')[0];
+  const currentMonth = now.getMonth();
+  const currentYear = now.getFullYear();
   const monthStart = new Date(currentYear, currentMonth, 1).toISOString().split('T')[0];
   const monthEnd = new Date(currentYear, currentMonth + 1, 0).toISOString().split('T')[0];
 
-  // Today's attendance
   const todayAttendance = await Attendance.findOne({
     where: { employeeId: employee.id, workDate: today },
   });
 
-  // Monthly attendance
   const monthAttendance = await Attendance.findAll({
     where: {
       employeeId: employee.id,
       workDate: { [Op.between]: [monthStart, monthEnd] },
     },
+    order: [['workDate', 'ASC']],
   });
 
   const totalDays = monthAttendance.length;
   const presentDays = monthAttendance.filter((a) =>
     ['PRESENT', 'LATE', 'OVERTIME'].includes(a.status)
   ).length;
-  const attendanceRate = totalDays > 0 ? Math.round((presentDays / totalDays) * 100) : 100;
+  const absentDays = monthAttendance.filter((a) => a.status === 'ABSENT').length;
+  const lateDays = monthAttendance.filter((a) => a.status === 'LATE').length;
+  const overtimeDays = monthAttendance.filter((a) => a.status === 'OVERTIME').length;
+  const attendanceRate = totalDays > 0 ? Math.round((presentDays / totalDays) * 100) : 0;
 
-  // Leave balances
   const allocations = await TimeOffAllocation.findAll({
     where: {
       employeeId: employee.id,
@@ -76,16 +73,15 @@ export const getEmployeeDashboardKPIs = asyncHandler(async (req, res, next) => {
 
   const leaveBalances = allocations.map((allocation) => ({
     id: allocation.id,
-    leaveType: allocation.timeOffType?.name,
-    leaveCode: allocation.timeOffType?.code,
-    allocated: parseFloat(allocation.allocatedAmount),
-    used: parseFloat(allocation.usedAmount),
-    remaining: allocation.calculateRemaining(),
+    leaveType: allocation.timeOffType?.name || 'Unknown',
+    leaveCode: allocation.timeOffType?.code || 'UNKNOWN',
+    allocated: parseFloat(allocation.allocatedAmount) || 0,
+    used: parseFloat(allocation.usedAmount) || 0,
+    remaining: allocation.calculateRemaining() || 0,
   }));
 
   const totalLeaveBalance = leaveBalances.reduce((sum, l) => sum + l.remaining, 0);
 
-  // Pending requests
   const pendingRequests = await TimeOffRequest.findAll({
     where: {
       employeeId: employee.id,
@@ -101,8 +97,7 @@ export const getEmployeeDashboardKPIs = asyncHandler(async (req, res, next) => {
     order: [['createdAt', 'DESC']],
   });
 
-  // Today's schedule
-  const dayOfWeek = new Date().getDay();
+  const dayOfWeek = now.getDay();
   let todaySchedule = null;
 
   if (employee.scheduleId) {
@@ -113,7 +108,7 @@ export const getEmployeeDashboardKPIs = asyncHandler(async (req, res, next) => {
       },
     });
 
-    if (scheduleDay && scheduleDay.isWorkingDay) {
+    if (scheduleDay) {
       todaySchedule = {
         dayName: scheduleDay.getDayName(),
         startTime: scheduleDay.startTime,
@@ -121,11 +116,11 @@ export const getEmployeeDashboardKPIs = asyncHandler(async (req, res, next) => {
         breakMinutes: scheduleDay.breakMinutes,
         isWorkingDay: scheduleDay.isWorkingDay,
         workingHours: scheduleDay.calculateWorkingHours(),
+        isWeekend: scheduleDay.isWeekend(),
       };
     }
   }
 
-  // Recent payslips
   const recentPayslips = await Payslip.findAll({
     where: { employeeId: employee.id },
     order: [['createdAt', 'DESC']],
@@ -133,27 +128,42 @@ export const getEmployeeDashboardKPIs = asyncHandler(async (req, res, next) => {
     attributes: ['id', 'payslipNumber', 'periodStart', 'periodEnd', 'netSalary', 'status'],
   });
 
+  const todayWorkedMinutes = todayAttendance?.workedMinutes || 0;
+  const todayBreakMinutes = todayAttendance?.breakMinutes || 0;
+  const todayRemainingMinutes = todaySchedule?.workingHours
+    ? Math.max(0, todaySchedule.workingHours * 60 - todayWorkedMinutes)
+    : 0;
+
   res.status(200).json({
     success: true,
     data: {
       today: {
         date: today,
+        dayOfWeek,
         attendance: todayAttendance
           ? {
               checkIn: todayAttendance.checkIn,
               checkOut: todayAttendance.checkOut,
-              workedMinutes: todayAttendance.workedMinutes,
+              workedMinutes: todayWorkedMinutes,
+              workedTime: `${Math.floor(todayWorkedMinutes / 60)}h ${String(
+                todayWorkedMinutes % 60
+              ).padStart(2, '0')}m`,
               status: todayAttendance.status,
-              lateMinutes: todayAttendance.lateMinutes,
-              overtimeMinutes: todayAttendance.overtimeMinutes,
-              breakMinutes: todayAttendance.breakMinutes,
+              lateMinutes: todayAttendance.lateMinutes || 0,
+              overtimeMinutes: todayAttendance.overtimeMinutes || 0,
+              earlyExitMinutes: todayAttendance.earlyExitMinutes || 0,
+              breakMinutes: todayBreakMinutes,
             }
           : null,
         schedule: todaySchedule,
+        remainingMinutes: todayRemainingMinutes,
       },
       metrics: {
         attendanceRate,
         presentDays,
+        absentDays,
+        lateDays,
+        overtimeDays,
         totalDays,
         leaveBalance: totalLeaveBalance,
         pendingRequests: pendingRequests.length,
@@ -161,18 +171,19 @@ export const getEmployeeDashboardKPIs = asyncHandler(async (req, res, next) => {
       leaveBalances,
       pendingRequests: pendingRequests.map((r) => ({
         id: r.id,
-        type: r.timeOffType?.name,
+        type: r.timeOffType?.name || 'Unknown',
         startDate: r.startDate,
         endDate: r.endDate,
-        duration: r.duration,
+        duration: parseFloat(r.duration) || 0,
         status: r.status,
+        reason: r.reason,
       })),
       recentPayslips: recentPayslips.map((p) => ({
         id: p.id,
         payslipNumber: p.payslipNumber,
         periodStart: p.periodStart,
         periodEnd: p.periodEnd,
-        netSalary: parseFloat(p.netSalary),
+        netSalary: parseFloat(p.netSalary) || 0,
         status: p.status,
       })),
     },
@@ -181,11 +192,6 @@ export const getEmployeeDashboardKPIs = asyncHandler(async (req, res, next) => {
 
 // ============ DASHBOARD KPIs (HR/Admin) ============
 
-/**
- * @desc    Get dashboard KPIs
- * @route   GET /api/dashboard/kpis
- * @access  Private (HR Payroll, Admin)
- */
 export const getDashboardKPIs = asyncHandler(async (req, res, next) => {
   const { periodStart, periodEnd, departmentId, employeeTypeId } = req.query;
 
@@ -197,10 +203,10 @@ export const getDashboardKPIs = asyncHandler(async (req, res, next) => {
   }
 
   const employeeWhere = { status: 'ACTIVE' };
-  if (departmentId) {
+  if (departmentId && departmentId !== 'undefined' && departmentId !== 'null') {
     employeeWhere.departmentId = departmentId;
   }
-  if (employeeTypeId) {
+  if (employeeTypeId && employeeTypeId !== 'undefined' && employeeTypeId !== 'null') {
     employeeWhere.employeeTypeId = employeeTypeId;
   }
 
@@ -215,16 +221,10 @@ export const getDashboardKPIs = asyncHandler(async (req, res, next) => {
     payslipWhere.employeeId = { [Op.in]: employeeIds };
   }
 
-  // KPI 1: Total Net Salary Paid
   const totalNetSalary = (await Payslip.sum('netSalary', { where: payslipWhere })) || 0;
-
-  // KPI 2: Payslips Generated
   const payslipCount = await Payslip.count({ where: payslipWhere });
-
-  // KPI 3: Average Salary
   const averageSalary = payslipCount > 0 ? totalNetSalary / payslipCount : 0;
 
-  // KPI 4: Approved Time Off Days
   const timeOffWhere = { status: 'APPROVED' };
   if (employeeIds.length > 0) {
     timeOffWhere.employeeId = { [Op.in]: employeeIds };
@@ -236,7 +236,6 @@ export const getDashboardKPIs = asyncHandler(async (req, res, next) => {
 
   const approvedTimeOff = (await TimeOffRequest.sum('duration', { where: timeOffWhere })) || 0;
 
-  // KPI 5: Attendance Health
   const attendanceWhere = {};
   if (employeeIds.length > 0) {
     attendanceWhere.employeeId = { [Op.in]: employeeIds };
@@ -246,12 +245,17 @@ export const getDashboardKPIs = asyncHandler(async (req, res, next) => {
   }
 
   const totalAttendanceRecords = await Attendance.count({ where: attendanceWhere });
-
   const presentAttendanceRecords = await Attendance.count({
-    where: {
-      ...attendanceWhere,
-      status: { [Op.in]: ['PRESENT', 'LATE', 'OVERTIME'] },
-    },
+    where: { ...attendanceWhere, status: { [Op.in]: ['PRESENT', 'LATE', 'OVERTIME'] } },
+  });
+  const absentAttendanceRecords = await Attendance.count({
+    where: { ...attendanceWhere, status: 'ABSENT' },
+  });
+  const lateAttendanceRecords = await Attendance.count({
+    where: { ...attendanceWhere, status: 'LATE' },
+  });
+  const overtimeAttendanceRecords = await Attendance.count({
+    where: { ...attendanceWhere, status: 'OVERTIME' },
   });
 
   const attendanceHealth =
@@ -259,7 +263,6 @@ export const getDashboardKPIs = asyncHandler(async (req, res, next) => {
       ? Math.round((presentAttendanceRecords / totalAttendanceRecords) * 100)
       : 0;
 
-  // KPI 6: Pending Requests
   const pendingRequests = await TimeOffRequest.count({
     where: {
       status: 'PENDING',
@@ -277,17 +280,19 @@ export const getDashboardKPIs = asyncHandler(async (req, res, next) => {
       attendanceHealth: `${attendanceHealth}%`,
       totalEmployees: employeeIds.length,
       pendingRequests,
+      attendanceBreakdown: {
+        total: totalAttendanceRecords,
+        present: presentAttendanceRecords,
+        absent: absentAttendanceRecords,
+        late: lateAttendanceRecords,
+        overtime: overtimeAttendanceRecords,
+      },
     },
   });
 });
 
 // ============ DEPARTMENT SALARY BREAKDOWN ============
 
-/**
- * @desc    Get salary cost by department
- * @route   GET /api/dashboard/salary-by-department
- * @access  Private (HR Payroll, Admin)
- */
 export const getSalaryByDepartment = asyncHandler(async (req, res, next) => {
   const { periodStart, periodEnd } = req.query;
 
@@ -301,6 +306,7 @@ export const getSalaryByDepartment = asyncHandler(async (req, res, next) => {
   const departments = await Department.findAll({
     where: { active: true },
     attributes: ['id', 'name', 'code'],
+    raw: true,
   });
 
   const departmentData = [];
@@ -309,6 +315,7 @@ export const getSalaryByDepartment = asyncHandler(async (req, res, next) => {
     const employees = await Employee.findAll({
       where: { departmentId: department.id, status: 'ACTIVE' },
       attributes: ['id'],
+      raw: true,
     });
 
     const employeeIds = employees.map((e) => e.id);
@@ -347,11 +354,6 @@ export const getSalaryByDepartment = asyncHandler(async (req, res, next) => {
 
 // ============ MONTHLY SALARY TRENDS ============
 
-/**
- * @desc    Get monthly net salary trends
- * @route   GET /api/dashboard/monthly-trends
- * @access  Private (HR Payroll, Admin)
- */
 export const getMonthlyTrends = asyncHandler(async (req, res, next) => {
   const { months = 12 } = req.query;
 
@@ -391,11 +393,6 @@ export const getMonthlyTrends = asyncHandler(async (req, res, next) => {
 
 // ============ ATTENDANCE OVERVIEW ============
 
-/**
- * @desc    Get attendance overview
- * @route   GET /api/dashboard/attendance-overview
- * @access  Private (HR Payroll, Admin)
- */
 export const getAttendanceOverview = asyncHandler(async (req, res, next) => {
   const { periodStart, periodEnd, departmentId } = req.query;
 
@@ -405,10 +402,11 @@ export const getAttendanceOverview = asyncHandler(async (req, res, next) => {
     where.workDate = { [Op.between]: [periodStart, periodEnd] };
   }
 
-  if (departmentId) {
+  if (departmentId && departmentId !== 'undefined' && departmentId !== 'null') {
     const employees = await Employee.findAll({
       where: { departmentId },
       attributes: ['id'],
+      raw: true,
     });
     where.employeeId = { [Op.in]: employees.map((e) => e.id) };
   }
@@ -435,7 +433,6 @@ export const getAttendanceOverview = asyncHandler(async (req, res, next) => {
   });
 
   const totalRecords = overview.reduce((sum, item) => sum + parseInt(item.count), 0);
-
   const presentRecords = overview
     .filter((item) => ['PRESENT', 'LATE', 'OVERTIME'].includes(item.status))
     .reduce((sum, item) => sum + parseInt(item.count), 0);
@@ -462,11 +459,6 @@ export const getAttendanceOverview = asyncHandler(async (req, res, next) => {
 
 // ============ TIME OFF OVERVIEW ============
 
-/**
- * @desc    Get time off overview
- * @route   GET /api/dashboard/timeoff-overview
- * @access  Private (HR Payroll, Admin)
- */
 export const getTimeOffOverview = asyncHandler(async (req, res, next) => {
   const { periodStart, periodEnd, departmentId } = req.query;
 
@@ -477,10 +469,11 @@ export const getTimeOffOverview = asyncHandler(async (req, res, next) => {
     where.endDate = { [Op.lte]: periodEnd };
   }
 
-  if (departmentId) {
+  if (departmentId && departmentId !== 'undefined' && departmentId !== 'null') {
     const employees = await Employee.findAll({
       where: { departmentId },
       attributes: ['id'],
+      raw: true,
     });
     where.employeeId = { [Op.in]: employees.map((e) => e.id) };
   }
@@ -518,41 +511,43 @@ export const getTimeOffOverview = asyncHandler(async (req, res, next) => {
   });
 });
 
-// ============ OPERATIONAL ALERTS ============
+// ============ OPERATIONAL ALERTS (FIXED) ============
 
-/**
- * @desc    Get operational alerts
- * @route   GET /api/dashboard/alerts
- * @access  Private (HR Payroll, Admin)
- */
 export const getOperationalAlerts = asyncHandler(async (req, res, next) => {
   const alerts = [];
 
-  // 1. Payroll warnings (unresolved)
+  // 1. Payroll warnings - NO include, use raw query
   const warnings = await PayrollWarning.findAll({
     where: { resolved: false },
-    include: [
-      {
-        model: Employee,
-        as: 'employee',
-        attributes: ['id', 'employeeCode', 'firstName', 'lastName'],
-      },
-    ],
+    attributes: ['id', 'warningType', 'severity', 'message', 'employeeId', 'createdAt'],
     order: [['severity', 'ASC']],
     limit: 20,
+    raw: true,
   });
 
-  warnings.forEach((warning) => {
+  // Get employee names for warnings (separate query to avoid join issues)
+  for (const warning of warnings) {
+    let employeeName = null;
+    if (warning.employeeId) {
+      const emp = await Employee.findByPk(warning.employeeId, {
+        attributes: ['id', 'employeeCode', 'firstName', 'lastName'],
+        raw: true,
+      });
+      if (emp) {
+        employeeName = `${emp.firstName} ${emp.lastName || ''}`.trim();
+      }
+    }
+
     alerts.push({
       type: warning.warningType,
       severity: warning.severity,
       message: warning.message,
-      employeeName: warning.employee?.fullName,
+      employeeName,
       createdAt: warning.createdAt,
     });
-  });
+  }
 
-  // 2. Employees with missing bank details
+  // 2. Employees with missing bank details - raw query
   const employeesMissingBank = await Employee.findAll({
     where: {
       status: 'ACTIVE',
@@ -564,6 +559,7 @@ export const getOperationalAlerts = asyncHandler(async (req, res, next) => {
       ],
     },
     attributes: ['id', 'employeeCode', 'firstName', 'lastName'],
+    raw: true,
   });
 
   employeesMissingBank.forEach((employee) => {
@@ -571,30 +567,32 @@ export const getOperationalAlerts = asyncHandler(async (req, res, next) => {
       type: 'MISSING_BANK_DETAILS',
       severity: 'WARNING',
       message: `Employee ${employee.employeeCode} has missing bank details`,
-      employeeName: employee.fullName,
+      employeeName: `${employee.firstName} ${employee.lastName || ''}`.trim(),
     });
   });
 
-  // 3. Employees with no active contract
+  // 3. Employees with no active contract - optimized single query
   const employeesWithoutContract = await Employee.findAll({
     where: { status: 'ACTIVE' },
     attributes: ['id', 'employeeCode', 'firstName', 'lastName'],
+    raw: true,
   });
 
-  for (const employee of employeesWithoutContract) {
-    const activeContract = await Contract.findOne({
-      where: {
-        employeeId: employee.id,
-        status: 'ACTIVE',
-      },
-    });
+  const activeContracts = await Contract.findAll({
+    where: { status: 'ACTIVE' },
+    attributes: ['employeeId'],
+    raw: true,
+  });
 
-    if (!activeContract) {
+  const employeesWithContract = new Set(activeContracts.map((c) => c.employeeId));
+
+  for (const employee of employeesWithoutContract) {
+    if (!employeesWithContract.has(employee.id)) {
       alerts.push({
         type: 'MISSING_CONTRACT',
         severity: 'ERROR',
         message: `Employee ${employee.employeeCode} has no active contract`,
-        employeeName: employee.fullName,
+        employeeName: `${employee.firstName} ${employee.lastName || ''}`.trim(),
       });
     }
   }

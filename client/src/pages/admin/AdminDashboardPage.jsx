@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import PageHeader from '../../components/common/PageHeader.jsx';
 import StatCard from '../../components/common/StatCard.jsx';
@@ -26,7 +26,7 @@ export default function AdminDashboardPage() {
   const [alerts, setAlerts] = useState([]);
 
   // Load all dashboard endpoints from real backend
-  const loadDashboardData = async (isManualRefresh = false) => {
+  const loadDashboardData = useCallback(async (isManualRefresh = false) => {
     if (isManualRefresh) setRefreshing(true);
     setError(null);
 
@@ -42,22 +42,22 @@ export default function AdminDashboardPage() {
         ]);
 
       if (kpisRes.status === 'fulfilled') {
-        setKpis(kpisRes.value.data || null);
+        setKpis(kpisRes.value?.data || null);
       }
       if (deptRes.status === 'fulfilled') {
-        setDepartmentSalaries(deptRes.value.data || []);
+        setDepartmentSalaries(deptRes.value?.data || []);
       }
       if (trendsRes.status === 'fulfilled') {
-        setMonthlyTrends(trendsRes.value.data || []);
+        setMonthlyTrends(trendsRes.value?.data || []);
       }
       if (attRes.status === 'fulfilled') {
-        setAttendanceOverview(attRes.value.data || null);
+        setAttendanceOverview(attRes.value?.data || null);
       }
       if (timeOffRes.status === 'fulfilled') {
-        setTimeOffOverview(timeOffRes.value.data || null);
+        setTimeOffOverview(timeOffRes.value?.data || null);
       }
       if (alertsRes.status === 'fulfilled') {
-        setAlerts(alertsRes.value.data || []);
+        setAlerts(alertsRes.value?.data || []);
       }
 
       // If all critical endpoints failed, report error
@@ -74,61 +74,11 @@ export default function AdminDashboardPage() {
       setLoading(false);
       setRefreshing(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    let active = true;
-    (async () => {
-      try {
-        const [kpisRes, deptRes, trendsRes, attRes, timeOffRes, alertsRes] =
-          await Promise.allSettled([
-            dashboardApi.getKPIs(),
-            dashboardApi.getSalaryByDepartment(),
-            dashboardApi.getMonthlyTrends({ months: 12 }),
-            dashboardApi.getAttendanceOverview(),
-            dashboardApi.getTimeOffOverview(),
-            dashboardApi.getAlerts(),
-          ]);
-
-        if (!active) return;
-
-        if (kpisRes.status === 'fulfilled') {
-          setKpis(kpisRes.value.data || null);
-        }
-        if (deptRes.status === 'fulfilled') {
-          setDepartmentSalaries(deptRes.value.data || []);
-        }
-        if (trendsRes.status === 'fulfilled') {
-          setMonthlyTrends(trendsRes.value.data || []);
-        }
-        if (attRes.status === 'fulfilled') {
-          setAttendanceOverview(attRes.value.data || null);
-        }
-        if (timeOffRes.status === 'fulfilled') {
-          setTimeOffOverview(timeOffRes.value.data || null);
-        }
-        if (alertsRes.status === 'fulfilled') {
-          setAlerts(alertsRes.value.data || []);
-        }
-
-        if (
-          kpisRes.status === 'rejected' &&
-          deptRes.status === 'rejected' &&
-          trendsRes.status === 'rejected'
-        ) {
-          setError(extractErrorMessage(kpisRes.reason, 'Unable to load dashboard data.'));
-        }
-      } catch (err) {
-        if (active) setError(extractErrorMessage(err, 'Unable to load dashboard data.'));
-      } finally {
-        if (active) setLoading(false);
-      }
-    })();
-
-    return () => {
-      active = false;
-    };
-  }, []);
+    loadDashboardData();
+  }, [loadDashboardData]);
 
   const formatCurrency = (val) => {
     const num = Number(val) || 0;
@@ -144,6 +94,18 @@ export default function AdminDashboardPage() {
       return dateStr;
     }
   };
+
+  // Safe value getters
+  const totalEmployees = kpis?.totalEmployees ?? 0;
+  const totalNetSalary = kpis?.totalNetSalary ?? 0;
+  const payslipCount = kpis?.payslipCount ?? 0;
+  const attendanceHealth = attendanceOverview?.attendanceHealth || kpis?.attendanceHealth || '0%';
+  const presentCount = attendanceOverview?.presentCount ?? 0;
+  const totalRecords = attendanceOverview?.totalRecords ?? 0;
+  const approvedDays = timeOffOverview?.approvedDays ?? kpis?.approvedTimeOffDays ?? 0;
+  const pendingRequests = timeOffOverview?.pendingRequests ?? 0;
+  const manualEdits = attendanceOverview?.manualEdits ?? 0;
+  const missingCheckouts = attendanceOverview?.missingCheckouts ?? 0;
 
   return (
     <div className='space-y-6'>
@@ -212,9 +174,9 @@ export default function AdminDashboardPage() {
             <div className='grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4'>
               <StatCard
                 label='Total Workforce'
-                value={kpis?.totalEmployees != null ? String(kpis.totalEmployees) : '0'}
+                value={String(totalEmployees)}
                 badgeText='Active Staff'
-                hint={`${kpis?.totalEmployees || 0} active employees`}
+                hint={`${totalEmployees} active employees`}
                 iconType='users'
                 bgColor='bg-blue-50/50'
                 borderColor='border-blue-200/70'
@@ -224,9 +186,9 @@ export default function AdminDashboardPage() {
 
               <StatCard
                 label='Total Net Payroll'
-                value={formatCurrency(kpis?.totalNetSalary)}
+                value={formatCurrency(totalNetSalary)}
                 badgeText='Disbursed'
-                hint={`${kpis?.payslipCount || 0} payslips processed`}
+                hint={`${payslipCount} payslips processed`}
                 iconType='trending-up'
                 bgColor='bg-emerald-50/50'
                 borderColor='border-emerald-200/70'
@@ -236,9 +198,9 @@ export default function AdminDashboardPage() {
 
               <StatCard
                 label='Attendance Health'
-                value={attendanceOverview?.attendanceHealth || kpis?.attendanceHealth || '0%'}
+                value={attendanceHealth}
                 badgeText='Punches'
-                hint={`${attendanceOverview?.presentCount || 0} of ${attendanceOverview?.totalRecords || 0} records`}
+                hint={`${presentCount} of ${totalRecords} records`}
                 iconType='clock'
                 bgColor='bg-purple-50/50'
                 borderColor='border-purple-200/70'
@@ -248,9 +210,9 @@ export default function AdminDashboardPage() {
 
               <StatCard
                 label='Time Off Approved'
-                value={`${timeOffOverview?.approvedDays != null ? timeOffOverview.approvedDays : (kpis?.approvedTimeOffDays || 0)} Days`}
+                value={`${approvedDays} Days`}
                 badgeText='Leave'
-                hint={`${timeOffOverview?.pendingRequests || 0} pending review`}
+                hint={`${pendingRequests} pending review`}
                 iconType='calendar'
                 bgColor='bg-amber-50/50'
                 borderColor='border-amber-200/70'
@@ -412,11 +374,11 @@ export default function AdminDashboardPage() {
                     <div>
                       <p className='font-bold text-[#1E293B]'>Attendance Rate</p>
                       <p className='text-[11px] text-gray-500 mt-0.5'>
-                        {attendanceOverview?.presentCount || 0} present of {attendanceOverview?.totalRecords || 0} total records
+                        {presentCount} present of {totalRecords} total records
                       </p>
                     </div>
                     <span className='text-sm font-black text-[#714B67]'>
-                      {attendanceOverview?.attendanceHealth || '0%'}
+                      {attendanceHealth}
                     </span>
                   </div>
 
@@ -424,7 +386,7 @@ export default function AdminDashboardPage() {
                     <div className='p-3 rounded-xl bg-stone-50 border border-stone-200/70'>
                       <span className='text-[10px] uppercase font-bold text-gray-500'>Manual Edits</span>
                       <p className='text-base font-black text-[#1E293B] mt-0.5'>
-                        {attendanceOverview?.manualEdits || 0}
+                        {manualEdits}
                       </p>
                       <span className='text-[10px] text-gray-400'>Supervisor corrections</span>
                     </div>
@@ -432,7 +394,7 @@ export default function AdminDashboardPage() {
                     <div className='p-3 rounded-xl bg-stone-50 border border-stone-200/70'>
                       <span className='text-[10px] uppercase font-bold text-gray-500'>Missing Punches</span>
                       <p className='text-base font-black text-rose-700 mt-0.5'>
-                        {attendanceOverview?.missingCheckouts || 0}
+                        {missingCheckouts}
                       </p>
                       <span className='text-[10px] text-gray-400'>Missing checkout</span>
                     </div>
@@ -444,7 +406,7 @@ export default function AdminDashboardPage() {
                       <p className='text-[11px] text-gray-500 mt-0.5'>Requests awaiting managerial approval</p>
                     </div>
                     <span className='text-sm font-black text-amber-900'>
-                      {timeOffOverview?.pendingRequests || 0}
+                      {pendingRequests}
                     </span>
                   </div>
                 </div>

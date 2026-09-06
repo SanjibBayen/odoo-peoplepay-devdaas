@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import PageHeader from '../../components/common/PageHeader.jsx';
 import LoadingState from '../../components/common/LoadingState.jsx';
@@ -6,10 +6,23 @@ import ErrorState from '../../components/common/ErrorState.jsx';
 import BackButton from '../../components/common/BackButton.jsx';
 import salaryRuleApi from '../../services/salaryRuleApi.js';
 import { extractErrorMessage } from '../../services/apiClient.js';
-import {
-  SALARY_RULE_CATEGORIES,
-  SALARY_CALCULATION_TYPES,
-} from '../../utils/constants.js';
+
+const SALARY_RULE_CATEGORIES = [
+  { value: 'BASIC', label: 'Basic Salary' },
+  { value: 'ALLOWANCE', label: 'Allowance' },
+  { value: 'GROSS', label: 'Gross Salary' },
+  { value: 'DEDUCTION', label: 'Deduction' },
+  { value: 'TAX', label: 'Tax' },
+  { value: 'CONTRIBUTION', label: 'Contribution' },
+  { value: 'NET', label: 'Net Salary' },
+];
+
+const SALARY_CALCULATION_TYPES = [
+  { value: 'FIXED', label: 'Fixed Amount' },
+  { value: 'PERCENTAGE', label: 'Percentage of Base Rule' },
+  { value: 'FORMULA', label: 'Formula Expression' },
+  { value: 'TAX', label: 'Tax Calculation' },
+];
 
 export default function SalaryRuleFormPage() {
   const { id } = useParams();
@@ -34,40 +47,35 @@ export default function SalaryRuleFormPage() {
     description: '',
   });
 
-  useEffect(() => {
+  const loadRule = useCallback(async () => {
     if (!isEdit) return;
-
-    let active = true;
-    (async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const res = await salaryRuleApi.getSalaryRuleById(id);
-        const rule = res.data || res;
-        if (!active) return;
-        setFormData({
-          name: rule.name || '',
-          code: rule.code || '',
-          sequence: rule.sequence || 10,
-          category: rule.category || 'BASIC',
-          calculationType: rule.calculationType || rule.type || 'FIXED',
-          fixedAmount: rule.fixedAmount || rule.amount || '',
-          percentage: rule.percentage || '',
-          baseRuleCode: rule.baseRuleCode || 'BASIC',
-          formula: rule.formula || '',
-          description: rule.description || '',
-        });
-      } catch (err) {
-        if (!active) return;
-        setError(extractErrorMessage(err, 'Failed to load salary rule.'));
-      } finally {
-        if (active) setLoading(false);
-      }
-    })();
-    return () => {
-      active = false;
-    };
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await salaryRuleApi.getSalaryRuleById(id);
+      const rule = res?.data || res;
+      setFormData({
+        name: rule.name || '',
+        code: rule.code || '',
+        sequence: rule.sequence || 10,
+        category: rule.category || 'BASIC',
+        calculationType: rule.calculationType || 'FIXED',
+        fixedAmount: rule.fixedAmount || '',
+        percentage: rule.percentage || '',
+        baseRuleCode: rule.baseRuleCode || 'BASIC',
+        formula: rule.formula || '',
+        description: rule.description || '',
+      });
+    } catch (err) {
+      setError(extractErrorMessage(err, 'Failed to load salary rule.'));
+    } finally {
+      setLoading(false);
+    }
   }, [id, isEdit]);
+
+  useEffect(() => {
+    loadRule();
+  }, [loadRule]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -89,14 +97,11 @@ export default function SalaryRuleFormPage() {
       sequence: Number(formData.sequence) || 10,
       category: formData.category,
       calculationType: formData.calculationType,
-      description: formData.description,
-      fixedAmount:
-        formData.calculationType === 'FIXED' ? Number(formData.fixedAmount) : undefined,
-      percentage:
-        formData.calculationType === 'PERCENTAGE' ? Number(formData.percentage) : undefined,
-      baseRuleCode:
-        formData.calculationType === 'PERCENTAGE' ? formData.baseRuleCode : undefined,
-      formula: formData.calculationType === 'FORMULA' ? formData.formula : undefined,
+      description: formData.description || null,
+      fixedAmount: formData.calculationType === 'FIXED' ? Number(formData.fixedAmount) : null,
+      percentage: formData.calculationType === 'PERCENTAGE' ? Number(formData.percentage) : null,
+      baseRuleCode: formData.calculationType === 'PERCENTAGE' ? formData.baseRuleCode : null,
+      formula: formData.calculationType === 'FORMULA' ? formData.formula : null,
     };
 
     try {
@@ -113,20 +118,15 @@ export default function SalaryRuleFormPage() {
   };
 
   if (loading) return <LoadingState message='Loading salary rule...' />;
-  if (error) return <ErrorState message={error} onRetry={() => window.location.reload()} />;
+  if (error) return <ErrorState message={error} onRetry={loadRule} />;
 
   return (
     <div className='max-w-3xl mx-auto space-y-6'>
-      <div className='flex items-center justify-between'>
-        <BackButton label='Back to Salary Rules' fallback='/salary-rules' />
-        <span className='text-xs font-mono font-bold text-gray-500 bg-[#FAF8F5] px-3 py-1 rounded-xl border border-gray-200'>
-          {isEdit ? `Editing: ${formData.code}` : 'New Rule'}
-        </span>
-      </div>
+      <BackButton label='Back to Salary Rules' onClick={() => navigate('/salary-rules')} />
 
       <PageHeader
         title={isEdit ? 'Edit Salary Rule' : 'Create Salary Rule'}
-        subtitle='Define mathematical computation components: Fixed pay, percentage allowances, or formulas.'
+        subtitle='Define mathematical computation components.'
       />
 
       {formError && (
@@ -135,155 +135,79 @@ export default function SalaryRuleFormPage() {
         </div>
       )}
 
-      <div className='bg-white rounded-2xl border border-[#EAE6DF] shadow-xs p-6 sm:p-8'>
+      <div className='bg-white rounded-2xl border p-6 sm:p-8'>
         <form onSubmit={handleSubmit} className='space-y-4 text-xs'>
           <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
             <div>
-              <label className='block font-bold text-gray-700 mb-1.5'>Rule Name *</label>
-              <input
-                type='text'
-                required
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                placeholder='e.g. Basic Salary'
-                className='w-full px-3.5 py-2.5 rounded-xl border border-gray-200 bg-[#FAF8F5]'
-              />
+              <label className='block font-bold mb-1.5'>Rule Name *</label>
+              <input type='text' required value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} className='w-full px-3.5 py-2.5 rounded-xl border' />
             </div>
-
             <div>
-              <label className='block font-bold text-gray-700 mb-1.5'>Rule Code *</label>
-              <input
-                type='text'
-                required
-                value={formData.code}
-                onChange={(e) => setFormData({ ...formData, code: e.target.value })}
-                placeholder='e.g. BASIC'
-                className='w-full px-3.5 py-2.5 rounded-xl border border-gray-200 bg-[#FAF8F5] font-mono'
-              />
+              <label className='block font-bold mb-1.5'>Rule Code *</label>
+              <input type='text' required value={formData.code} onChange={(e) => setFormData({ ...formData, code: e.target.value })} className='w-full px-3.5 py-2.5 rounded-xl border font-mono' />
             </div>
           </div>
 
           <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
             <div>
-              <label className='block font-bold text-gray-700 mb-1.5'>Category *</label>
-              <select
-                value={formData.category}
-                onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                className='w-full px-3.5 py-2.5 rounded-xl border border-gray-200 bg-[#FAF8F5]'
-              >
+              <label className='block font-bold mb-1.5'>Category *</label>
+              <select value={formData.category} onChange={(e) => setFormData({ ...formData, category: e.target.value })} className='w-full px-3.5 py-2.5 rounded-xl border cursor-pointer'>
                 {SALARY_RULE_CATEGORIES.map((cat) => (
-                  <option key={cat.value} value={cat.value}>
-                    {cat.label} ({cat.value})
-                  </option>
+                  <option key={cat.value} value={cat.value}>{cat.label}</option>
                 ))}
               </select>
             </div>
-
             <div>
-              <label className='block font-bold text-gray-700 mb-1.5'>Sequence *</label>
-              <input
-                type='number'
-                required
-                value={formData.sequence}
-                onChange={(e) => setFormData({ ...formData, sequence: e.target.value })}
-                className='w-full px-3.5 py-2.5 rounded-xl border border-gray-200 bg-[#FAF8F5]'
-              />
+              <label className='block font-bold mb-1.5'>Sequence *</label>
+              <input type='number' required value={formData.sequence} onChange={(e) => setFormData({ ...formData, sequence: e.target.value })} className='w-full px-3.5 py-2.5 rounded-xl border' />
             </div>
           </div>
 
           <div>
-            <label className='block font-bold text-gray-700 mb-1.5'>Calculation Type *</label>
-            <select
-              value={formData.calculationType}
-              onChange={(e) => setFormData({ ...formData, calculationType: e.target.value })}
-              className='w-full px-3.5 py-2.5 rounded-xl border border-gray-200 bg-[#FAF8F5]'
-            >
+            <label className='block font-bold mb-1.5'>Calculation Type *</label>
+            <select value={formData.calculationType} onChange={(e) => setFormData({ ...formData, calculationType: e.target.value })} className='w-full px-3.5 py-2.5 rounded-xl border cursor-pointer'>
               {SALARY_CALCULATION_TYPES.map((t) => (
-                <option key={t.value} value={t.value}>
-                  {t.label}
-                </option>
+                <option key={t.value} value={t.value}>{t.label}</option>
               ))}
             </select>
           </div>
 
           {formData.calculationType === 'FIXED' && (
             <div>
-              <label className='block font-bold text-gray-700 mb-1.5'>Fixed Amount (₹) *</label>
-              <input
-                type='number'
-                required
-                min='0'
-                value={formData.fixedAmount}
-                onChange={(e) => setFormData({ ...formData, fixedAmount: e.target.value })}
-                className='w-full px-3.5 py-2.5 rounded-xl border border-gray-200 bg-[#FAF8F5]'
-              />
+              <label className='block font-bold mb-1.5'>Fixed Amount *</label>
+              <input type='number' required min='0' value={formData.fixedAmount} onChange={(e) => setFormData({ ...formData, fixedAmount: e.target.value })} className='w-full px-3.5 py-2.5 rounded-xl border' />
             </div>
           )}
 
           {formData.calculationType === 'PERCENTAGE' && (
-            <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
+            <div className='grid grid-cols-2 gap-4'>
               <div>
-                <label className='block font-bold text-gray-700 mb-1.5'>Percentage (%) *</label>
-                <input
-                  type='number'
-                  required
-                  step='0.01'
-                  value={formData.percentage}
-                  onChange={(e) => setFormData({ ...formData, percentage: e.target.value })}
-                  placeholder='e.g. 50'
-                  className='w-full px-3.5 py-2.5 rounded-xl border border-gray-200 bg-[#FAF8F5]'
-                />
+                <label className='block font-bold mb-1.5'>Percentage (%) *</label>
+                <input type='number' required step='0.01' value={formData.percentage} onChange={(e) => setFormData({ ...formData, percentage: e.target.value })} className='w-full px-3.5 py-2.5 rounded-xl border' />
               </div>
-
               <div>
-                <label className='block font-bold text-gray-700 mb-1.5'>Base Rule Code *</label>
-                <input
-                  type='text'
-                  required
-                  value={formData.baseRuleCode}
-                  onChange={(e) => setFormData({ ...formData, baseRuleCode: e.target.value })}
-                  placeholder='e.g. BASIC'
-                  className='w-full px-3.5 py-2.5 rounded-xl border border-gray-200 bg-[#FAF8F5] font-mono'
-                />
+                <label className='block font-bold mb-1.5'>Base Rule Code *</label>
+                <input type='text' required value={formData.baseRuleCode} onChange={(e) => setFormData({ ...formData, baseRuleCode: e.target.value })} className='w-full px-3.5 py-2.5 rounded-xl border font-mono' />
               </div>
             </div>
           )}
 
           {formData.calculationType === 'FORMULA' && (
             <div>
-              <label className='block font-bold text-gray-700 mb-1.5'>Formula Expression *</label>
-              <input
-                type='text'
-                required
-                value={formData.formula}
-                onChange={(e) => setFormData({ ...formData, formula: e.target.value })}
-                placeholder='e.g. BASIC * 0.4 + HRA'
-                className='w-full px-3.5 py-2.5 rounded-xl border border-gray-200 bg-[#FAF8F5] font-mono'
-              />
+              <label className='block font-bold mb-1.5'>Formula Expression *</label>
+              <input type='text' required value={formData.formula} onChange={(e) => setFormData({ ...formData, formula: e.target.value })} placeholder='e.g. BASIC * 0.4' className='w-full px-3.5 py-2.5 rounded-xl border font-mono' />
             </div>
           )}
 
           <div>
-            <label className='block font-bold text-gray-700 mb-1.5'>Description</label>
-            <textarea
-              rows={2}
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              placeholder='Component calculation context or statutory reference'
-              className='w-full px-3.5 py-2.5 rounded-xl border border-gray-200 bg-[#FAF8F5]'
-            />
+            <label className='block font-bold mb-1.5'>Description</label>
+            <textarea rows={2} value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} className='w-full px-3.5 py-2.5 rounded-xl border' />
           </div>
 
-          <div className='pt-4 flex justify-end gap-2 border-t border-gray-100'>
-            <BackButton label='Cancel' fallback='/salary-rules' />
-            <button
-              type='submit'
-              disabled={isSubmitting}
-              className={`px-5 py-2 text-xs font-bold text-white bg-[#714B67] hover:bg-[#5E3E56] rounded-xl shadow-xs transition-colors cursor-pointer ${
-                isSubmitting ? 'opacity-60 cursor-not-allowed' : ''
-              }`}
-            >
-              {isSubmitting ? 'Saving Rule...' : isEdit ? 'Update Rule' : 'Create Rule'}
+          <div className='pt-4 flex justify-end gap-2 border-t'>
+            <BackButton label='Cancel' onClick={() => navigate('/salary-rules')} />
+            <button type='submit' disabled={isSubmitting} className={`px-5 py-2 text-xs font-bold text-white bg-[#714B67] rounded-xl cursor-pointer ${isSubmitting ? 'opacity-60' : ''}`}>
+              {isSubmitting ? 'Saving...' : isEdit ? 'Update Rule' : 'Create Rule'}
             </button>
           </div>
         </form>

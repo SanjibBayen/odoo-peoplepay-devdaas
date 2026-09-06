@@ -8,18 +8,16 @@ import DepartmentCard from '../../components/department/DepartmentCard.jsx';
 import DepartmentForm from '../../components/department/DepartmentForm.jsx';
 import DepartmentHierarchy from '../../components/department/DepartmentHierarchy.jsx';
 import departmentApi from '../../services/departmentApi.js';
-import employeeApi from '../../services/employeeApi.js';
 import { extractErrorMessage } from '../../services/apiClient.js';
 
 export default function DepartmentsPage() {
   const [departments, setDepartments] = useState([]);
   const [hierarchy, setHierarchy] = useState(null);
-  const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [statusBanner, setStatusBanner] = useState(null);
 
-  const [viewMode, setViewMode] = useState('cards'); // 'cards' | 'table' | 'hierarchy'
+  const [viewMode, setViewMode] = useState('cards');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingDepartment, setEditingDepartment] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
@@ -28,25 +26,20 @@ export default function DepartmentsPage() {
     setLoading(true);
     setError(null);
     try {
-      const [deptRes, hierRes, empRes] = await Promise.allSettled([
+      const [deptRes, hierRes] = await Promise.allSettled([
         departmentApi.getDepartments(),
         departmentApi.getDepartmentHierarchy(),
-        employeeApi.getEmployees({ limit: 150 }),
       ]);
 
       if (deptRes.status === 'fulfilled') {
-        const list = deptRes.value.data || (Array.isArray(deptRes.value) ? deptRes.value : []);
-        setDepartments(list);
+        const list = deptRes.value?.data || [];
+        setDepartments(Array.isArray(list) ? list : []);
       } else {
         setError(extractErrorMessage(deptRes.reason, 'Failed to load departments.'));
       }
 
       if (hierRes.status === 'fulfilled') {
-        setHierarchy(hierRes.value.data || hierRes.value);
-      }
-
-      if (empRes.status === 'fulfilled') {
-        setEmployees(empRes.value.data || []);
+        setHierarchy(hierRes.value?.data || null);
       }
     } catch (err) {
       setError(extractErrorMessage(err, 'Failed to load organizational departments.'));
@@ -56,42 +49,8 @@ export default function DepartmentsPage() {
   }, []);
 
   useEffect(() => {
-    let active = true;
-    (async () => {
-      try {
-        const [deptRes, hierRes, empRes] = await Promise.allSettled([
-          departmentApi.getDepartments(),
-          departmentApi.getDepartmentHierarchy(),
-          employeeApi.getEmployees({ limit: 150 }),
-        ]);
-
-        if (!active) return;
-
-        if (deptRes.status === 'fulfilled') {
-          const list = deptRes.value.data || (Array.isArray(deptRes.value) ? deptRes.value : []);
-          setDepartments(list);
-        } else {
-          setError(extractErrorMessage(deptRes.reason, 'Failed to load departments.'));
-        }
-
-        if (hierRes.status === 'fulfilled') {
-          setHierarchy(hierRes.value.data || hierRes.value);
-        }
-
-        if (empRes.status === 'fulfilled') {
-          setEmployees(empRes.value.data || []);
-        }
-      } catch (err) {
-        if (active) setError(extractErrorMessage(err, 'Failed to load organizational departments.'));
-      } finally {
-        if (active) setLoading(false);
-      }
-    })();
-
-    return () => {
-      active = false;
-    };
-  }, []);
+    loadData();
+  }, [loadData]);
 
   const handleOpenAdd = () => {
     setEditingDepartment(null);
@@ -113,6 +72,7 @@ export default function DepartmentsPage() {
         setStatusBanner({ type: 'success', text: 'New department created successfully.' });
       }
       setIsModalOpen(false);
+      setEditingDepartment(null);
       await loadData();
       setTimeout(() => setStatusBanner(null), 4000);
     } catch (err) {
@@ -130,8 +90,19 @@ export default function DepartmentsPage() {
       setTimeout(() => setStatusBanner(null), 4000);
     } catch (err) {
       setStatusBanner({ type: 'error', text: extractErrorMessage(err, 'Failed to delete department.') });
+      setDeleteTarget(null);
       setTimeout(() => setStatusBanner(null), 4000);
     }
+  };
+
+  // Get manager name
+  const getManagerName = (dept) => {
+    if (dept.manager?.firstName) {
+      return `${dept.manager.firstName} ${dept.manager.lastName || ''}`.trim();
+    }
+    if (dept.manager?.fullName) return dept.manager.fullName;
+    if (typeof dept.manager === 'string') return dept.manager;
+    return 'Unassigned';
   };
 
   return (
@@ -160,62 +131,42 @@ export default function DepartmentsPage() {
           }`}
         >
           <span>{statusBanner.text}</span>
-          <button
-            type='button'
-            onClick={() => setStatusBanner(null)}
-            className='font-bold ml-2 cursor-pointer'
-          >
-            ✕
-          </button>
+          <button type='button' onClick={() => setStatusBanner(null)} className='font-bold ml-2 cursor-pointer'>✕</button>
         </div>
       )}
 
-      {/* View Mode Switcher Toolbar */}
+      {/* View Mode Switcher */}
       <div className='flex items-center justify-between bg-white p-2.5 rounded-2xl border border-[#EAE6DF] shadow-2xs'>
         <div className='flex items-center gap-1'>
           <button
             type='button'
             onClick={() => setViewMode('cards')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-              viewMode === 'cards'
-                ? 'bg-[#714B67] text-white shadow-xs'
-                : 'text-gray-600 hover:text-gray-900 hover:bg-[#FAF8F5]'
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              viewMode === 'cards' ? 'bg-[#714B67] text-white' : 'text-gray-600 hover:bg-[#FAF8F5]'
             }`}
           >
-            <span>🗂️</span>
-            <span>Cards Grid</span>
+            Cards Grid
           </button>
-
           <button
             type='button'
             onClick={() => setViewMode('table')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-              viewMode === 'table'
-                ? 'bg-[#714B67] text-white shadow-xs'
-                : 'text-gray-600 hover:text-gray-900 hover:bg-[#FAF8F5]'
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              viewMode === 'table' ? 'bg-[#714B67] text-white' : 'text-gray-600 hover:bg-[#FAF8F5]'
             }`}
           >
-            <span>📋</span>
-            <span>Table List</span>
+            Table List
           </button>
-
           <button
             type='button'
             onClick={() => setViewMode('hierarchy')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-              viewMode === 'hierarchy'
-                ? 'bg-[#714B67] text-white shadow-xs'
-                : 'text-gray-600 hover:text-gray-900 hover:bg-[#FAF8F5]'
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              viewMode === 'hierarchy' ? 'bg-[#714B67] text-white' : 'text-gray-600 hover:bg-[#FAF8F5]'
             }`}
           >
-            <span>🌳</span>
-            <span>Org Hierarchy</span>
+            Org Hierarchy
           </button>
         </div>
-
-        <span className='text-xs font-bold text-gray-500 pr-2'>
-          {departments.length} Departments
-        </span>
+        <span className='text-xs font-bold text-gray-500 pr-2'>{departments.length} Departments</span>
       </div>
 
       {loading ? (
@@ -256,39 +207,17 @@ export default function DepartmentsPage() {
               </thead>
               <tbody className='divide-y divide-gray-100'>
                 {departments.map((dept) => {
-                  const managerName = dept.manager?.firstName
-                    ? `${dept.manager.firstName} ${dept.manager.lastName || ''}`.trim()
-                    : typeof dept.manager === 'string'
-                    ? dept.manager
-                    : 'Unassigned';
                   const count = dept.employeeCount ?? dept.headCount ?? 0;
-
                   return (
                     <tr key={dept.id} className='hover:bg-[#FAF8F5]/60 transition-colors'>
                       <td className='py-3 px-4 font-bold text-gray-900'>{dept.name}</td>
                       <td className='py-3 px-4 font-mono font-bold text-[#714B67]'>{dept.code}</td>
-                      <td className='py-3 px-4 text-gray-700'>{managerName}</td>
-                      <td className='py-3 px-4 text-gray-500'>
-                        {dept.parentDepartment?.name || '--'}
-                      </td>
-                      <td className='py-3 px-4 font-bold text-gray-800'>
-                        {count} {count === 1 ? 'staff' : 'staff'}
-                      </td>
+                      <td className='py-3 px-4 text-gray-700'>{getManagerName(dept)}</td>
+                      <td className='py-3 px-4 text-gray-500'>{dept.parentDepartment?.name || '—'}</td>
+                      <td className='py-3 px-4 font-bold text-gray-800'>{count}</td>
                       <td className='py-3 px-4 text-right space-x-2'>
-                        <button
-                          type='button'
-                          onClick={() => handleOpenEdit(dept)}
-                          className='text-[#714B67] hover:underline font-bold cursor-pointer'
-                        >
-                          Edit
-                        </button>
-                        <button
-                          type='button'
-                          onClick={() => setDeleteTarget(dept)}
-                          className='text-rose-600 hover:underline font-bold cursor-pointer'
-                        >
-                          Delete
-                        </button>
+                        <button type='button' onClick={() => handleOpenEdit(dept)} className='text-[#714B67] hover:underline font-bold cursor-pointer'>Edit</button>
+                        <button type='button' onClick={() => setDeleteTarget(dept)} className='text-rose-600 hover:underline font-bold cursor-pointer'>Delete</button>
                       </td>
                     </tr>
                   );
@@ -301,19 +230,21 @@ export default function DepartmentsPage() {
         <DepartmentHierarchy hierarchy={hierarchy} departments={departments} />
       )}
 
-      {/* Add / Edit Department Modal */}
+      {/* Add / Edit Modal */}
       {isModalOpen && (
         <DepartmentForm
           isOpen={isModalOpen}
-          onClose={() => setIsModalOpen(false)}
+          onClose={() => {
+            setIsModalOpen(false);
+            setEditingDepartment(null);
+          }}
           onSave={handleSave}
           initialData={editingDepartment}
-          employees={employees}
           departments={departments}
         />
       )}
 
-      {/* Confirm Delete Dialog */}
+      {/* Delete Dialog */}
       {deleteTarget && (
         <ConfirmDialog
           isOpen={Boolean(deleteTarget)}
