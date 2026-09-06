@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import PageHeader from '../../components/common/PageHeader.jsx';
 import LoadingState from '../../components/common/LoadingState.jsx';
@@ -9,7 +9,6 @@ import employeeApi from '../../services/employeeApi.js';
 import salaryStructureApi from '../../services/salaryStructureApi.js';
 import scheduleApi from '../../services/scheduleApi.js';
 import { extractErrorMessage } from '../../services/apiClient.js';
-import { validateContractForm } from '../../utils/validators.js';
 
 export default function ContractFormPage() {
   const { id } = useParams();
@@ -29,7 +28,7 @@ export default function ContractFormPage() {
     employeeId: '',
     contractNumber: '',
     salaryStructureId: '',
-    workScheduleId: '',
+    scheduleId: '',
     wage: 65000,
     wageType: 'MONTHLY',
     startDate: '',
@@ -38,101 +37,90 @@ export default function ContractFormPage() {
     notes: '',
   });
 
-  useEffect(() => {
-    let active = true;
-    (async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const [empRes, strRes, schRes] = await Promise.allSettled([
-          employeeApi.getEmployees({ limit: 100 }),
-          salaryStructureApi.getSalaryStructures(),
-          scheduleApi.getSchedules(),
-        ]);
+  const loadFormData = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const [empRes, strRes, schRes] = await Promise.allSettled([
+        employeeApi.getEmployees({ limit: 100 }),
+        salaryStructureApi.getSalaryStructures(),
+        scheduleApi.getSchedules(),
+      ]);
 
-        if (!active) return;
+      let empList = [];
+      let strList = [];
+      let schList = [];
 
-        let empList = [];
-        let strList = [];
-        let schList = [];
-
-        if (empRes.status === 'fulfilled') {
-          empList = empRes.value.data || (Array.isArray(empRes.value) ? empRes.value : []);
-          setEmployees(empList);
-        }
-        if (strRes.status === 'fulfilled') {
-          strList = strRes.value.data || (Array.isArray(strRes.value) ? strRes.value : []);
-          setSalaryStructures(strList);
-        }
-        if (schRes.status === 'fulfilled') {
-          schList = schRes.value.data || (Array.isArray(schRes.value) ? schRes.value : []);
-          setSchedules(schList);
-        }
-
-        if (isEdit) {
-          const contractRes = await contractApi.getContractById(id);
-          const c = contractRes.data || contractRes;
-          setFormData({
-            employeeId: c.employeeId || c.employee?.id || '',
-            contractNumber: c.contractNumber || c.contractCode || '',
-            salaryStructureId: c.salaryStructureId || '',
-            workScheduleId: c.workScheduleId || '',
-            wage: Number(c.wage || 65000),
-            wageType: c.wageType || 'MONTHLY',
-            startDate: c.startDate ? c.startDate.split('T')[0] : '',
-            endDate: c.endDate ? c.endDate.split('T')[0] : '',
-            status: c.status || 'ACTIVE',
-            notes: c.notes || '',
-          });
-        } else {
-          const today = new Date().toISOString().split('T')[0];
-          setFormData({
-            employeeId: empList[0]?.id || '',
-            contractNumber: `CNT-${Date.now().toString().slice(-6)}`,
-            salaryStructureId: strList[0]?.id || '',
-            workScheduleId: schList[0]?.id || '',
-            wage: 65000,
-            wageType: 'MONTHLY',
-            startDate: today,
-            endDate: '',
-            status: 'ACTIVE',
-            notes: '',
-          });
-        }
-      } catch (err) {
-        if (!active) return;
-        setError(extractErrorMessage(err, 'Failed to initialize contract form.'));
-      } finally {
-        if (active) setLoading(false);
+      if (empRes.status === 'fulfilled') {
+        empList = empRes.value?.employees || empRes.value?.data || [];
+        setEmployees(Array.isArray(empList) ? empList : []);
       }
-    })();
-    return () => {
-      active = false;
-    };
+      if (strRes.status === 'fulfilled') {
+        strList = strRes.value?.data || [];
+        setSalaryStructures(Array.isArray(strList) ? strList : []);
+      }
+      if (schRes.status === 'fulfilled') {
+        schList = schRes.value?.data || [];
+        setSchedules(Array.isArray(schList) ? schList : []);
+      }
+
+      if (isEdit) {
+        const contractRes = await contractApi.getContractById(id);
+        const c = contractRes?.data || contractRes;
+        setFormData({
+          employeeId: c.employeeId || c.employee?.id || '',
+          contractNumber: c.contractNumber || '',
+          salaryStructureId: c.salaryStructureId || '',
+          scheduleId: c.scheduleId || '',
+          wage: Number(c.wage || 0),
+          wageType: c.wageType || 'MONTHLY',
+          startDate: c.startDate ? c.startDate.split('T')[0] : '',
+          endDate: c.endDate ? c.endDate.split('T')[0] : '',
+          status: c.status || 'DRAFT',
+          notes: c.notes || '',
+        });
+      } else {
+        const today = new Date().toISOString().split('T')[0];
+        setFormData({
+          employeeId: empList[0]?.id || '',
+          contractNumber: `CNT-${Date.now().toString().slice(-6)}`,
+          salaryStructureId: strList[0]?.id || '',
+          scheduleId: schList[0]?.id || '',
+          wage: 65000,
+          wageType: 'MONTHLY',
+          startDate: today,
+          endDate: '',
+          status: 'DRAFT',
+          notes: '',
+        });
+      }
+    } catch (err) {
+      setError(extractErrorMessage(err, 'Failed to initialize contract form.'));
+    } finally {
+      setLoading(false);
+    }
   }, [id, isEdit]);
+
+  useEffect(() => {
+    loadFormData();
+  }, [loadFormData]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const errors = validateContractForm(formData);
-    if (Object.keys(errors).length > 0) {
-      setFormErrors(errors);
-      return;
-    }
-
     setFormErrors({});
     setIsSubmitting(true);
 
     const payload = {
       employeeId: formData.employeeId,
-      contractNumber: formData.contractNumber || `CNT-${Date.now().toString().slice(-6)}`,
-      salaryStructureId: formData.salaryStructureId || undefined,
-      workScheduleId: formData.workScheduleId || undefined,
+      contractNumber: formData.contractNumber,
+      salaryStructureId: formData.salaryStructureId || null,
+      scheduleId: formData.scheduleId || null,
       wage: Number(formData.wage),
       wageType: formData.wageType,
       startDate: formData.startDate,
-      endDate: formData.endDate || undefined,
+      endDate: formData.endDate || null,
       status: formData.status,
-      notes: formData.notes || undefined,
+      notes: formData.notes || null,
     };
 
     try {
@@ -141,7 +129,7 @@ export default function ContractFormPage() {
         navigate(`/contracts/${id}`);
       } else {
         const res = await contractApi.createContract(payload);
-        const newId = res.data?.id || res.id;
+        const newId = res?.data?.id || res?.id;
         navigate(newId ? `/contracts/${newId}` : '/contracts');
       }
     } catch (err) {
@@ -151,16 +139,11 @@ export default function ContractFormPage() {
   };
 
   if (loading) return <LoadingState message='Loading contract details...' />;
-  if (error) return <ErrorState message={error} onRetry={() => window.location.reload()} />;
+  if (error) return <ErrorState message={error} onRetry={loadFormData} />;
 
   return (
     <div className='max-w-3xl mx-auto space-y-6'>
-      <div className='flex items-center justify-between'>
-        <BackButton label='Back to Contracts' fallback='/contracts' />
-        <span className='text-xs font-mono font-bold text-gray-500 bg-[#FAF8F5] px-3 py-1 rounded-xl border border-gray-200'>
-          {isEdit ? `Editing: ${formData.contractNumber}` : 'New Contract'}
-        </span>
-      </div>
+      <BackButton label='Back to Contracts' onClick={() => navigate('/contracts')} />
 
       <PageHeader
         title={isEdit ? 'Edit Employment Contract' : 'Create Employment Contract'}
@@ -173,83 +156,64 @@ export default function ContractFormPage() {
         </div>
       )}
 
-      <div className='bg-white rounded-2xl border border-[#EAE6DF] shadow-xs p-6 sm:p-8'>
+      <div className='bg-white rounded-2xl border border-[#EAE6DF] p-6 sm:p-8'>
         <form onSubmit={handleSubmit} className='space-y-4 text-xs'>
           <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
             <div>
-              <label className='block font-bold text-gray-700 mb-1.5'>
-                Employee *
-              </label>
+              <label className='block font-bold mb-1.5'>Employee *</label>
               <select
                 required
                 disabled={isEdit}
                 value={formData.employeeId}
                 onChange={(e) => setFormData({ ...formData, employeeId: e.target.value })}
-                className='w-full px-3.5 py-2.5 rounded-xl border border-gray-200 bg-[#FAF8F5]'
+                className='w-full px-3.5 py-2.5 rounded-xl border border-gray-200 cursor-pointer'
               >
                 <option value=''>Select Employee</option>
                 {employees.map((emp) => (
                   <option key={emp.id} value={emp.id}>
-                    {emp.firstName ? `${emp.firstName} ${emp.lastName || ''}` : emp.name} ({emp.employeeCode || emp.employeeId})
+                    {emp.firstName ? `${emp.firstName} ${emp.lastName || ''}` : emp.name} ({emp.employeeCode})
                   </option>
                 ))}
               </select>
-              {formErrors.employeeId && (
-                <p className='text-[11px] text-red-600 mt-1'>{formErrors.employeeId}</p>
-              )}
             </div>
 
             <div>
-              <label className='block font-bold text-gray-700 mb-1.5'>
-                Contract Number *
-              </label>
+              <label className='block font-bold mb-1.5'>Contract Number *</label>
               <input
                 type='text'
                 required
                 value={formData.contractNumber}
                 onChange={(e) => setFormData({ ...formData, contractNumber: e.target.value })}
-                className='w-full px-3.5 py-2.5 rounded-xl border border-gray-200 bg-[#FAF8F5] font-mono'
+                className='w-full px-3.5 py-2.5 rounded-xl border border-gray-200 font-mono'
               />
             </div>
           </div>
 
           <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
             <div>
-              <label className='block font-bold text-gray-700 mb-1.5'>
-                Salary Structure
-              </label>
+              <label className='block font-bold mb-1.5'>Salary Structure</label>
               <select
                 value={formData.salaryStructureId}
-                onChange={(e) =>
-                  setFormData({ ...formData, salaryStructureId: e.target.value })
-                }
-                className='w-full px-3.5 py-2.5 rounded-xl border border-gray-200 bg-[#FAF8F5]'
+                onChange={(e) => setFormData({ ...formData, salaryStructureId: e.target.value })}
+                className='w-full px-3.5 py-2.5 rounded-xl border border-gray-200 cursor-pointer'
               >
                 <option value=''>Standard Structure</option>
                 {salaryStructures.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name} ({s.code})
-                  </option>
+                  <option key={s.id} value={s.id}>{s.name}</option>
                 ))}
               </select>
             </div>
 
             <div>
-              <label className='block font-bold text-gray-700 mb-1.5'>
-                Work Schedule
-              </label>
+              <label className='block font-bold mb-1.5'>Work Schedule</label>
               <select
-                value={formData.workScheduleId}
-                onChange={(e) =>
-                  setFormData({ ...formData, workScheduleId: e.target.value })
-                }
-                className='w-full px-3.5 py-2.5 rounded-xl border border-gray-200 bg-[#FAF8F5]'
+                value={formData.scheduleId}
+                onChange={(e) => setFormData({ ...formData, scheduleId: e.target.value })}
+                className='w-full px-3.5 py-2.5 rounded-xl border border-gray-200 cursor-pointer'
               >
                 <option value=''>Standard Schedule</option>
                 {schedules.map((sch) => (
-                  <option key={sch.id} value={sch.id}>
-                    {sch.name} ({sch.code})
-                  </option>
+                  <option key={sch.id} value={sch.id}>{sch.name}</option>
                 ))}
               </select>
             </div>
@@ -257,95 +221,74 @@ export default function ContractFormPage() {
 
           <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
             <div>
-              <label className='block font-bold text-gray-700 mb-1.5'>
-                Monthly Wage (₹) *
-              </label>
+              <label className='block font-bold mb-1.5'>Monthly Wage *</label>
               <input
                 type='number'
                 required
                 min='1'
                 value={formData.wage}
                 onChange={(e) => setFormData({ ...formData, wage: e.target.value })}
-                className='w-full px-3.5 py-2.5 rounded-xl border border-gray-200 bg-[#FAF8F5]'
+                className='w-full px-3.5 py-2.5 rounded-xl border border-gray-200'
               />
-              {formErrors.wage && (
-                <p className='text-[11px] text-red-600 mt-1'>{formErrors.wage}</p>
-              )}
             </div>
 
             <div>
-              <label className='block font-bold text-gray-700 mb-1.5'>
-                Contract Status *
-              </label>
+              <label className='block font-bold mb-1.5'>Status *</label>
               <select
                 value={formData.status}
                 onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                className='w-full px-3.5 py-2.5 rounded-xl border border-gray-200 bg-[#FAF8F5]'
+                className='w-full px-3.5 py-2.5 rounded-xl border border-gray-200 cursor-pointer'
               >
-                <option value='ACTIVE'>Active</option>
                 <option value='DRAFT'>Draft</option>
+                <option value='ACTIVE'>Active</option>
                 <option value='TERMINATED'>Terminated</option>
                 <option value='EXPIRED'>Expired</option>
+                <option value='CANCELLED'>Cancelled</option>
               </select>
             </div>
           </div>
 
           <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
             <div>
-              <label className='block font-bold text-gray-700 mb-1.5'>
-                Start Date *
-              </label>
+              <label className='block font-bold mb-1.5'>Start Date *</label>
               <input
                 type='date'
                 required
                 value={formData.startDate}
                 onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
-                className='w-full px-3.5 py-2.5 rounded-xl border border-gray-200 bg-[#FAF8F5]'
+                className='w-full px-3.5 py-2.5 rounded-xl border border-gray-200 cursor-pointer'
               />
-              {formErrors.startDate && (
-                <p className='text-[11px] text-red-600 mt-1'>{formErrors.startDate}</p>
-              )}
             </div>
 
             <div>
-              <label className='block font-bold text-gray-700 mb-1.5'>
-                End Date (Optional)
-              </label>
+              <label className='block font-bold mb-1.5'>End Date (Optional)</label>
               <input
                 type='date'
                 value={formData.endDate}
                 onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
-                className='w-full px-3.5 py-2.5 rounded-xl border border-gray-200 bg-[#FAF8F5]'
+                className='w-full px-3.5 py-2.5 rounded-xl border border-gray-200 cursor-pointer'
               />
-              {formErrors.endDate && (
-                <p className='text-[11px] text-red-600 mt-1'>{formErrors.endDate}</p>
-              )}
             </div>
           </div>
 
           <div>
-            <label className='block font-bold text-gray-700 mb-1.5'>
-              Contract Terms & Special Clauses
-            </label>
+            <label className='block font-bold mb-1.5'>Notes</label>
             <textarea
               rows={3}
               value={formData.notes}
               onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-              placeholder='Special conditions, probation period, bonus agreement'
-              className='w-full px-3.5 py-2.5 rounded-xl border border-gray-200 bg-[#FAF8F5]'
+              className='w-full px-3.5 py-2.5 rounded-xl border border-gray-200'
             />
           </div>
 
           <div className='pt-4 flex justify-end gap-2 border-t border-gray-100'>
-            <BackButton label='Cancel' fallback='/contracts' />
+            <BackButton label='Cancel' onClick={() => navigate('/contracts')} />
             <button
               type='submit'
               disabled={isSubmitting}
-              className={`px-5 py-2 text-xs font-bold text-white bg-[#714B67] hover:bg-[#5E3E56] rounded-xl shadow-xs transition-colors cursor-pointer ${
-                isSubmitting ? 'opacity-60 cursor-not-allowed' : ''
-              }`}
+              className={`px-5 py-2 text-xs font-bold text-white bg-[#714B67] hover:bg-[#5E3E56] rounded-xl cursor-pointer ${isSubmitting ? 'opacity-60' : ''}`}
             >
-              {isSubmitting ? 'Saving Contract...' : isEdit ? 'Update Contract' : 'Create Contract'}
+              {isSubmitting ? 'Saving...' : isEdit ? 'Update Contract' : 'Create Contract'}
             </button>
           </div>
         </form>

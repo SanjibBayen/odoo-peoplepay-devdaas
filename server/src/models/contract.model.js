@@ -100,7 +100,11 @@ export default class Contract extends Model {
   }
 
   static associate(models) {
-    this.belongsTo(models.Employee, { foreignKey: 'employeeId', as: 'employee' });
+    this.belongsTo(models.Employee, {
+      foreignKey: 'employeeId',
+      as: 'employee',
+      constraints: false,
+    });
     this.belongsTo(models.Department, { foreignKey: 'departmentId', as: 'department' });
     this.belongsTo(models.JobPosition, { foreignKey: 'jobPositionId', as: 'jobPosition' });
     this.belongsTo(models.WorkSchedule, { foreignKey: 'scheduleId', as: 'schedule' });

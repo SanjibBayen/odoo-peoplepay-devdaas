@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import PageHeader from '../../components/common/PageHeader.jsx';
 import LoadingState from '../../components/common/LoadingState.jsx';
 import ErrorState from '../../components/common/ErrorState.jsx';
@@ -11,12 +11,11 @@ import { extractErrorMessage } from '../../services/apiClient.js';
 const ATTENDANCE_STATUSES = [
   'All Statuses',
   'PRESENT',
-  'ABSENT',
-  'HALF_DAY',
-  'LEAVE',
   'LATE',
-  'OVERTIME',
+  'ABSENT',
   'EARLY_EXIT',
+  'OVERTIME',
+  'MISSING_CHECKOUT',
   'CORRECTED',
 ];
 
@@ -34,20 +33,17 @@ function normalizeAttendance(att) {
 
   const formatTime = (t) => {
     if (!t) return '--:--';
-    if (typeof t === 'string' && t.includes('T')) {
-      try {
-        return new Date(t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      } catch {
-        return t;
-      }
+    try {
+      return new Date(t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    } catch {
+      return t;
     }
-    return t;
   };
 
   return {
     ...att,
     id: att.id,
-    date: att.workDate || att.date || (att.createdAt ? att.createdAt.split('T')[0] : ''),
+    date: att.workDate || att.date || '',
     employeeName: empName,
     employeeId: empCode,
     department: deptName,
@@ -59,6 +55,7 @@ function normalizeAttendance(att) {
     lateMinutes: att.lateMinutes || 0,
     earlyExitMinutes: att.earlyExitMinutes || 0,
     overtimeMinutes: att.overtimeMinutes || 0,
+    breakMinutes: att.breakMinutes || 0,
     status: att.status || 'PRESENT',
   };
 }
@@ -74,7 +71,6 @@ export default function AttendancePage() {
   const [page, setPage] = useState(1);
   const pageSize = 8;
 
-  // Correction Modal State
   const [correctionTarget, setCorrectionTarget] = useState(null);
   const [correctionForm, setCorrectionForm] = useState({
     checkIn: '',
@@ -83,39 +79,24 @@ export default function AttendancePage() {
     correctionReason: '',
   });
 
-  const loadAttendance = async () => {
+  const loadAttendance = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const res = await attendanceApi.getAttendance();
-      const list = res.data || (Array.isArray(res) ? res : []);
-      setRecords(list.map(normalizeAttendance));
+      // FIX: Backend returns { success, data } - use "data" key
+      const list = res?.data || [];
+      setRecords(Array.isArray(list) ? list.map(normalizeAttendance) : []);
     } catch (err) {
       setError(extractErrorMessage(err, 'Failed to load attendance logs.'));
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    let active = true;
-    (async () => {
-      try {
-        const res = await attendanceApi.getAttendance();
-        if (!active) return;
-        const list = res.data || (Array.isArray(res) ? res : []);
-        setRecords(list.map(normalizeAttendance));
-      } catch (err) {
-        if (!active) return;
-        setError(extractErrorMessage(err, 'Failed to load attendance logs.'));
-      } finally {
-        if (active) setLoading(false);
-      }
-    })();
-    return () => {
-      active = false;
-    };
-  }, []);
+    loadAttendance();
+  }, [loadAttendance]);
 
   const handleCheckIn = async () => {
     try {
@@ -142,8 +123,8 @@ export default function AttendancePage() {
   const handleOpenCorrection = (record) => {
     setCorrectionTarget(record);
     setCorrectionForm({
-      checkIn: record.rawCheckIn || '',
-      checkOut: record.rawCheckOut || '',
+      checkIn: record.rawCheckIn ? new Date(record.rawCheckIn).toISOString().slice(0, 16) : '',
+      checkOut: record.rawCheckOut ? new Date(record.rawCheckOut).toISOString().slice(0, 16) : '',
       breakMinutes: record.breakMinutes || 0,
       correctionReason: record.correctionReason || 'Manual adjustment',
     });
@@ -169,10 +150,8 @@ export default function AttendancePage() {
     }
   };
 
-  // Filter
   const filtered = records.filter((r) => {
-    const matchesStatus =
-      selectedStatus === 'All Statuses' || r.status === selectedStatus;
+    const matchesStatus = selectedStatus === 'All Statuses' || r.status === selectedStatus;
     const q = searchQuery.toLowerCase().trim();
     const matchesSearch =
       !q ||
@@ -183,10 +162,7 @@ export default function AttendancePage() {
   });
 
   const totalPages = Math.ceil(filtered.length / pageSize) || 1;
-  const paginatedRecords = filtered.slice(
-    (page - 1) * pageSize,
-    page * pageSize
-  );
+  const paginatedRecords = filtered.slice((page - 1) * pageSize, page * pageSize);
 
   return (
     <div className='space-y-5'>
@@ -198,14 +174,14 @@ export default function AttendancePage() {
             <button
               type='button'
               onClick={handleCheckIn}
-              className='px-3.5 py-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-xl transition-colors cursor-pointer'
+              className='px-3.5 py-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-xl cursor-pointer'
             >
               Punch In
             </button>
             <button
               type='button'
               onClick={handleCheckOut}
-              className='px-3.5 py-1.5 text-xs font-bold text-purple-700 bg-purple-50 hover:bg-purple-100 border border-purple-200 rounded-xl transition-colors cursor-pointer'
+              className='px-3.5 py-1.5 text-xs font-bold text-purple-700 bg-purple-50 hover:bg-purple-100 border border-purple-200 rounded-xl cursor-pointer'
             >
               Punch Out
             </button>
@@ -214,68 +190,39 @@ export default function AttendancePage() {
       />
 
       {statusBanner && (
-        <div
-          className={`p-3.5 rounded-xl border text-xs font-semibold flex items-center justify-between animate-fadeIn ${
-            statusBanner.type === 'success'
-              ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
-              : 'bg-red-50 border-red-200 text-red-800'
-          }`}
-        >
+        <div className={`p-3.5 rounded-xl border text-xs font-semibold flex items-center justify-between animate-fadeIn ${
+          statusBanner.type === 'success' ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-red-50 border-red-200 text-red-800'
+        }`}>
           <span>{statusBanner.text}</span>
-          <button
-            type='button'
-            onClick={() => setStatusBanner(null)}
-            className='font-bold ml-2 cursor-pointer'
-          >
-            ✕
-          </button>
+          <button type='button' onClick={() => setStatusBanner(null)} className='font-bold ml-2 cursor-pointer'>✕</button>
         </div>
       )}
 
       {/* Filter Bar */}
       <div className='bg-white p-3 rounded-2xl border border-[#EAE6DF] shadow-2xs flex flex-wrap items-center justify-between gap-3'>
         <div className='flex flex-wrap items-center gap-2.5 flex-1 min-w-[280px]'>
-          <div className='relative flex-1 max-w-xs'>
-            <input
-              type='text'
-              value={searchQuery}
-              onChange={(e) => {
-                setSearchQuery(e.target.value);
-                setPage(1);
-              }}
-              placeholder='Search by employee or department...'
-              className='w-full pl-8 pr-3 py-1.5 rounded-xl border border-gray-200 bg-[#FAF8F5] text-xs font-medium text-gray-800 placeholder-gray-400 focus:bg-white focus:outline-none focus:ring-1 focus:ring-[#714B67]'
-            />
-            <span className='absolute left-2.5 top-2 text-gray-400'>
-              <svg className='w-3.5 h-3.5' fill='none' stroke='currentColor' viewBox='0 0 24 24' strokeWidth='2'>
-                <path strokeLinecap='round' strokeLinejoin='round' d='M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z' />
-              </svg>
-            </span>
-          </div>
-
+          <input
+            type='text'
+            value={searchQuery}
+            onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }}
+            placeholder='Search by employee or department...'
+            className='px-3 py-1.5 rounded-xl border border-gray-200 text-xs w-full max-w-xs'
+          />
           <select
             value={selectedStatus}
-            onChange={(e) => {
-              setSelectedStatus(e.target.value);
-              setPage(1);
-            }}
-            className='px-3 py-1.5 rounded-xl border border-gray-200 bg-[#FAF8F5] text-xs font-bold text-gray-700 focus:bg-white focus:outline-none'
+            onChange={(e) => { setSelectedStatus(e.target.value); setPage(1); }}
+            className='px-3 py-1.5 rounded-xl border border-gray-200 text-xs font-bold cursor-pointer'
           >
             {ATTENDANCE_STATUSES.map((st) => (
-              <option key={st} value={st}>
-                {st}
-              </option>
+              <option key={st} value={st}>{st}</option>
             ))}
           </select>
         </div>
-
-        <div className='text-xs font-bold text-gray-500'>
-          Showing {filtered.length} records
-        </div>
+        <div className='text-xs font-bold text-gray-500'>Showing {filtered.length} records</div>
       </div>
 
       {loading ? (
-        <LoadingState message='Loading attendance records from server...' />
+        <LoadingState message='Loading attendance records...' />
       ) : error ? (
         <ErrorState message={error} onRetry={loadAttendance} />
       ) : filtered.length === 0 ? (
@@ -283,10 +230,7 @@ export default function AttendancePage() {
           title='No attendance logs found'
           description='Try changing your search query or status filter.'
           actionLabel='Reset Filters'
-          onAction={() => {
-            setSearchQuery('');
-            setSelectedStatus('All Statuses');
-          }}
+          onAction={() => { setSearchQuery(''); setSelectedStatus('All Statuses'); }}
         />
       ) : (
         <div className='bg-white rounded-2xl border border-[#EAE6DF] shadow-2xs overflow-hidden'>
@@ -306,60 +250,34 @@ export default function AttendancePage() {
               </thead>
               <tbody className='divide-y divide-gray-100'>
                 {paginatedRecords.map((r) => (
-                  <tr key={r.id} className='hover:bg-[#FAF8F5]/60 transition-colors'>
+                  <tr key={r.id} className='hover:bg-[#FAF8F5]/60'>
                     <td className='py-3 px-4 font-bold text-gray-800'>{r.date}</td>
                     <td className='py-3 px-4'>
                       <div className='font-bold text-gray-900'>{r.employeeName}</div>
                       <div className='text-[10px] text-gray-500'>{r.employeeId} • {r.department}</div>
                     </td>
-                    <td className='py-3 px-4 font-medium text-gray-700'>
-                      {r.checkIn || '--:--'}
-                    </td>
-                    <td className='py-3 px-4 font-medium text-gray-700'>
-                      {r.checkOut || '--:--'}
-                    </td>
-                    <td className='py-3 px-4 font-bold text-gray-900'>
-                      {r.workedHours > 0 ? `${r.workedHours} hrs` : '--'}
-                    </td>
-                    <td className='py-3 px-4 text-[11px] text-gray-500'>
-                      {r.lateMinutes > 0 && (
-                        <span className='text-amber-700 block'>+{r.lateMinutes}m late</span>
-                      )}
-                      {r.earlyExitMinutes > 0 && (
-                        <span className='text-rose-600 block'>-{r.earlyExitMinutes}m early</span>
-                      )}
-                      {r.overtimeMinutes > 0 && (
-                        <span className='text-emerald-700 block'>+{r.overtimeMinutes}m OT</span>
-                      )}
-                      {!r.lateMinutes && !r.earlyExitMinutes && !r.overtimeMinutes && (
-                        <span className='text-gray-400'>None</span>
-                      )}
+                    <td className='py-3 px-4'>{r.checkIn}</td>
+                    <td className='py-3 px-4'>{r.checkOut}</td>
+                    <td className='py-3 px-4 font-bold'>{r.workedHours > 0 ? `${r.workedHours} hrs` : '--'}</td>
+                    <td className='py-3 px-4 text-[11px]'>
+                      {r.lateMinutes > 0 && <span className='text-amber-700 block'>+{r.lateMinutes}m late</span>}
+                      {r.earlyExitMinutes > 0 && <span className='text-rose-600 block'>-{r.earlyExitMinutes}m early</span>}
+                      {r.overtimeMinutes > 0 && <span className='text-emerald-700 block'>+{r.overtimeMinutes}m OT</span>}
+                      {!r.lateMinutes && !r.earlyExitMinutes && !r.overtimeMinutes && <span className='text-gray-400'>None</span>}
                     </td>
                     <td className='py-3 px-4'>
-                      <span
-                        className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold border ${
-                          r.status === 'PRESENT'
-                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                            : r.status === 'LATE'
-                            ? 'bg-amber-50 text-amber-700 border-amber-200'
-                            : r.status === 'OVERTIME'
-                            ? 'bg-purple-50 text-purple-700 border-purple-200'
-                            : r.status === 'EARLY_EXIT'
-                            ? 'bg-blue-50 text-blue-700 border-blue-200'
-                            : 'bg-rose-50 text-rose-700 border-rose-200'
-                        }`}
-                      >
+                      <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                        r.status === 'PRESENT' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                        r.status === 'LATE' ? 'bg-amber-50 text-amber-700 border-amber-200' :
+                        r.status === 'OVERTIME' ? 'bg-purple-50 text-purple-700 border-purple-200' :
+                        r.status === 'EARLY_EXIT' ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                        'bg-rose-50 text-rose-700 border-rose-200'
+                      }`}>
                         {r.status}
                       </span>
                     </td>
                     <td className='py-3 px-4 text-right'>
-                      <button
-                        type='button'
-                        onClick={() => handleOpenCorrection(r)}
-                        className='text-[#714B67] hover:underline font-bold cursor-pointer'
-                      >
-                        Correct
-                      </button>
+                      <button type='button' onClick={() => handleOpenCorrection(r)} className='text-[#714B67] hover:underline font-bold cursor-pointer'>Correct</button>
                     </td>
                   </tr>
                 ))}
@@ -368,102 +286,48 @@ export default function AttendancePage() {
           </div>
 
           <div className='p-3 border-t border-[#EAE6DF]'>
-            <Pagination
-              currentPage={page}
-              totalPages={totalPages}
-              totalItems={filtered.length}
-              pageSize={pageSize}
-              onPageChange={setPage}
-            />
+            <Pagination currentPage={page} totalPages={totalPages} totalItems={filtered.length} pageSize={pageSize} onPageChange={setPage} />
           </div>
         </div>
       )}
 
-      {/* Manual Correction Modal */}
+      {/* Correction Modal */}
       {correctionTarget && (
-        <div
-          className='fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs animate-fadeIn'
-          role='dialog'
-          aria-modal='true'
-        >
+        <div className='fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs animate-fadeIn' role='dialog' aria-modal='true'>
           <div className='bg-white rounded-2xl max-w-md w-full p-6 border border-[#EAE6DF] shadow-xl space-y-4'>
             <div className='flex items-center justify-between border-b border-gray-100 pb-3'>
               <div>
-                <h3 className='text-sm font-black text-[#1E293B]'>Adjust Attendance Record</h3>
-                <p className='text-xs text-gray-500 font-medium'>
-                  {correctionTarget.employeeName} ({correctionTarget.employeeId}) • {correctionTarget.date}
-                </p>
+                <h3 className='text-sm font-black'>Adjust Attendance Record</h3>
+                <p className='text-xs text-gray-500'>{correctionTarget.employeeName} ({correctionTarget.employeeId}) • {correctionTarget.date}</p>
               </div>
-              <button
-                type='button'
-                onClick={() => setCorrectionTarget(null)}
-                className='text-gray-400 font-bold hover:text-gray-600'
-              >
-                ✕
-              </button>
+              <button type='button' onClick={() => setCorrectionTarget(null)} className='text-gray-400 font-bold cursor-pointer'>✕</button>
             </div>
 
             <form onSubmit={handleSaveCorrection} className='space-y-3.5 text-xs'>
               <div className='grid grid-cols-2 gap-3'>
                 <div>
-                  <label className='block font-bold text-gray-700 mb-1'>Check-In</label>
-                  <input
-                    type='datetime-local'
-                    value={correctionForm.checkIn ? correctionForm.checkIn.slice(0, 16) : ''}
-                    onChange={(e) =>
-                      setCorrectionForm({ ...correctionForm, checkIn: e.target.value })
-                    }
-                    className='w-full px-3 py-2 rounded-xl border border-gray-200 bg-[#FAF8F5]'
-                  />
+                  <label className='block font-bold mb-1'>Check-In</label>
+                  <input type='datetime-local' value={correctionForm.checkIn} onChange={(e) => setCorrectionForm({ ...correctionForm, checkIn: e.target.value })} className='w-full px-3 py-2 rounded-xl border border-gray-200' />
                 </div>
                 <div>
-                  <label className='block font-bold text-gray-700 mb-1'>Check-Out</label>
-                  <input
-                    type='datetime-local'
-                    value={correctionForm.checkOut ? correctionForm.checkOut.slice(0, 16) : ''}
-                    onChange={(e) =>
-                      setCorrectionForm({ ...correctionForm, checkOut: e.target.value })
-                    }
-                    className='w-full px-3 py-2 rounded-xl border border-gray-200 bg-[#FAF8F5]'
-                  />
+                  <label className='block font-bold mb-1'>Check-Out</label>
+                  <input type='datetime-local' value={correctionForm.checkOut} onChange={(e) => setCorrectionForm({ ...correctionForm, checkOut: e.target.value })} className='w-full px-3 py-2 rounded-xl border border-gray-200' />
                 </div>
               </div>
 
               <div>
-                <label className='block font-bold text-gray-700 mb-1'>Break Minutes</label>
-                <input
-                  type='number'
-                  min='0'
-                  value={correctionForm.breakMinutes}
-                  onChange={(e) =>
-                    setCorrectionForm({ ...correctionForm, breakMinutes: e.target.value })
-                  }
-                  className='w-full px-3 py-2 rounded-xl border border-gray-200 bg-[#FAF8F5]'
-                />
+                <label className='block font-bold mb-1'>Break Minutes</label>
+                <input type='number' min='0' value={correctionForm.breakMinutes} onChange={(e) => setCorrectionForm({ ...correctionForm, breakMinutes: e.target.value })} className='w-full px-3 py-2 rounded-xl border border-gray-200' />
               </div>
 
               <div>
-                <label className='block font-bold text-gray-700 mb-1'>Correction Reason *</label>
-                <textarea
-                  required
-                  rows={2}
-                  value={correctionForm.correctionReason}
-                  onChange={(e) =>
-                    setCorrectionForm({ ...correctionForm, correctionReason: e.target.value })
-                  }
-                  placeholder='Specify biometric scanner malfunction or manager approval note'
-                  className='w-full px-3 py-2 rounded-xl border border-gray-200 bg-[#FAF8F5]'
-                />
+                <label className='block font-bold mb-1'>Correction Reason *</label>
+                <textarea required rows={2} value={correctionForm.correctionReason} onChange={(e) => setCorrectionForm({ ...correctionForm, correctionReason: e.target.value })} className='w-full px-3 py-2 rounded-xl border border-gray-200' />
               </div>
 
               <div className='pt-2 flex justify-end gap-2 border-t border-gray-100'>
                 <BackButton label='Cancel' onClick={() => setCorrectionTarget(null)} />
-                <button
-                  type='submit'
-                  className='px-4 py-2 font-bold text-white bg-[#714B67] hover:bg-[#5E3E56] rounded-xl cursor-pointer'
-                >
-                  Save Correction
-                </button>
+                <button type='submit' className='px-4 py-2 font-bold text-white bg-[#714B67] hover:bg-[#5E3E56] rounded-xl cursor-pointer'>Save Correction</button>
               </div>
             </form>
           </div>

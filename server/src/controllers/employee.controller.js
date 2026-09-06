@@ -10,6 +10,7 @@ import Attendance from '../models/attendance.model.js';
 import TimeOffRequest from '../models/timeOffRequest.model.js';
 import TimeOffAllocation from '../models/timeOffAllocation.model.js';
 import { AppError, asyncHandler } from '../middleware/error.middleware.js';
+import TimeOffType from '../models/timeOffType.model.js';
 
 const { Op } = Sequelize;
 

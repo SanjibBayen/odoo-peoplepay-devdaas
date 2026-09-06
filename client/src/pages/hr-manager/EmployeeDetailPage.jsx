@@ -1,9 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import EmployeeDetails from '../../components/employee/EmployeeDetails.jsx';
 import EmployeeForm from '../../components/employee/EmployeeForm.jsx';
 import LoadingState from '../../components/common/LoadingState.jsx';
 import ErrorState from '../../components/common/ErrorState.jsx';
+import BackButton from '../../components/common/BackButton.jsx';
 import employeeApi from '../../services/employeeApi.js';
 import { extractErrorMessage } from '../../services/apiClient.js';
 
@@ -11,12 +12,18 @@ function normalizeEmployee(emp) {
   if (!emp) return null;
   const firstName = emp.firstName || '';
   const lastName = emp.lastName || '';
-  const fullName = emp.name || `${firstName} ${lastName}`.trim() || 'Unnamed';
-  const code = emp.employeeCode || emp.employeeId || emp.id;
-  const dept = emp.department?.name || emp.department || 'General';
-  const pos = emp.jobPosition?.name || emp.jobPosition?.title || emp.jobPosition || 'Staff';
-  const status = emp.status === 'ACTIVE' ? 'Active' : emp.status === 'ON_LEAVE' ? 'On Leave' : (emp.status || 'Active');
-  const contract = emp.contracts?.[0]?.contractType || emp.contractStatus || 'Permanent';
+  const fullName = emp.fullName || `${firstName} ${lastName}`.trim() || 'Unnamed';
+  const code = emp.employeeCode || emp.id;
+  const dept = emp.department?.name || 'General';
+  const pos = emp.jobPosition?.name || 'Staff';
+  const status =
+    emp.status === 'ACTIVE'
+      ? 'Active'
+      : emp.status === 'ON_LEAVE'
+        ? 'On Leave'
+        : emp.status === 'TERMINATED'
+          ? 'Terminated'
+          : emp.status || 'Active';
 
   return {
     ...emp,
@@ -30,16 +37,12 @@ function normalizeEmployee(emp) {
     jobPosition: pos,
     jobPositionId: emp.jobPositionId,
     status,
-    contractStatus: contract,
     email: emp.email || '',
-    avatar: firstName.charAt(0) || fullName.charAt(0) || 'E',
+    phone: emp.phone || '',
+    avatar: firstName.charAt(0) || 'E',
   };
 }
 
-/**
- * Detailed employee profile page at /employees/:employeeId.
- * Connected directly to real backend API: GET /api/employees/:id.
- */
 export default function EmployeeDetailPage() {
   const { employeeId } = useParams();
   const navigate = useNavigate();
@@ -50,12 +53,14 @@ export default function EmployeeDetailPage() {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState(null);
 
-  const fetchEmployee = React.useCallback(async () => {
+  const fetchEmployee = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const res = await employeeApi.getEmployeeById(employeeId);
-      setEmployee(normalizeEmployee(res.data));
+      // FIX: Backend returns { success, employee } - use "employee" key
+      const empData = res?.employee || res?.data || null;
+      setEmployee(normalizeEmployee(empData));
     } catch (err) {
       setError(extractErrorMessage(err, 'Failed to load employee details.'));
     } finally {
@@ -64,31 +69,12 @@ export default function EmployeeDetailPage() {
   }, [employeeId]);
 
   useEffect(() => {
-    let active = true;
-    (async () => {
-      try {
-        const res = await employeeApi.getEmployeeById(employeeId);
-        if (!active) return;
-        setEmployee(normalizeEmployee(res.data));
-      } catch (err) {
-        if (!active) return;
-        setError(extractErrorMessage(err, 'Failed to load employee details.'));
-      } finally {
-        if (active) setLoading(false);
-      }
-    })();
-    return () => {
-      active = false;
-    };
-  }, [employeeId]);
+    fetchEmployee();
+  }, [fetchEmployee]);
 
-  const handleBack = () => {
-    navigate('/employees');
-  };
+  const handleBack = () => navigate('/employees');
 
-  const handleEdit = () => {
-    setIsEditOpen(true);
-  };
+  const handleEdit = () => setIsEditOpen(true);
 
   const handleSave = async (savedData) => {
     try {
@@ -99,12 +85,12 @@ export default function EmployeeDetailPage() {
         phone: savedData.phone,
         departmentId: savedData.departmentId,
         jobPositionId: savedData.jobPositionId,
-        status: savedData.status === 'Active' ? 'ACTIVE' : savedData.status === 'On Leave' ? 'ON_LEAVE' : savedData.status,
+        status: savedData.status === 'Active' ? 'ACTIVE' : savedData.status,
         joiningDate: savedData.joiningDate,
         address: savedData.address,
       });
       setIsEditOpen(false);
-      fetchEmployee();
+      await fetchEmployee();
       setToastMessage('Employee profile updated successfully.');
       setTimeout(() => setToastMessage(null), 4000);
     } catch (err) {
@@ -123,20 +109,31 @@ export default function EmployeeDetailPage() {
   if (error) {
     return (
       <div className='py-12'>
+        <BackButton label='Back to Employees' onClick={handleBack} />
         <ErrorState message={error} onRetry={fetchEmployee} />
+      </div>
+    );
+  }
+
+  if (!employee) {
+    return (
+      <div className='py-12'>
+        <BackButton label='Back to Employees' onClick={handleBack} />
+        <ErrorState message='Employee not found' onRetry={fetchEmployee} />
       </div>
     );
   }
 
   return (
     <div className='space-y-6'>
+      <BackButton label='Back to Employees' onClick={handleBack} />
+
       <EmployeeDetails
         employee={employee}
         onBack={handleBack}
         onEdit={handleEdit}
       />
 
-      {/* Edit Employee Modal */}
       {isEditOpen && (
         <EmployeeForm
           key={employee?.id || 'edit'}
@@ -147,10 +144,9 @@ export default function EmployeeDetailPage() {
         />
       )}
 
-      {/* Toast Notification */}
       {toastMessage && (
-        <div className='fixed bottom-6 right-6 z-50 bg-[#1E293B] text-white text-xs px-4 py-3 rounded-2xl shadow-xl flex items-center gap-2 animate-fadeIn'>
-          <span>{toastMessage}</span>
+        <div className='fixed bottom-6 right-6 z-50 bg-[#1E293B] text-white text-xs px-4 py-3 rounded-2xl shadow-xl animate-fadeIn'>
+          {toastMessage}
         </div>
       )}
     </div>
