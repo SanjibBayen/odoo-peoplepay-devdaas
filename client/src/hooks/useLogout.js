@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import { logout } from '../redux/slices/authSlice.js';
 import authApi from '../services/authApi.js';
+import socketService from '../services/socketService.js';
 
 /**
  * Custom hook providing robust, secure logout functionality.
@@ -18,6 +19,11 @@ export function useLogout() {
     } catch (err) {
       console.warn('Backend logout warning', err);
     } finally {
+      try {
+        socketService.disconnect();
+      } catch (sErr) {
+        console.warn('Socket disconnect warning', sErr);
+      }
       if (typeof window !== 'undefined') {
         try {
           localStorage.removeItem('token');

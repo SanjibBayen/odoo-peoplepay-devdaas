@@ -13,6 +13,9 @@ export const notificationService = {
    */
   async loadNotifications(role = 'employee') {
     const notifications = [];
+    const normalizedRole = (typeof role === 'string' ? role : 'employee')
+      .toLowerCase()
+      .replace(/_/g, '-');
 
     // 1. Attempt to fetch from real dedicated /api/notifications endpoint
     try {
@@ -52,7 +55,7 @@ export const notificationService = {
 
     // 2. Fallback: Extract from real role-specific dashboard endpoints
     try {
-      if (role === 'employee') {
+      if (normalizedRole === 'employee') {
         const empRes = await dashboardApi.getEmployeeDashboard().catch(() => null);
         const empData = empRes?.data || null;
 
@@ -95,8 +98,8 @@ export const notificationService = {
             read: false,
           });
         }
-      } else {
-        // Management roles: fetch real alerts from dashboardApi
+      } else if (['admin', 'hr-manager', 'hr-payroll-manager', 'hr-payroll-user'].includes(normalizedRole)) {
+        // Management roles: fetch real alerts from dashboardApi (requires reports:read)
         const alertsRes = await dashboardApi.getAlerts().catch(() => null);
         const alerts = alertsRes?.data || [];
 

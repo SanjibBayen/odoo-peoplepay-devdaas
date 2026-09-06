@@ -22,6 +22,11 @@ export default function EmployeeAttendanceTab({ employeeId }) {
   const [error, setError] = useState(null);
 
   const fetchAttendance = useCallback(async () => {
+    if (!employeeId) {
+      setLoading(false);
+      setRecords([]);
+      return;
+    }
     setLoading(true);
     setError(null);
     try {

@@ -90,11 +90,6 @@ export default class EmployeeType extends Model {
       foreignKey: 'employeeTypeId',
       as: 'employees',
     });
-
-    this.hasMany(models.Contract, {
-      foreignKey: 'employeeTypeId',
-      as: 'contracts',
-    });
   }
 
   // Instance methods

@@ -111,7 +111,6 @@ export default function SidebarDrawer({
             { id: 'profile', label: 'My Profile', route: '/profile', icon: 'user' },
             { id: 'attendance', label: 'Attendance', route: '/attendance', icon: 'clock' },
             { id: 'time-off', label: 'Time Off', route: '/time-off', icon: 'calendar' },
-            { id: 'contracts', label: 'Contracts', route: '/contracts', icon: 'shield' },
             { id: 'payslips', label: 'Payslips', route: '/payslips', icon: 'receipt' },
           ],
         };

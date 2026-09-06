@@ -67,7 +67,7 @@ function AppShell({ children, title, activeNav }) {
 
   return (
     <AppLayout
-      roleId={currentRole.replace('_', '-')}
+      roleId={currentRole.toLowerCase().replace(/_/g, '-')}
       title={title}
       user={currentUser}
       activeNav={activeNav}
@@ -146,8 +146,8 @@ export default function AppRoutes() {
             <Route path='/time-off/types' element={<AppShell title='Leave Types' activeNav='time-off'><TimeOffTypesPage /></AppShell>} />
           </Route>
 
-          {/* ============ CONTRACTS (All authenticated roles) ============ */}
-          <Route element={<RoleRoute allowedRoles={['employee', 'hr_manager', 'hr_payroll_user', 'hr_payroll_manager', 'admin']} />}>
+          {/* ============ CONTRACTS (HR & Admin roles with contracts:read_all) ============ */}
+          <Route element={<RoleRoute allowedRoles={['hr_manager', 'hr_payroll_user', 'hr_payroll_manager', 'admin']} />}>
             <Route path='/contracts' element={<AppShell title='Contracts' activeNav='contracts'><ContractsPage /></AppShell>} />
             <Route path='/contracts/new' element={<AppShell title='New Contract' activeNav='contracts'><ContractFormPage /></AppShell>} />
             <Route path='/contracts/:id' element={<AppShell title='Contract Details' activeNav='contracts'><ContractDetailPage /></AppShell>} />

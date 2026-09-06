@@ -22,8 +22,8 @@ export function mapBackendRole(rolesOrUser) {
 
   const codes = rawList
     .map((r) => {
-      if (typeof r === 'string') return r.toUpperCase().replace('-', '_');
-      if (r && typeof r === 'object' && r.code) return r.code.toUpperCase().replace('-', '_');
+      if (typeof r === 'string') return r.toUpperCase().replace(/-/g, '_');
+      if (r && typeof r === 'object' && r.code) return r.code.toUpperCase().replace(/-/g, '_');
       return '';
     })
     .filter(Boolean);

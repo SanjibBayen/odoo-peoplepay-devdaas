@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
+import { useSelector } from 'react-redux';
 import PageHeader from '../../components/common/PageHeader.jsx';
 import LoadingState from '../../components/common/LoadingState.jsx';
 import ErrorState from '../../components/common/ErrorState.jsx';
@@ -8,6 +9,7 @@ import TimeOffNavTabs from './TimeOffNavTabs.jsx';
 import timeOffApi from '../../services/timeOffApi.js';
 import employeeApi from '../../services/employeeApi.js';
 import { extractErrorMessage } from '../../services/apiClient.js';
+import { selectCurrentRole, selectCurrentUser } from '../../redux/selectors/authSelectors.js';
 
 function normalizeRequest(req) {
   if (!req) return null;
@@ -33,6 +35,11 @@ function normalizeRequest(req) {
 }
 
 export default function TimeOffPage() {
+  const currentRole = useSelector(selectCurrentRole) || 'employee';
+  const currentUser = useSelector(selectCurrentUser);
+  const isEmployee = currentRole.toLowerCase().includes('employee');
+  const ownEmployeeId = currentUser?.employee?.id || null;
+
   const [requests, setRequests] = useState([]);
   const [allocations, setAllocations] = useState([]);
   const [leaveTypes, setLeaveTypes] = useState([]);
@@ -62,24 +69,34 @@ export default function TimeOffPage() {
     setLoading(true);
     setError(null);
     try {
-      const [typesRes, allocRes, reqRes, empRes] = await Promise.allSettled([
+      const promises = [
         timeOffApi.getTimeOffTypes(),
         timeOffApi.getAllocations(),
         timeOffApi.getRequests(),
-        employeeApi.getEmployees({ limit: 100 }),
-      ]);
+      ];
 
-      if (typesRes.status === 'fulfilled') {
+      // Only fetch full workforce employee list for management roles who have employees:read_all
+      if (!isEmployee) {
+        promises.push(employeeApi.getEmployees({ limit: 100 }));
+      }
+
+      const results = await Promise.allSettled(promises);
+      const typesRes = results[0];
+      const allocRes = results[1];
+      const reqRes = results[2];
+      const empRes = results[3];
+
+      if (typesRes?.status === 'fulfilled') {
         setLeaveTypes(typesRes.value?.data || []);
       }
-      if (allocRes.status === 'fulfilled') {
+      if (allocRes?.status === 'fulfilled') {
         setAllocations(allocRes.value?.data || []);
       }
-      if (reqRes.status === 'fulfilled') {
+      if (reqRes?.status === 'fulfilled') {
         const list = reqRes.value?.data || [];
         setRequests(Array.isArray(list) ? list.map(normalizeRequest) : []);
       }
-      if (empRes.status === 'fulfilled') {
+      if (empRes?.status === 'fulfilled') {
         setEmployees(empRes.value?.employees || empRes.value?.data || []);
       }
     } catch (err) {
@@ -87,7 +104,7 @@ export default function TimeOffPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [isEmployee]);
 
   useEffect(() => {
     loadData();
@@ -96,8 +113,12 @@ export default function TimeOffPage() {
   const handleOpenAdd = () => {
     setFormError(null);
     const today = new Date().toISOString().split('T')[0];
+    const defaultEmpId = isEmployee
+      ? (ownEmployeeId || '')
+      : (employees[0]?.id || ownEmployeeId || '');
+
     setFormData({
-      employeeId: employees[0]?.id || '',
+      employeeId: defaultEmpId,
       timeOffTypeId: leaveTypes[0]?.id || '',
       startDate: today,
       endDate: today,
@@ -293,10 +314,14 @@ export default function TimeOffPage() {
                       </td>
                       <td className='py-3 px-4 text-right'>
                         {req.rawStatus === 'PENDING' ? (
-                          <div className='inline-flex items-center gap-2'>
-                            <button type='button' onClick={() => handleApprove(req.id)} className='px-2.5 py-1 text-xs font-bold text-emerald-700 bg-emerald-50 border rounded-lg cursor-pointer'>Approve</button>
-                            <button type='button' onClick={() => handleReject(req.id)} className='px-2.5 py-1 text-xs font-bold text-rose-700 bg-rose-50 border rounded-lg cursor-pointer'>Refuse</button>
-                          </div>
+                          !isEmployee ? (
+                            <div className='inline-flex items-center gap-2'>
+                              <button type='button' onClick={() => handleApprove(req.id)} className='px-2.5 py-1 text-xs font-bold text-emerald-700 bg-emerald-50 border rounded-lg cursor-pointer'>Approve</button>
+                              <button type='button' onClick={() => handleReject(req.id)} className='px-2.5 py-1 text-xs font-bold text-rose-700 bg-rose-50 border rounded-lg cursor-pointer'>Refuse</button>
+                            </div>
+                          ) : (
+                            <span className='text-[11px] font-bold text-amber-600'>Pending Approval</span>
+                          )
                         ) : (
                           <span className='text-[11px] text-gray-400'>Processed</span>
                         )}

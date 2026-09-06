@@ -5,7 +5,7 @@ import { selectCurrentRole } from '../redux/selectors/authSelectors.js';
 
 function normalizeRoleString(r) {
   if (!r) return '';
-  return r.toLowerCase().replace('-', '_');
+  return r.toLowerCase().replace(/-/g, '_');
 }
 
 /**

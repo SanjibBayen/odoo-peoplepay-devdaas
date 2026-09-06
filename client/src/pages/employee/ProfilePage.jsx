@@ -13,7 +13,7 @@ function normalizeEmployee(emp) {
   const firstName = emp.firstName || '';
   const lastName = emp.lastName || '';
   const fullName = emp.fullName || `${firstName} ${lastName}`.trim() || 'Employee';
-  const code = emp.employeeCode || emp.employeeId || emp.id;
+  const code = emp.employeeCode || emp.employeeId || emp.employee?.employeeCode || null;
   const dept = emp.department?.name || emp.department || 'General';
   const pos = emp.jobPosition?.name || emp.jobPosition?.title || emp.jobPosition || 'Staff';
   const status =
@@ -24,13 +24,18 @@ function normalizeEmployee(emp) {
         : emp.status || 'Active';
   const contract = emp.contractStatus || 'Permanent';
 
+  // Ensure id is only set if it is a real employee ID
+  const realEmployeeId = emp.employee?.id || (emp.employeeCode ? emp.id : null);
+
   return {
     ...emp,
-    id: emp.id,
+    id: realEmployeeId,
+    userId: emp.userId || (emp.employee ? emp.id : undefined),
+    isUnlinked: !realEmployeeId,
     firstName,
     lastName,
     name: fullName,
-    employeeId: code,
+    employeeId: code || 'N/A',
     department: dept,
     departmentId: emp.departmentId,
     jobPosition: pos,
@@ -59,7 +64,7 @@ export default function ProfilePage() {
         setLoading(true);
         setError(null);
 
-        // Get current user from auth API (includes employee info)
+        // Get current user from auth API (includes linked employee info)
         const authRes = await authApi.getMe();
         const authUser = authRes?.user || authRes?.data?.user || null;
 
@@ -67,10 +72,12 @@ export default function ProfilePage() {
           throw new Error('No user found');
         }
 
-        // Check if user has employee record linked
-        if (authUser.employee?.id) {
+        const linkedEmpId = authUser.employee?.id || currentUser?.employee?.id || null;
+
+        // Fetch official Employee record if linked
+        if (linkedEmpId) {
           try {
-            const empRes = await employeeApi.getEmployeeById(authUser.employee.id);
+            const empRes = await employeeApi.getEmployeeById(linkedEmpId);
             const empData = empRes?.data || empRes?.employee || null;
 
             if (isMounted && empData) {
@@ -78,6 +85,8 @@ export default function ProfilePage() {
                 normalizeEmployee({
                   ...empData,
                   ...authUser,
+                  id: empData.id || linkedEmpId,
+                  employeeCode: empData.employeeCode || authUser.employee?.employeeCode,
                   email: empData.email || authUser.email,
                   firstName: empData.firstName || authUser.firstName,
                   lastName: empData.lastName || authUser.lastName,
@@ -91,18 +100,26 @@ export default function ProfilePage() {
           }
         }
 
-        // Fallback: use auth user data directly
+        // Account without linked employee record
         if (isMounted) {
-          setProfile(normalizeEmployee(authUser));
+          setProfile({
+            ...normalizeEmployee(authUser),
+            id: null,
+            isUnlinked: true,
+          });
           setLoading(false);
         }
       } catch (err) {
         console.error('Failed to fetch profile:', err);
         if (isMounted) {
           setError(err.message || 'Failed to load profile');
-          // Fallback to currentUser from Redux
           if (currentUser) {
-            setProfile(normalizeEmployee(currentUser));
+            const linkedId = currentUser.employee?.id || null;
+            setProfile({
+              ...normalizeEmployee(currentUser),
+              id: linkedId,
+              isUnlinked: !linkedId,
+            });
           }
           setLoading(false);
         }
@@ -117,8 +134,9 @@ export default function ProfilePage() {
   }, [currentUser]);
 
   const currentEmployee = profile || {
-    id: currentUser?.id || 'emp-current',
-    employeeId: currentUser?.employeeCode || 'EMP-2024-001',
+    id: null,
+    isUnlinked: true,
+    employeeId: currentUser?.employee?.employeeCode || 'N/A',
     name: currentUser
       ? `${currentUser.firstName || ''} ${currentUser.lastName || ''}`.trim()
       : 'Employee Profile',

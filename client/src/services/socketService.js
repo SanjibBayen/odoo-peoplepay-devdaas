@@ -19,7 +19,10 @@ class SocketService {
   }
 
   connect(token = null, user = null) {
-    if (this.socket?.connected) {
+    if (this.socket) {
+      if (user?.id && user.id !== this.userId) {
+        this.join(user.id);
+      }
       return this.socket;
     }
 
@@ -42,6 +45,11 @@ class SocketService {
         reconnectionDelay: 2000,
         transports: ['websocket', 'polling'],
       });
+
+      this.socket.removeAllListeners('connect');
+      this.socket.removeAllListeners('notification:new');
+      this.socket.removeAllListeners('notification:count');
+      this.socket.removeAllListeners('connect_error');
 
       this.socket.on('connect', () => {
         if (this.userId) {
@@ -90,6 +98,7 @@ class SocketService {
 
   disconnect() {
     if (this.socket) {
+      this.socket.removeAllListeners();
       this.socket.disconnect();
       this.socket = null;
     }

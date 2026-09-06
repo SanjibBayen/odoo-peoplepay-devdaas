@@ -45,34 +45,8 @@ export function useEmployees(initialFilters = {}) {
   }, [page, limit, search, status, departmentId]);
 
   useEffect(() => {
-    let active = true;
-    (async () => {
-      try {
-        const params = {
-          page,
-          limit,
-          search: search.trim() || undefined,
-          status: status !== 'ALL' ? status : undefined,
-          departmentId: departmentId || undefined,
-        };
-
-        const res = await employeeApi.getEmployees(params);
-        if (!active) return;
-        const list = res.data || res.employees || (Array.isArray(res) ? res : []);
-        const count = res.total || res.count || list.length;
-
-        setEmployees(list);
-        setTotal(count);
-      } catch (err) {
-        if (active) setError(extractErrorMessage(err, 'Failed to fetch workforce employees.'));
-      } finally {
-        if (active) setLoading(false);
-      }
-    })();
-    return () => {
-      active = false;
-    };
-  }, [page, limit, search, status, departmentId]);
+    fetchEmployees();
+  }, [fetchEmployees]);
 
   return {
     employees,

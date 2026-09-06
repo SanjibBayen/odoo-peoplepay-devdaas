@@ -107,20 +107,41 @@ export default function EmployeeDetailPage() {
     );
   }
 
-  if (error) {
-    return (
-      <div className='py-12'>
-        <BackButton label='Back to Employees' fallback='/employees' onClick={handleBack} />
-        <ErrorState message={error} onRetry={fetchEmployee} />
-      </div>
-    );
-  }
+  const isNotFound = error?.toLowerCase().includes('not found') || !employee;
 
-  if (!employee) {
+  if (error || !employee) {
     return (
-      <div className='py-12'>
+      <div className='py-8 space-y-4 max-w-xl mx-auto'>
         <BackButton label='Back to Employees' fallback='/employees' onClick={handleBack} />
-        <ErrorState message='Employee not found' onRetry={fetchEmployee} />
+        <div className='bg-white rounded-3xl border border-[#EAE6DF] p-8 text-center space-y-4 shadow-2xs'>
+          <div className='w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mx-auto text-xl'>
+            🔍
+          </div>
+          <div>
+            <h3 className='text-base font-bold text-[#1E293B]'>Employee Not Found</h3>
+            <p className='text-xs text-gray-500 mt-1'>
+              {error || 'The requested employee record does not exist or has been removed.'}
+            </p>
+          </div>
+          <div className='pt-2 flex justify-center gap-3'>
+            <button
+              type='button'
+              onClick={handleBack}
+              className='px-4 py-2 rounded-xl text-xs font-bold text-white bg-[#714B67] hover:bg-[#5E3E56] transition-colors cursor-pointer shadow-xs'
+            >
+              ← Back to Employees
+            </button>
+            {!isNotFound && (
+              <button
+                type='button'
+                onClick={fetchEmployee}
+                className='px-4 py-2 rounded-xl text-xs font-semibold text-gray-600 hover:text-gray-900 border border-gray-200 hover:bg-gray-50 transition-colors cursor-pointer'
+              >
+                Retry
+              </button>
+            )}
+          </div>
+        </div>
       </div>
     );
   }

@@ -11,12 +11,17 @@ export default function EmployeeLeaveBalanceTab({ employeeId }) {
   const [error, setError] = useState(null);
 
   const fetchBalances = React.useCallback(async () => {
+    if (!employeeId) {
+      setLoading(false);
+      setBalances([]);
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
       const res = await employeeApi.getEmployeeLeaveBalances(employeeId);
-      const list = res.data || (Array.isArray(res) ? res : []);
-      setBalances(list);
+      const list = res?.allocations || res?.data || (Array.isArray(res) ? res : []);
+      setBalances(Array.isArray(list) ? list : []);
     } catch (err) {
       setError(extractErrorMessage(err, 'Failed to load employee leave balances.'));
     } finally {
@@ -25,24 +30,8 @@ export default function EmployeeLeaveBalanceTab({ employeeId }) {
   }, [employeeId]);
 
   useEffect(() => {
-    let active = true;
-    (async () => {
-      try {
-        const res = await employeeApi.getEmployeeLeaveBalances(employeeId);
-        if (active) {
-          const list = res.data || (Array.isArray(res) ? res : []);
-          setBalances(list);
-        }
-      } catch (err) {
-        if (active) setError(extractErrorMessage(err, 'Failed to load employee leave balances.'));
-      } finally {
-        if (active) setLoading(false);
-      }
-    })();
-    return () => {
-      active = false;
-    };
-  }, [employeeId]);
+    fetchBalances();
+  }, [fetchBalances]);
 
   if (loading) return <LoadingState message='Loading leave balances...' />;
   if (error) return <ErrorState message={error} onRetry={fetchBalances} />;

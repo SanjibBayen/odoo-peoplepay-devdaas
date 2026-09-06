@@ -13,12 +13,17 @@ export default function EmployeeTimeOffTab({ employeeId }) {
   const [error, setError] = useState(null);
 
   const fetchTimeOff = React.useCallback(async () => {
+    if (!employeeId) {
+      setLoading(false);
+      setRequests([]);
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
       const res = await employeeApi.getEmployeeTimeOffRequests(employeeId);
-      const list = res.data || (Array.isArray(res) ? res : []);
-      setRequests(list);
+      const list = res?.requests || res?.data || (Array.isArray(res) ? res : []);
+      setRequests(Array.isArray(list) ? list : []);
     } catch (err) {
       setError(extractErrorMessage(err, 'Failed to load employee time off requests.'));
     } finally {
@@ -27,24 +32,8 @@ export default function EmployeeTimeOffTab({ employeeId }) {
   }, [employeeId]);
 
   useEffect(() => {
-    let active = true;
-    (async () => {
-      try {
-        const res = await employeeApi.getEmployeeTimeOff(employeeId);
-        if (active) {
-          const list = res.data || (Array.isArray(res) ? res : []);
-          setRequests(list);
-        }
-      } catch (err) {
-        if (active) setError(extractErrorMessage(err, 'Failed to load employee time off requests.'));
-      } finally {
-        if (active) setLoading(false);
-      }
-    })();
-    return () => {
-      active = false;
-    };
-  }, [employeeId]);
+    fetchTimeOff();
+  }, [fetchTimeOff]);
 
   if (loading) return <LoadingState message='Loading time off requests...' />;
   if (error) return <ErrorState message={error} onRetry={fetchTimeOff} />;

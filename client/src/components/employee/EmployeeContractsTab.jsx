@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
+import { useSelector } from 'react-redux';
 import employeeApi from '../../services/employeeApi.js';
 import LoadingState from '../common/LoadingState.jsx';
 import ErrorState from '../common/ErrorState.jsx';
@@ -7,6 +8,7 @@ import EmptyState from '../common/EmptyState.jsx';
 import { extractErrorMessage } from '../../services/apiClient.js';
 import { formatCurrency } from '../../utils/formatCurrency.js';
 import { formatDate } from '../../utils/formatDate.js';
+import { selectCurrentRole } from '../../redux/selectors/authSelectors.js';
 
 const CONTRACT_STATUS = {
   DRAFT: { label: 'Draft', bg: 'bg-gray-50', text: 'text-gray-700', border: 'border-gray-200' },
@@ -17,11 +19,20 @@ const CONTRACT_STATUS = {
 };
 
 export default function EmployeeContractsTab({ employeeId }) {
+  const currentRole = useSelector(selectCurrentRole) || 'employee';
+  const isEmployee = currentRole.toLowerCase().includes('employee');
+
   const [contracts, setContracts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [selectedContract, setSelectedContract] = useState(null);
 
   const fetchContracts = useCallback(async () => {
+    if (!employeeId) {
+      setLoading(false);
+      setContracts([]);
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
@@ -89,9 +100,13 @@ export default function EmployeeContractsTab({ employeeId }) {
                     </span>
                   </td>
                   <td className='py-3 px-4 text-right'>
-                    <Link to={`/contracts/${c.id}`} className='text-xs font-bold text-[#714B67] hover:underline'>
-                      View →
-                    </Link>
+                    <button
+                      type='button'
+                      onClick={() => setSelectedContract(c)}
+                      className='text-xs font-bold text-[#714B67] hover:underline cursor-pointer'
+                    >
+                      View Details →
+                    </button>
                   </td>
                 </tr>
               );
@@ -99,6 +114,72 @@ export default function EmployeeContractsTab({ employeeId }) {
           </tbody>
         </table>
       </div>
+
+      {/* Contract Detail Modal */}
+      {selectedContract && (
+        <div className='fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs'>
+          <div className='bg-white rounded-3xl p-6 max-w-md w-full border border-[#EAE6DF] shadow-2xl space-y-4'>
+            <div className='flex items-center justify-between pb-3 border-b border-gray-100'>
+              <div>
+                <span className='text-[10px] font-bold uppercase tracking-wider text-gray-400'>Employment Contract</span>
+                <h3 className='text-sm font-bold text-[#1E293B]'>{selectedContract.contractNumber || 'Contract Terms'}</h3>
+              </div>
+              <button
+                type='button'
+                onClick={() => setSelectedContract(null)}
+                className='w-7 h-7 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-xs text-gray-600 cursor-pointer'
+              >
+                ✕
+              </button>
+            </div>
+            <div className='grid grid-cols-2 gap-3 text-xs'>
+              <div className='p-3 rounded-xl bg-[#FAF8F5]'>
+                <span className='text-[10px] text-gray-400 block uppercase font-semibold'>Monthly Wage</span>
+                <span className='font-bold text-[#714B67] text-sm'>{formatCurrency(selectedContract.wage || 0)}</span>
+              </div>
+              <div className='p-3 rounded-xl bg-[#FAF8F5]'>
+                <span className='text-[10px] text-gray-400 block uppercase font-semibold'>Status</span>
+                <span className='font-bold text-emerald-700 capitalize'>{selectedContract.status || 'Active'}</span>
+              </div>
+              <div className='p-3 rounded-xl bg-[#FAF8F5]'>
+                <span className='text-[10px] text-gray-400 block uppercase font-semibold'>Effective From</span>
+                <span className='font-medium text-gray-700'>{formatDate(selectedContract.startDate, 'DD Mon YYYY')}</span>
+              </div>
+              <div className='p-3 rounded-xl bg-[#FAF8F5]'>
+                <span className='text-[10px] text-gray-400 block uppercase font-semibold'>Expires On</span>
+                <span className='font-medium text-gray-700'>{selectedContract.endDate ? formatDate(selectedContract.endDate, 'DD Mon YYYY') : 'Permanent / Open'}</span>
+              </div>
+              <div className='col-span-2 p-3 rounded-xl bg-[#FAF8F5]'>
+                <span className='text-[10px] text-gray-400 block uppercase font-semibold'>Salary Structure</span>
+                <span className='font-semibold text-gray-800'>{selectedContract.salaryStructure?.name || 'Standard Structure'}</span>
+              </div>
+              {selectedContract.notes && (
+                <div className='col-span-2 p-3 rounded-xl bg-[#FAF8F5]'>
+                  <span className='text-[10px] text-gray-400 block uppercase font-semibold'>Terms & Notes</span>
+                  <p className='text-gray-600 text-[11px] mt-0.5'>{selectedContract.notes}</p>
+                </div>
+              )}
+            </div>
+            <div className='flex justify-end gap-2 pt-2 border-t border-gray-100'>
+              {!isEmployee && (
+                <Link
+                  to={`/contracts/${selectedContract.id}`}
+                  className='px-3 py-1.5 rounded-xl text-xs font-bold text-white bg-[#714B67] hover:bg-[#5E3E56] transition-colors'
+                >
+                  Manage Contract →
+                </Link>
+              )}
+              <button
+                type='button'
+                onClick={() => setSelectedContract(null)}
+                className='px-3 py-1.5 rounded-xl text-xs font-semibold text-gray-600 hover:text-gray-900 border border-gray-200 hover:bg-gray-50 cursor-pointer'
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

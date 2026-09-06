@@ -39,10 +39,24 @@ export default function EmployeeTabs({ employee, overviewContent }) {
       {/* Tab Content Display */}
       <div>
         {activeTab === 'overview' && overviewContent}
-        {activeTab === 'contracts' && <EmployeeContractsTab employeeId={employee.id} />}
-        {activeTab === 'attendance' && <EmployeeAttendanceTab employeeId={employee.id} />}
-        {activeTab === 'time-off' && <EmployeeTimeOffTab employeeId={employee.id} />}
-        {activeTab === 'balances' && <EmployeeLeaveBalanceTab employeeId={employee.id} />}
+        {activeTab !== 'overview' && (!employee?.id || employee?.isUnlinked) ? (
+          <div className='bg-white rounded-2xl border border-[#EAE6DF] p-8 text-center space-y-2'>
+            <div className='w-10 h-10 rounded-xl bg-purple-50 text-[#714B67] flex items-center justify-center mx-auto text-lg'>
+              ℹ️
+            </div>
+            <h4 className='text-sm font-bold text-[#1E293B]'>Administrative Account</h4>
+            <p className='text-xs text-gray-500 max-w-md mx-auto'>
+              This user account is not associated with a specific employment record. Employment tabs (Contracts, Attendance, Time Off, Balances) are reserved for linked workforce employee profiles.
+            </p>
+          </div>
+        ) : (
+          <>
+            {activeTab === 'contracts' && <EmployeeContractsTab employeeId={employee.id} />}
+            {activeTab === 'attendance' && <EmployeeAttendanceTab employeeId={employee.id} />}
+            {activeTab === 'time-off' && <EmployeeTimeOffTab employeeId={employee.id} />}
+            {activeTab === 'balances' && <EmployeeLeaveBalanceTab employeeId={employee.id} />}
+          </>
+        )}
       </div>
     </div>
   );

@@ -115,6 +115,23 @@ export const verifyLoginOTP = asyncHandler(async (req, res, next) => {
 
   const user = await User.findOne({
     where: { email: normalizedEmail },
+    include: [
+      {
+        model: Employee,
+        as: 'employee',
+        attributes: [
+          'id',
+          'employeeCode',
+          'firstName',
+          'lastName',
+          'email',
+          'phone',
+          'departmentId',
+          'jobPositionId',
+          'status',
+        ],
+      },
+    ],
   });
 
   if (!user) {
@@ -160,6 +177,19 @@ export const verifyLoginOTP = asyncHandler(async (req, res, next) => {
       avatarUrl: user.avatarUrl,
       roles: roles.map((r) => r.code),
       lastLoginAt: user.lastLoginAt,
+      employee: user.employee
+        ? {
+            id: user.employee.id,
+            employeeCode: user.employee.employeeCode,
+            firstName: user.employee.firstName,
+            lastName: user.employee.lastName,
+            email: user.employee.email,
+            phone: user.employee.phone,
+            departmentId: user.employee.departmentId,
+            jobPositionId: user.employee.jobPositionId,
+            status: user.employee.status,
+          }
+        : null,
     },
   });
 });
@@ -693,6 +723,21 @@ export const getMe = asyncHandler(async (req, res, next) => {
         attributes: ['id', 'name', 'code'],
         through: { attributes: [] },
       },
+      {
+        model: Employee,
+        as: 'employee',
+        attributes: [
+          'id',
+          'employeeCode',
+          'firstName',
+          'lastName',
+          'email',
+          'phone',
+          'departmentId',
+          'jobPositionId',
+          'status',
+        ],
+      },
     ],
   });
 
@@ -718,6 +763,19 @@ export const getMe = asyncHandler(async (req, res, next) => {
         name: r.name,
         code: r.code,
       })),
+      employee: user.employee
+        ? {
+            id: user.employee.id,
+            employeeCode: user.employee.employeeCode,
+            firstName: user.employee.firstName,
+            lastName: user.employee.lastName,
+            email: user.employee.email,
+            phone: user.employee.phone,
+            departmentId: user.employee.departmentId,
+            jobPositionId: user.employee.jobPositionId,
+            status: user.employee.status,
+          }
+        : null,
       permissions: permissions.map((p) => `${p.module}:${p.action}`),
     },
   });
