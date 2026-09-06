@@ -95,7 +95,7 @@ export default function ContractDetailPage() {
   return (
     <div className='max-w-4xl mx-auto space-y-6'>
       <div className='flex items-center justify-between'>
-        <BackButton label='Back to Contracts' onClick={() => navigate('/contracts')} />
+        <BackButton label='Back to Contracts' fallback='/contracts' onClick={() => navigate('/contracts')} />
         <span className='text-xs font-mono font-bold text-gray-500 bg-[#FAF8F5] px-3 py-1 rounded-xl border border-gray-200'>
           {code}
         </span>

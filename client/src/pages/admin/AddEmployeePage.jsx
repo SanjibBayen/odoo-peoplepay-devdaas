@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import PageHeader from '../../components/common/PageHeader.jsx';
 import BackButton from '../../components/common/BackButton.jsx';
+import Breadcrumbs from '../../components/common/Breadcrumbs.jsx';
 import authApi from '../../services/authApi.js';
 import departmentApi from '../../services/departmentApi.js';
 import jobPositionApi from '../../services/jobPositionApi.js';
@@ -132,7 +133,6 @@ export default function AddEmployeePage() {
   // Client-side validation
   const validateForm = () => {
     const errs = {};
-    const today = new Date().toISOString().split('T')[0];
 
     if (!formData.firstName.trim()) errs.firstName = 'First name is required.';
     if (!formData.lastName.trim()) errs.lastName = 'Last name is required.';
@@ -226,7 +226,13 @@ export default function AddEmployeePage() {
 
   return (
     <div className='max-w-4xl mx-auto space-y-6 pb-12'>
-      <BackButton label='Back to Employees' onClick={() => navigate('/employees')} />
+      <div className='flex items-center justify-between'>
+        <BackButton label='Back to Employees' fallback='/employees' />
+        <Breadcrumbs items={[
+          { label: 'Employees', to: '/employees' },
+          { label: 'Add Employee' },
+        ]} />
+      </div>
 
       <PageHeader
         title='Add New Employee'

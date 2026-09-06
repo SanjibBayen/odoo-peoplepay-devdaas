@@ -1,8 +1,9 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import LoadingState from '../../components/common/LoadingState.jsx';
 import ErrorState from '../../components/common/ErrorState.jsx';
 import BackButton from '../../components/common/BackButton.jsx';
+import Breadcrumbs from '../../components/common/Breadcrumbs.jsx';
 import payrunApi from '../../services/payrunApi.js';
 import { extractErrorMessage } from '../../services/apiClient.js';
 import { formatCurrency } from '../../utils/formatCurrency.js';
@@ -19,7 +20,6 @@ const PAYRUN_STATUS = {
 
 export default function PayrunDetailPage() {
   const { id } = useParams();
-  const navigate = useNavigate();
 
   const [payrun, setPayrun] = useState(null);
   const [warnings, setWarnings] = useState([]);
@@ -133,7 +133,13 @@ export default function PayrunDetailPage() {
 
   return (
     <div className='space-y-6'>
-      <BackButton label='Back to Payruns' onClick={() => navigate('/payruns')} />
+      <div className='flex items-center justify-between'>
+        <BackButton label='Back to Payruns' fallback='/payruns' />
+        <Breadcrumbs items={[
+          { label: 'Payruns', to: '/payruns' },
+          { label: payrun.name || 'Detail' },
+        ]} />
+      </div>
 
       {statusBanner && (
         <div className={`p-3.5 rounded-xl border text-xs font-semibold flex items-center justify-between ${

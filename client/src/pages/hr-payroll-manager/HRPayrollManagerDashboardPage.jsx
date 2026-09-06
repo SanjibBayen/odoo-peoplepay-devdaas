@@ -4,13 +4,16 @@ import PageHeader from '../../components/common/PageHeader.jsx';
 import StatCard from '../../components/common/StatCard.jsx';
 import StatusBadge from '../../components/common/StatusBadge.jsx';
 import DashboardSection from '../../components/dashboard/DashboardSection.jsx';
-import PayrollStatusCard from '../../components/dashboard/PayrollStatusCard.jsx';
 import QuickActionCard from '../../components/dashboard/QuickActionCard.jsx';
+import { DashboardSkeleton } from '../../components/common/LoadingSkeleton.jsx';
+import ErrorState from '../../components/common/ErrorState.jsx';
+import { useAuth } from '../../hooks/useAuth.js';
 import dashboardApi from '../../services/dashboardApi.js';
 import payrunApi from '../../services/payrunApi.js';
 import { extractErrorMessage } from '../../services/apiClient.js';
 
 export default function HRPayrollManagerDashboardPage() {
+  const { user } = useAuth();
   const navigate = useNavigate();
 
   const [kpis, setKpis] = useState([]);
@@ -110,31 +113,52 @@ export default function HRPayrollManagerDashboardPage() {
   ];
 
   if (loading) {
+    return <DashboardSkeleton />;
+  }
+
+  if (error) {
     return (
-      <div className='py-12'>
-        <div className='text-gray-400 text-sm text-center'>Loading payroll dashboard...</div>
+      <div className='py-6'>
+        <ErrorState
+          title='Dashboard Unavailable'
+          message={error}
+          onRetry={loadDashboard}
+        />
       </div>
     );
   }
 
+  const fullName = user?.fullName || `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || 'Payroll Manager';
+  const todayDateStr = new Date().toLocaleDateString('en-US', {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+  });
+
   return (
     <div className='space-y-5'>
       <PageHeader
-        title='Payroll Manager Dashboard'
-        subtitle='Executive sign-offs, statutory audit validation, and fund disbursals.'
+        title={`Welcome back, ${fullName}`}
+        subtitle='HR Payroll Manager — Operational Dashboard'
         actions={
-          <span className='text-[10px] font-bold px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200'>
-            Payroll Manager
-          </span>
+          <div className='flex items-center gap-2.5'>
+            <span className='text-[10px] font-bold px-2.5 py-1 rounded-full bg-stone-100 text-stone-700 border border-stone-200'>
+              📅 {todayDateStr}
+            </span>
+            <span className='text-[10px] font-bold px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200'>
+              Payroll Manager
+            </span>
+            <button
+              type='button'
+              onClick={() => navigate('/payruns/new')}
+              className='px-3.5 py-1.5 text-xs font-bold text-white bg-[#714B67] hover:bg-[#5E3E56] rounded-xl shadow-xs transition-colors cursor-pointer flex items-center gap-1.5'
+            >
+              <span>+</span>
+              <span>Create Payrun</span>
+            </button>
+          </div>
         }
       />
-
-      {error && (
-        <div className='p-3.5 rounded-xl bg-red-50 border border-red-200 text-red-800 text-xs'>
-          {error}
-          <button type='button' onClick={loadDashboard} className='ml-2 font-bold cursor-pointer'>Retry</button>
-        </div>
-      )}
 
       {/* KPIs */}
       <div className='grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4'>
@@ -159,7 +183,9 @@ export default function HRPayrollManagerDashboardPage() {
         {/* Payrun Status */}
         <div className='lg:col-span-5'>
           <DashboardSection title='Recent Payruns' subtitle='Latest payroll batches' action={
-            <span className='text-[10px] text-gray-400'>{payruns.length} Batches</span>
+            <button type='button' onClick={() => navigate('/payruns')} className='text-[11px] font-bold text-[#714B67] hover:underline cursor-pointer'>
+              View All ({payruns.length}) →
+            </button>
           }>
             {payruns.length === 0 ? (
               <p className='text-xs text-gray-400 py-4 text-center'>No payruns found.</p>
@@ -216,9 +242,9 @@ export default function HRPayrollManagerDashboardPage() {
             key={action.id}
             action={action}
             onClick={() => {
-              if (action.id === 'create-payrun') navigate('/payroll/payruns/new');
-              else if (action.id === 'view-payruns') navigate('/payroll/payruns');
-              else if (action.id === 'salary-structures') navigate('/salary/structures');
+              if (action.id === 'create-payrun') navigate('/payruns/new');
+              else if (action.id === 'view-payruns') navigate('/payruns');
+              else if (action.id === 'salary-structures') navigate('/salary-structures');
             }}
           />
         ))}

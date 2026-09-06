@@ -4,11 +4,15 @@ import PageHeader from '../../components/common/PageHeader.jsx';
 import StatCard from '../../components/common/StatCard.jsx';
 import DashboardSection from '../../components/dashboard/DashboardSection.jsx';
 import QuickActionCard from '../../components/dashboard/QuickActionCard.jsx';
+import { DashboardSkeleton } from '../../components/common/LoadingSkeleton.jsx';
+import ErrorState from '../../components/common/ErrorState.jsx';
+import { useAuth } from '../../hooks/useAuth.js';
 import dashboardApi from '../../services/dashboardApi.js';
 import timeOffApi from '../../services/timeOffApi.js';
 import { extractErrorMessage } from '../../services/apiClient.js';
 
 export default function HRManagerDashboardPage() {
+  const { user } = useAuth();
   const navigate = useNavigate();
 
   const [kpis, setKpis] = useState([]);
@@ -142,31 +146,52 @@ export default function HRManagerDashboardPage() {
   ];
 
   if (loading) {
+    return <DashboardSkeleton />;
+  }
+
+  if (error) {
     return (
-      <div className='py-12'>
-        <div className='text-gray-400 text-sm text-center'>Loading HR dashboard...</div>
+      <div className='py-6'>
+        <ErrorState
+          title='Dashboard Unavailable'
+          message={error}
+          onRetry={loadDashboard}
+        />
       </div>
     );
   }
 
+  const fullName = user?.fullName || `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || 'HR Manager';
+  const todayDateStr = new Date().toLocaleDateString('en-US', {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+  });
+
   return (
     <div className='space-y-5'>
       <PageHeader
-        title='HR Manager Dashboard'
-        subtitle='Workforce health, department staffing, and approval queues.'
+        title={`Welcome back, ${fullName}`}
+        subtitle='HR Manager — Operational Dashboard'
         actions={
-          <span className='text-[10px] font-bold px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200'>
-            HR Manager
-          </span>
+          <div className='flex items-center gap-2.5'>
+            <span className='text-[10px] font-bold px-2.5 py-1 rounded-full bg-stone-100 text-stone-700 border border-stone-200'>
+              📅 {todayDateStr}
+            </span>
+            <span className='text-[10px] font-bold px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200'>
+              HR Manager
+            </span>
+            <button
+              type='button'
+              onClick={() => navigate('/employees/add')}
+              className='px-3.5 py-1.5 text-xs font-bold text-white bg-[#714B67] hover:bg-[#5E3E56] rounded-xl shadow-xs transition-colors cursor-pointer flex items-center gap-1.5'
+            >
+              <span>+</span>
+              <span>Add Employee</span>
+            </button>
+          </div>
         }
       />
-
-      {error && (
-        <div className='p-3.5 rounded-xl bg-red-50 border border-red-200 text-red-800 text-xs'>
-          {error}
-          <button type='button' onClick={loadDashboard} className='ml-2 font-bold cursor-pointer'>Retry</button>
-        </div>
-      )}
 
       {/* KPIs */}
       <div className='grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4'>
@@ -253,9 +278,9 @@ export default function HRManagerDashboardPage() {
             key={action.id}
             action={action}
             onClick={() => {
-              if (action.id === 'add-employee') navigate('/employees');
+              if (action.id === 'add-employee') navigate('/employees/add');
               else if (action.id === 'view-attendance') navigate('/attendance');
-              else if (action.id === 'manage-leaves') navigate('/time-off');
+              else if (action.id === 'manage-leaves') navigate('/time-off/requests');
             }}
           />
         ))}

@@ -4,7 +4,6 @@ import PageHeader from '../../components/common/PageHeader.jsx';
 import LoadingState from '../../components/common/LoadingState.jsx';
 import ErrorState from '../../components/common/ErrorState.jsx';
 import EmptyState from '../../components/common/EmptyState.jsx';
-import BackButton from '../../components/common/BackButton.jsx';
 import authApi from '../../services/authApi.js';
 import { extractErrorMessage } from '../../services/apiClient.js';
 
@@ -256,7 +255,13 @@ export default function UsersPage() {
               </div>
 
               <div className='pt-2 flex items-center justify-end gap-2 border-t border-gray-100'>
-                <BackButton label='Cancel' onClick={() => setIsAddModalOpen(false)} />
+                <button
+                  type='button'
+                  onClick={() => setIsAddModalOpen(false)}
+                  className='px-4 py-2 font-semibold text-gray-700 hover:text-gray-900 border rounded-xl hover:bg-gray-50 cursor-pointer'
+                >
+                  Cancel
+                </button>
                 <button type='submit' disabled={isSubmitting} className={`px-4 py-2 font-bold text-white bg-[#714B67] hover:bg-[#5E3E56] rounded-xl cursor-pointer ${isSubmitting ? 'opacity-60' : ''}`}>
                   {isSubmitting ? 'Creating...' : 'Create User'}
                 </button>

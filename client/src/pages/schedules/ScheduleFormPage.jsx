@@ -162,7 +162,7 @@ export default function ScheduleFormPage() {
 
   return (
     <div className='max-w-3xl mx-auto space-y-6'>
-      <BackButton label='Back to Schedules' onClick={() => navigate('/schedules')} />
+      <BackButton label='Back to Schedules' fallback='/schedules' onClick={() => navigate('/schedules')} />
 
       <PageHeader
         title={isEdit ? 'Edit Work Schedule' : 'Create Work Schedule'}
@@ -196,7 +196,13 @@ export default function ScheduleFormPage() {
           <ScheduleDaysEditor days={formData.days} onChange={handleDayChange} />
 
           <div className='pt-4 flex justify-end gap-2 border-t'>
-            <BackButton label='Cancel' onClick={() => navigate('/schedules')} />
+            <button
+              type='button'
+              onClick={() => navigate('/schedules')}
+              className='px-4 py-2 text-xs font-semibold text-gray-700 hover:text-gray-900 border rounded-xl hover:bg-gray-50 cursor-pointer'
+            >
+              Cancel
+            </button>
             <button type='submit' disabled={isSubmitting} className={`px-5 py-2 text-xs font-bold text-white bg-[#714B67] rounded-xl cursor-pointer ${isSubmitting ? 'opacity-60' : ''}`}>
               {isSubmitting ? 'Saving...' : isEdit ? 'Update Schedule' : 'Create Schedule'}
             </button>

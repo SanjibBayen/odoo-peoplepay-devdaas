@@ -169,7 +169,7 @@ export default function PayrunWizardPage() {
 
   return (
     <div className='max-w-4xl mx-auto space-y-6'>
-      <BackButton label='Back to Payruns' onClick={() => navigate('/payruns')} />
+      <BackButton label='Back to Payruns' fallback='/payruns' />
 
       <PageHeader
         title='Create Payroll Run'
@@ -216,7 +216,13 @@ export default function PayrunWizardPage() {
             </div>
 
             <div className='pt-4 flex justify-end gap-2 border-t'>
-              <BackButton label='Cancel' onClick={() => navigate('/payruns')} />
+              <button
+                type='button'
+                onClick={() => navigate('/payruns')}
+                className='px-4 py-2 text-xs font-semibold text-gray-700 hover:text-gray-900 border rounded-xl hover:bg-gray-50 cursor-pointer'
+              >
+                Cancel
+              </button>
               <button type='submit' className='px-5 py-2 text-xs font-bold text-white bg-[#714B67] rounded-xl cursor-pointer'>
                 Continue →
               </button>

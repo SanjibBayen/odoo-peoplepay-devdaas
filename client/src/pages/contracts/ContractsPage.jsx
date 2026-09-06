@@ -5,7 +5,6 @@ import ErrorState from '../../components/common/ErrorState.jsx';
 import EmptyState from '../../components/common/EmptyState.jsx';
 import Pagination from '../../components/common/Pagination.jsx';
 import ConfirmDialog from '../../components/common/ConfirmDialog.jsx';
-import BackButton from '../../components/common/BackButton.jsx';
 import contractApi from '../../services/contractApi.js';
 import employeeApi from '../../services/employeeApi.js';
 import salaryStructureApi from '../../services/salaryStructureApi.js';
@@ -358,7 +357,13 @@ export default function ContractsPage() {
                 </div>
               </div>
               <div className='pt-2 flex justify-end gap-2 border-t'>
-                <BackButton label='Cancel' onClick={() => setIsModalOpen(false)} />
+                <button
+                  type='button'
+                  onClick={() => setIsModalOpen(false)}
+                  className='px-4 py-1.5 font-bold text-gray-700 bg-white hover:bg-gray-50 border border-gray-200 rounded-xl cursor-pointer'
+                >
+                  Cancel
+                </button>
                 <button type='submit' disabled={isSubmitting} className={`px-4 py-1.5 font-bold text-white bg-[#714B67] rounded-xl cursor-pointer ${isSubmitting ? 'opacity-60' : ''}`}>
                   {isSubmitting ? 'Saving...' : 'Save Contract'}
                 </button>

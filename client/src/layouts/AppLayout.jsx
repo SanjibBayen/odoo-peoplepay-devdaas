@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import AppHeader from '../components/common/AppHeader.jsx';
 import SidebarDrawer from '../components/common/SidebarDrawer.jsx';
@@ -6,24 +6,29 @@ import SidebarDrawer from '../components/common/SidebarDrawer.jsx';
 export default function AppLayout({
   roleId = 'employee',
   title = 'Dashboard',
-  portalName = 'Portal',
+  portalName,
   user,
-  activeNav: initialActiveNav = 'dashboard',
   children,
 }) {
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [activeNav, setActiveNav] = useState(initialActiveNav);
 
-  // Update activeNav when prop changes
-  useEffect(() => {
-    setActiveNav(initialActiveNav);
-  }, [initialActiveNav]);
+  const defaultPortalName =
+    portalName ||
+    (roleId === 'admin'
+      ? 'Governance'
+      : roleId === 'hr-manager'
+      ? 'People Ops'
+      : roleId === 'hr-payroll-manager'
+      ? 'Authorization'
+      : roleId === 'hr-payroll-user'
+      ? 'Operations'
+      : 'Self-Service');
 
   return (
     <div className='min-h-screen bg-[#FAF8F5] text-[#1E293B] flex flex-col'>
       <AppHeader
         title={title}
-        portalName={portalName}
+        portalName={defaultPortalName}
         user={user}
         isDrawerOpen={drawerOpen}
         onToggleDrawer={() => setDrawerOpen(!drawerOpen)}
@@ -34,11 +39,6 @@ export default function AppLayout({
         isOpen={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         roleId={roleId}
-        activeNav={activeNav}
-        onNavSelect={(navId) => {
-          setActiveNav(navId);
-          setDrawerOpen(false); // Close drawer on nav selection
-        }}
       />
 
       <main className='flex-1 w-full max-w-7xl mx-auto p-4 sm:p-5 lg:p-6'>

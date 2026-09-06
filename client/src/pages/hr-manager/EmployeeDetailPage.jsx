@@ -5,6 +5,7 @@ import EmployeeForm from '../../components/employee/EmployeeForm.jsx';
 import LoadingState from '../../components/common/LoadingState.jsx';
 import ErrorState from '../../components/common/ErrorState.jsx';
 import BackButton from '../../components/common/BackButton.jsx';
+import Breadcrumbs from '../../components/common/Breadcrumbs.jsx';
 import employeeApi from '../../services/employeeApi.js';
 import { extractErrorMessage } from '../../services/apiClient.js';
 
@@ -109,7 +110,7 @@ export default function EmployeeDetailPage() {
   if (error) {
     return (
       <div className='py-12'>
-        <BackButton label='Back to Employees' onClick={handleBack} />
+        <BackButton label='Back to Employees' fallback='/employees' onClick={handleBack} />
         <ErrorState message={error} onRetry={fetchEmployee} />
       </div>
     );
@@ -118,7 +119,7 @@ export default function EmployeeDetailPage() {
   if (!employee) {
     return (
       <div className='py-12'>
-        <BackButton label='Back to Employees' onClick={handleBack} />
+        <BackButton label='Back to Employees' fallback='/employees' onClick={handleBack} />
         <ErrorState message='Employee not found' onRetry={fetchEmployee} />
       </div>
     );
@@ -126,7 +127,13 @@ export default function EmployeeDetailPage() {
 
   return (
     <div className='space-y-6'>
-      <BackButton label='Back to Employees' onClick={handleBack} />
+      <div className='flex items-center justify-between'>
+        <BackButton label='Back to Employees' fallback='/employees' onClick={handleBack} />
+        <Breadcrumbs items={[
+          { label: 'Employees', to: '/employees' },
+          { label: employee.name || 'Detail' },
+        ]} />
+      </div>
 
       <EmployeeDetails
         employee={employee}

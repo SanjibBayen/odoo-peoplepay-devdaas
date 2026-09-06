@@ -122,7 +122,7 @@ export default function SalaryRuleFormPage() {
 
   return (
     <div className='max-w-3xl mx-auto space-y-6'>
-      <BackButton label='Back to Salary Rules' onClick={() => navigate('/salary-rules')} />
+      <BackButton label='Back to Salary Rules' fallback='/salary-rules' onClick={() => navigate('/salary-rules')} />
 
       <PageHeader
         title={isEdit ? 'Edit Salary Rule' : 'Create Salary Rule'}
@@ -205,7 +205,13 @@ export default function SalaryRuleFormPage() {
           </div>
 
           <div className='pt-4 flex justify-end gap-2 border-t'>
-            <BackButton label='Cancel' onClick={() => navigate('/salary-rules')} />
+            <button
+              type='button'
+              onClick={() => navigate('/salary-rules')}
+              className='px-4 py-2 rounded-xl text-xs font-bold text-gray-700 bg-white hover:bg-gray-50 border border-gray-200 shadow-2xs transition-all cursor-pointer'
+            >
+              Cancel
+            </button>
             <button type='submit' disabled={isSubmitting} className={`px-5 py-2 text-xs font-bold text-white bg-[#714B67] rounded-xl cursor-pointer ${isSubmitting ? 'opacity-60' : ''}`}>
               {isSubmitting ? 'Saving...' : isEdit ? 'Update Rule' : 'Create Rule'}
             </button>

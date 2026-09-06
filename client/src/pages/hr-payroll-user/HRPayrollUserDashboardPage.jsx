@@ -5,12 +5,16 @@ import StatCard from '../../components/common/StatCard.jsx';
 import StatusBadge from '../../components/common/StatusBadge.jsx';
 import DashboardSection from '../../components/dashboard/DashboardSection.jsx';
 import QuickActionCard from '../../components/dashboard/QuickActionCard.jsx';
+import { DashboardSkeleton } from '../../components/common/LoadingSkeleton.jsx';
+import ErrorState from '../../components/common/ErrorState.jsx';
+import { useAuth } from '../../hooks/useAuth.js';
 import dashboardApi from '../../services/dashboardApi.js';
 import payrunApi from '../../services/payrunApi.js';
 import payslipApi from '../../services/payslipApi.js';
 import { extractErrorMessage } from '../../services/apiClient.js';
 
 export default function HRPayrollUserDashboardPage() {
+  const { user } = useAuth();
   const navigate = useNavigate();
 
   const [kpis, setKpis] = useState([]);
@@ -109,31 +113,52 @@ export default function HRPayrollUserDashboardPage() {
   ];
 
   if (loading) {
+    return <DashboardSkeleton />;
+  }
+
+  if (error) {
     return (
-      <div className='py-12'>
-        <div className='text-gray-400 text-sm text-center'>Loading payroll dashboard...</div>
+      <div className='py-6'>
+        <ErrorState
+          title='Dashboard Unavailable'
+          message={error}
+          onRetry={loadDashboard}
+        />
       </div>
     );
   }
 
+  const fullName = user?.fullName || `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || 'Payroll Specialist';
+  const todayDateStr = new Date().toLocaleDateString('en-US', {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+  });
+
   return (
     <div className='space-y-5'>
       <PageHeader
-        title='Payroll Operations'
-        subtitle='Batch wage computations, statutory rule calculations, and attendance matching.'
+        title={`Welcome back, ${fullName}`}
+        subtitle='HR Payroll User — Operational Dashboard'
         actions={
-          <span className='text-[10px] font-bold px-2.5 py-1 rounded-full bg-purple-50 text-[#714B67] border border-purple-200'>
-            Payroll User
-          </span>
+          <div className='flex items-center gap-2.5'>
+            <span className='text-[10px] font-bold px-2.5 py-1 rounded-full bg-stone-100 text-stone-700 border border-stone-200'>
+              📅 {todayDateStr}
+            </span>
+            <span className='text-[10px] font-bold px-2.5 py-1 rounded-full bg-purple-50 text-[#714B67] border border-purple-200'>
+              Payroll User
+            </span>
+            <button
+              type='button'
+              onClick={() => navigate('/payruns/new')}
+              className='px-3.5 py-1.5 text-xs font-bold text-white bg-[#714B67] hover:bg-[#5E3E56] rounded-xl shadow-xs transition-colors cursor-pointer flex items-center gap-1.5'
+            >
+              <span>+</span>
+              <span>Create Payrun</span>
+            </button>
+          </div>
         }
       />
-
-      {error && (
-        <div className='p-3.5 rounded-xl bg-red-50 border border-red-200 text-red-800 text-xs'>
-          {error}
-          <button type='button' onClick={loadDashboard} className='ml-2 font-bold cursor-pointer'>Retry</button>
-        </div>
-      )}
 
       {/* KPIs */}
       <div className='grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4'>
@@ -158,7 +183,9 @@ export default function HRPayrollUserDashboardPage() {
         {/* Recent Payruns */}
         <div className='lg:col-span-7'>
           <DashboardSection title='Recent Payruns' subtitle='Latest payroll batches' action={
-            <span className='text-[10px] text-gray-400'>{payruns.length} Batches</span>
+            <button type='button' onClick={() => navigate('/payruns')} className='text-[11px] font-bold text-[#714B67] hover:underline cursor-pointer'>
+              View All ({payruns.length}) →
+            </button>
           }>
             {payruns.length === 0 ? (
               <p className='text-xs text-gray-400 py-4 text-center'>No payruns yet.</p>
@@ -181,7 +208,9 @@ export default function HRPayrollUserDashboardPage() {
         {/* Recent Payslips */}
         <div className='lg:col-span-5'>
           <DashboardSection title='Recent Payslips' subtitle='Latest generated slips' action={
-            <span className='text-[10px] text-gray-400'>{payslips.length} Slips</span>
+            <button type='button' onClick={() => navigate('/payslips')} className='text-[11px] font-bold text-[#714B67] hover:underline cursor-pointer'>
+              View All ({payslips.length}) →
+            </button>
           }>
             {payslips.length === 0 ? (
               <p className='text-xs text-gray-400 py-4 text-center'>No payslips yet.</p>
@@ -209,8 +238,8 @@ export default function HRPayrollUserDashboardPage() {
             key={action.id}
             action={action}
             onClick={() => {
-              if (action.id === 'create-payrun') navigate('/payroll/payruns/new');
-              else if (action.id === 'view-payruns') navigate('/payroll/payruns');
+              if (action.id === 'create-payrun') navigate('/payruns/new');
+              else if (action.id === 'view-payruns') navigate('/payruns');
               else if (action.id === 'view-payslips') navigate('/payslips');
             }}
           />

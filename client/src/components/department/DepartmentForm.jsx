@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import BackButton from '../common/BackButton.jsx';
 
 /**
  * Reusable modal form for creating or editing departments.
@@ -182,7 +181,13 @@ export default function DepartmentForm({
           </div>
 
           <div className='pt-2 flex justify-end gap-2 border-t border-gray-100'>
-            <BackButton label='Cancel' onClick={onClose} />
+            <button
+              type='button'
+              onClick={onClose}
+              className='px-4 py-1.5 font-semibold text-gray-700 hover:text-gray-900 border rounded-xl hover:bg-gray-50 cursor-pointer'
+            >
+              Cancel
+            </button>
             <button
               type='submit'
               disabled={isSubmitting}

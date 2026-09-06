@@ -3,7 +3,6 @@ import PageHeader from '../../components/common/PageHeader.jsx';
 import LoadingState from '../../components/common/LoadingState.jsx';
 import ErrorState from '../../components/common/ErrorState.jsx';
 import EmptyState from '../../components/common/EmptyState.jsx';
-import BackButton from '../../components/common/BackButton.jsx';
 import payrunApi from '../../services/payrunApi.js';
 import employeeApi from '../../services/employeeApi.js';
 import salaryStructureApi from '../../services/salaryStructureApi.js';
@@ -311,7 +310,13 @@ export default function PayrunsPage() {
                   </div>
                 </div>
                 <div className='pt-2 flex justify-end gap-2 border-t'>
-                  <BackButton label='Cancel' onClick={() => setIsCreateModalOpen(false)} />
+                  <button
+                    type='button'
+                    onClick={() => setIsCreateModalOpen(false)}
+                    className='px-3.5 py-1.5 font-semibold text-gray-700 hover:text-gray-900 border rounded-xl hover:bg-gray-50 cursor-pointer'
+                  >
+                    Cancel
+                  </button>
                   <button type='submit' className='px-4 py-1.5 font-bold text-white bg-[#714B67] rounded-xl cursor-pointer'>Next →</button>
                 </div>
               </form>

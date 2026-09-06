@@ -4,13 +4,15 @@ import PageHeader from '../../components/common/PageHeader.jsx';
 import StatCard from '../../components/common/StatCard.jsx';
 import DashboardSection from '../../components/dashboard/DashboardSection.jsx';
 import QuickActionCard from '../../components/dashboard/QuickActionCard.jsx';
-import LoadingState from '../../components/common/LoadingState.jsx';
+import { DashboardSkeleton } from '../../components/common/LoadingSkeleton.jsx';
 import ErrorState from '../../components/common/ErrorState.jsx';
 import EmptyState from '../../components/common/EmptyState.jsx';
+import { useAuth } from '../../hooks/useAuth.js';
 import dashboardApi from '../../services/dashboardApi.js';
 import { extractErrorMessage } from '../../services/apiClient.js';
 
 export default function AdminDashboardPage() {
+  const { user } = useAuth();
   const navigate = useNavigate();
 
   const [loading, setLoading] = useState(true);
@@ -103,14 +105,40 @@ export default function AdminDashboardPage() {
   const manualEdits = attendanceOverview?.manualEdits ?? 0;
   const missingCheckouts = attendanceOverview?.missingCheckouts ?? 0;
 
+  if (loading) {
+    return <DashboardSkeleton />;
+  }
+
+  if (error) {
+    return (
+      <div className='py-6'>
+        <ErrorState
+          title='Dashboard Unavailable'
+          message={error}
+          onRetry={() => loadDashboardData(false)}
+        />
+      </div>
+    );
+  }
+
+  const fullName = user?.fullName || `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || 'System Administrator';
+  const todayDateStr = new Date().toLocaleDateString('en-US', {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+  });
+
   return (
     <div className='space-y-6'>
       <PageHeader
-        title='System Administration'
-        subtitle='Real-time workforce health, payroll disbursals, and operational governance.'
+        title={`Welcome back, ${fullName}`}
+        subtitle='System Administrator — Operational Dashboard'
         handwrittenNote='Platform Governance'
         actions={
-          <div className='flex items-center gap-2'>
+          <div className='flex items-center gap-2.5'>
+            <span className='text-[10px] font-bold px-2.5 py-1 rounded-full bg-stone-100 text-stone-700 border border-stone-200'>
+              📅 {todayDateStr}
+            </span>
             <button
               type='button'
               onClick={() => loadDashboardData(true)}
@@ -135,16 +163,8 @@ export default function AdminDashboardPage() {
         }
       />
 
-      {loading && <LoadingState message='Loading system administration dashboard...' />}
-
-      {!loading && error && (
-        <ErrorState title='Unable to load dashboard data' message={error} onRetry={() => loadDashboardData(false)} />
-      )}
-
-      {!loading && !error && (
-        <>
-          {/* KPI Cards */}
-          <section aria-labelledby='admin-kpis-heading'>
+      {/* KPI Cards */}
+      <section aria-labelledby='admin-kpis-heading'>
             <h2 id='admin-kpis-heading' className='sr-only'>System KPIs</h2>
             <div className='grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4'>
               <StatCard
@@ -324,33 +344,27 @@ export default function AdminDashboardPage() {
             </div>
           </div>
 
-          {/* Quick Actions - FIXED LINKS */}
-          <div className='space-y-2.5'>
-            <div className='flex items-center justify-between px-1'>
-              <h3 className='text-xs font-bold uppercase tracking-wider text-gray-400'>Quick System Shortcuts</h3>
-              <span className='text-[10px] text-gray-400'>Administrator Controls</span>
-            </div>
-            <div className='grid grid-cols-1 sm:grid-cols-4 gap-3'>
-              <QuickActionCard
-                action={{ id: 'add-employee', title: 'Add Employee', subtitle: 'Onboard worker & send magic link', iconType: 'user-plus', accent: 'purple', badge: 'Onboarding' }}
-                onClick={() => navigate('/employees/add')}
-              />
-              <QuickActionCard
-                action={{ id: 'manage-users', title: 'User Accounts', subtitle: 'Manage roles and application users', iconType: 'shield', accent: 'blue', badge: 'Security' }}
-                onClick={() => navigate('/users')}
-              />
-              <QuickActionCard
-                action={{ id: 'departments', title: 'Departments', subtitle: 'Configure teams & departments', iconType: 'building', accent: 'emerald', badge: 'Organization' }}
-                onClick={() => navigate('/departments')}
-              />
-              <QuickActionCard
-                action={{ id: 'schedules', title: 'Work Schedules', subtitle: 'Shift hours and working calendars', iconType: 'clock', accent: 'amber', badge: 'Operations' }}
-                onClick={() => navigate('/schedules')}
-              />
-            </div>
-          </div>
-        </>
-      )}
+      {/* Quick Actions */}
+      <div className='space-y-2.5'>
+        <div className='flex items-center justify-between px-1'>
+          <h3 className='text-xs font-bold uppercase tracking-wider text-gray-400'>Quick Actions</h3>
+          <span className='text-[10px] text-gray-400'>Administrator Controls</span>
+        </div>
+        <div className='grid grid-cols-1 sm:grid-cols-3 gap-3'>
+          <QuickActionCard
+            action={{ id: 'add-employee', title: 'Add Employee', subtitle: 'Onboard worker & send magic link', iconType: 'user-plus', accent: 'purple', badge: 'Onboarding' }}
+            onClick={() => navigate('/employees/add')}
+          />
+          <QuickActionCard
+            action={{ id: 'manage-users', title: 'User Accounts', subtitle: 'Manage roles and application users', iconType: 'shield', accent: 'blue', badge: 'Security' }}
+            onClick={() => navigate('/users')}
+          />
+          <QuickActionCard
+            action={{ id: 'departments', title: 'Departments', subtitle: 'Configure teams & departments', iconType: 'building', accent: 'emerald', badge: 'Organization' }}
+            onClick={() => navigate('/departments')}
+          />
+        </div>
+      </div>
     </div>
   );
 }

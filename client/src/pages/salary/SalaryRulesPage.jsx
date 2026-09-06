@@ -3,7 +3,6 @@ import PageHeader from '../../components/common/PageHeader.jsx';
 import LoadingState from '../../components/common/LoadingState.jsx';
 import ErrorState from '../../components/common/ErrorState.jsx';
 import EmptyState from '../../components/common/EmptyState.jsx';
-import BackButton from '../../components/common/BackButton.jsx';
 import salaryRuleApi from '../../services/salaryRuleApi.js';
 import { extractErrorMessage } from '../../services/apiClient.js';
 import { formatCurrency } from '../../utils/formatCurrency.js';
@@ -287,7 +286,13 @@ export default function SalaryRulesPage() {
               </div>
 
               <div className='pt-2 flex justify-end gap-2 border-t'>
-                <BackButton label='Cancel' onClick={() => setIsModalOpen(false)} />
+                <button
+                  type='button'
+                  onClick={() => setIsModalOpen(false)}
+                  className='px-4 py-1.5 font-bold text-gray-700 bg-white hover:bg-gray-50 border border-gray-200 rounded-xl cursor-pointer'
+                >
+                  Cancel
+                </button>
                 <button type='submit' disabled={isSubmitting} className={`px-4 py-1.5 font-bold text-white bg-[#714B67] rounded-xl cursor-pointer ${isSubmitting ? 'opacity-60' : ''}`}>
                   {isSubmitting ? 'Saving...' : 'Save Rule'}
                 </button>

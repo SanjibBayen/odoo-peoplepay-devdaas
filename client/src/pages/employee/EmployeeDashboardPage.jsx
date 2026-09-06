@@ -5,6 +5,8 @@ import StatCard from '../../components/common/StatCard.jsx';
 import AttendanceCard from '../../components/dashboard/AttendanceCard.jsx';
 import QuickActionCard from '../../components/dashboard/QuickActionCard.jsx';
 import UpcomingCard from '../../components/dashboard/UpcomingCard.jsx';
+import { DashboardSkeleton } from '../../components/common/LoadingSkeleton.jsx';
+import ErrorState from '../../components/common/ErrorState.jsx';
 import { attendanceApi } from '../../services/attendanceApi.js';
 import { dashboardApi } from '../../services/dashboardApi.js';
 import { useAuth } from '../../hooks/useAuth.js';
@@ -215,38 +217,57 @@ export default function EmployeeDashboardPage() {
   const { kpis, attendanceToday, upcoming, quickActions, todaySchedule, workProgress } = dashboardData;
 
   if (loading) {
-    return (
-      <div className='flex items-center justify-center h-64'>
-        <div className='text-gray-400 text-sm'>Loading dashboard...</div>
-      </div>
-    );
+    return <DashboardSkeleton />;
   }
 
   if (error) {
     return (
-      <div className='flex items-center justify-center h-64'>
-        <div className='text-red-500 text-sm'>{error}</div>
-        <button type='button' onClick={fetchDashboard} className='ml-3 text-xs font-bold text-[#714B67] cursor-pointer'>
-          Retry
-        </button>
+      <div className='py-6'>
+        <ErrorState
+          title='Dashboard Unavailable'
+          message={error}
+          onRetry={fetchDashboard}
+        />
       </div>
     );
   }
 
-  const firstName = user?.firstName || 'there';
+  const fullName = user?.fullName || `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || 'Employee';
   const hasCheckedIn = Boolean(attendanceToday?.checkIn);
   const hasCheckedOut = Boolean(attendanceToday?.checkOut);
   const isWorking = attendanceToday?.isCurrentlyWorking || false;
 
+  const todayDateStr = new Date().toLocaleDateString('en-US', {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+  });
+
   return (
     <div className='space-y-5'>
       <PageHeader
-        title={`Good morning, ${firstName}`}
-        subtitle="Here's what's happening with your work today."
+        title={`Welcome back, ${fullName}`}
+        subtitle='Employee — Operational Dashboard'
         actions={
-          <span className='text-[10px] font-bold px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200'>
-            {todaySchedule?.isWorkingDay !== false ? '● Working Day' : '● Rest Day'}
-          </span>
+          <div className='flex items-center gap-2.5'>
+            <span className='text-[10px] font-bold px-2.5 py-1 rounded-full bg-stone-100 text-stone-700 border border-stone-200'>
+              📅 {todayDateStr}
+            </span>
+            <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full border ${
+              todaySchedule?.isWorkingDay !== false
+                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                : 'bg-stone-50 text-stone-600 border-stone-200'
+            }`}>
+              {todaySchedule?.isWorkingDay !== false ? '● Working Day' : '● Rest Day'}
+            </span>
+            <button
+              type='button'
+              onClick={() => navigate('/time-off')}
+              className='px-3.5 py-1.5 text-xs font-bold text-white bg-[#714B67] hover:bg-[#5E3E56] rounded-xl shadow-xs transition-colors cursor-pointer'
+            >
+              Request Leave
+            </button>
+          </div>
         }
       />
 

@@ -53,6 +53,8 @@ import DepartmentsPage from '../pages/admin/DepartmentsPage.jsx';
 import SettingsPage from '../pages/admin/SettingsPage.jsx';
 import AuditLogsPage from '../pages/admin/AuditLogsPage.jsx';
 import ProfilePage from '../pages/employee/ProfilePage.jsx';
+import NotFoundPage from '../pages/public/NotFoundPage.jsx';
+import AccessDeniedPage from '../pages/public/AccessDeniedPage.jsx';
 
 // Guards
 import ProtectedRoute from './ProtectedRoute.jsx';
@@ -75,6 +77,12 @@ function AppShell({ children, title, activeNav }) {
   );
 }
 
+function DashboardRedirect() {
+  const currentRole = useSelector(selectCurrentRole) || 'employee';
+  const roleSlug = currentRole.toLowerCase().replace(/_/g, '-');
+  return <Navigate to={`/dashboard/${roleSlug}`} replace />;
+}
+
 export default function AppRoutes() {
   return (
     <AuthSessionProvider>
@@ -94,6 +102,19 @@ export default function AppRoutes() {
 
         {/* Protected Routes */}
         <Route element={<ProtectedRoute />}>
+          {/* Universal Dashboard Redirect */}
+          <Route path='/dashboard' element={<DashboardRedirect />} />
+
+          {/* Access Denied Page */}
+          <Route path='/access-denied' element={<AccessDeniedPage />} />
+
+          {/* Canonical & Convenience Route Aliases */}
+          <Route path='/employees/new' element={<Navigate to='/employees/add' replace />} />
+          <Route path='/admin/add-employee' element={<Navigate to='/employees/add' replace />} />
+          <Route path='/payroll/payruns' element={<Navigate to='/payruns' replace />} />
+          <Route path='/payroll/payruns/new' element={<Navigate to='/payruns/new' replace />} />
+          <Route path='/salary/structures' element={<Navigate to='/salary-structures' replace />} />
+          <Route path='/salary/rules' element={<Navigate to='/salary-rules' replace />} />
           
           {/* ============ EMPLOYEE ROUTES ============ */}
           <Route element={<RoleRoute allowedRoles={['employee', 'hr_manager', 'hr_payroll_user', 'hr_payroll_manager', 'admin']} />}>
@@ -175,8 +196,8 @@ export default function AppRoutes() {
 
         </Route>
 
-        {/* Catch-all */}
-        <Route path='*' element={<Navigate to='/' replace />} />
+        {/* Catch-all 404 */}
+        <Route path='*' element={<NotFoundPage />} />
       </Routes>
     </AuthSessionProvider>
   );

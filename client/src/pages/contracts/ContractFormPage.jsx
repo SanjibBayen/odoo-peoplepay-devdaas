@@ -143,7 +143,7 @@ export default function ContractFormPage() {
 
   return (
     <div className='max-w-3xl mx-auto space-y-6'>
-      <BackButton label='Back to Contracts' onClick={() => navigate('/contracts')} />
+      <BackButton label='Back to Contracts' fallback='/contracts' onClick={() => navigate('/contracts')} />
 
       <PageHeader
         title={isEdit ? 'Edit Employment Contract' : 'Create Employment Contract'}
@@ -282,7 +282,13 @@ export default function ContractFormPage() {
           </div>
 
           <div className='pt-4 flex justify-end gap-2 border-t border-gray-100'>
-            <BackButton label='Cancel' onClick={() => navigate('/contracts')} />
+            <button
+              type='button'
+              onClick={() => navigate('/contracts')}
+              className='px-4 py-2 rounded-xl text-xs font-bold text-gray-700 bg-white hover:bg-gray-50 border border-gray-200 shadow-2xs transition-all cursor-pointer'
+            >
+              Cancel
+            </button>
             <button
               type='submit'
               disabled={isSubmitting}

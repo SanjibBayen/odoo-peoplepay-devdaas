@@ -23,17 +23,7 @@ export default function RoleRoute({ allowedRoles = [] }) {
   );
 
   if (!isAuthorized) {
-    // Map role to correct dashboard path
-    const dashboardPaths = {
-      employee: '/employee/dashboard',
-      hr_manager: '/hr-manager/dashboard',
-      hr_payroll_user: '/hr-payroll-user/dashboard',
-      hr_payroll_manager: '/hr-payroll-manager/dashboard',
-      admin: '/admin/dashboard',
-    };
-
-    const redirectPath = dashboardPaths[normalizedCurrent] || '/employee/dashboard';
-    return <Navigate to={redirectPath} replace state={{ from: location }} />;
+    return <Navigate to='/access-denied' replace state={{ from: location }} />;
   }
 
   return <Outlet />;

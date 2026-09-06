@@ -2,27 +2,35 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 
 /**
- * Reusable, accessible Back button for detail, edit, and sub-pages.
- * Uses router history navigation (`navigate(-1)`) with optional fallback.
+ * Reusable, accessible BackButton for contextual back navigation on detail, create, and edit pages.
  *
  * @param {Object} props
- * @param {string} [props.label='Back'] - Button text
- * @param {string} [props.fallback] - Fallback route if history is unavailable
- * @param {string} [props.className] - Additional CSS classes
- * @param {Function} [props.onClick] - Custom click handler (overrides navigate(-1))
+ * @param {string} [props.label='Back'] - Contextual button text (e.g. 'Back to Employees')
+ * @param {string} [props.fallback='/'] - Safe fallback route if browser history is unavailable
+ * @param {string} [props.className=''] - Additional CSS classes
+ * @param {Function} [props.onClick] - Optional custom click handler
  */
 export default function BackButton({
   label = 'Back',
-  fallback,
+  fallback = '/',
   className = '',
   onClick,
 }) {
   const navigate = useNavigate();
 
-  const handleClick = () => {
+  const handleBack = () => {
     if (onClick) {
       onClick();
-    } else if (window.history.length > 1) {
+      return;
+    }
+
+    // Check if browser has internal React Router history
+    const hasHistory =
+      typeof window !== 'undefined' &&
+      window.history.state &&
+      window.history.state.idx > 0;
+
+    if (hasHistory) {
       navigate(-1);
     } else if (fallback) {
       navigate(fallback);
@@ -34,7 +42,7 @@ export default function BackButton({
   return (
     <button
       type='button'
-      onClick={handleClick}
+      onClick={handleBack}
       aria-label={`Go back - ${label}`}
       className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-gray-700 hover:text-[#714B67] bg-white hover:bg-gray-50 border border-gray-200 hover:border-gray-300 shadow-2xs transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#714B67]/30 ${className}`}
     >

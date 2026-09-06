@@ -112,7 +112,7 @@ export default function SalaryStructureFormPage() {
 
   return (
     <div className='max-w-3xl mx-auto space-y-6'>
-      <BackButton label='Back to Structures' onClick={() => navigate('/salary-structures')} />
+      <BackButton label='Back to Structures' fallback='/salary-structures' onClick={() => navigate('/salary-structures')} />
 
       <PageHeader
         title={isEdit ? 'Edit Salary Structure' : 'Create Salary Structure'}
@@ -192,7 +192,13 @@ export default function SalaryStructureFormPage() {
           </div>
 
           <div className='pt-4 flex justify-end gap-2 border-t'>
-            <BackButton label='Cancel' onClick={() => navigate('/salary-structures')} />
+            <button
+              type='button'
+              onClick={() => navigate('/salary-structures')}
+              className='px-4 py-2 rounded-xl text-xs font-bold text-gray-700 bg-white hover:bg-gray-50 border border-gray-200 shadow-2xs transition-all cursor-pointer'
+            >
+              Cancel
+            </button>
             <button type='submit' disabled={isSubmitting} className={`px-5 py-2 text-xs font-bold text-white bg-[#714B67] rounded-xl cursor-pointer ${isSubmitting ? 'opacity-60' : ''}`}>
               {isSubmitting ? 'Saving...' : isEdit ? 'Update Structure' : 'Create Structure'}
             </button>

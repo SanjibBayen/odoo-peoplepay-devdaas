@@ -73,10 +73,8 @@ export default function EmployeeDetails({ employee, onBack, onEdit }) {
 
   return (
     <div className='space-y-5'>
-      {/* Top Breadcrumb / Back Action */}
-      <div className='flex items-center justify-between'>
-        <BackButton label='Back to Employees' fallback='/employees' onClick={onBack} />
-
+      {/* ID tag */}
+      <div className='flex items-center justify-end'>
         <span className='text-[11px] font-mono text-gray-400 bg-gray-50 px-2 py-0.5 rounded border border-gray-200'>
           ID: {employee.employeeId}
         </span>
