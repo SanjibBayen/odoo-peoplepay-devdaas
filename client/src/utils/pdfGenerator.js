@@ -263,7 +263,9 @@ export async function downloadPayslipPdf(slip) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `Payslip-${slipNumber}.pdf`;
+  const cleanEmp = (emp.employeeCode || empName || 'Employee').replace(/[^a-zA-Z0-9_-]/g, '_');
+  const cleanPeriod = (slip.periodStart && slip.periodEnd ? `${slip.periodStart}_to_${slip.periodEnd}` : period).replace(/[^a-zA-Z0-9_-]/g, '_');
+  a.download = `PeoplePay_Payslip_${cleanEmp}_${cleanPeriod}.pdf`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);

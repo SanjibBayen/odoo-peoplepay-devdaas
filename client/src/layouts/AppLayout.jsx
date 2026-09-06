@@ -41,11 +41,11 @@ export default function AppLayout({
         roleId={roleId}
       />
 
-      <main className='flex-1 w-full max-w-7xl mx-auto p-4 sm:p-5 lg:p-6'>
+      <main className='flex-1 w-full max-w-7xl mx-auto p-4 sm:p-5 lg:p-6 print:p-0 print:m-0 print:max-w-full'>
         {children || <Outlet />}
       </main>
 
-      <footer className='py-3 px-5 border-t border-[#EAE6DF] bg-white/60 text-center text-[11px] text-gray-400'>
+      <footer className='py-3 px-5 border-t border-[#EAE6DF] bg-white/60 text-center text-[11px] text-gray-400 print:hidden'>
         © 2026 PeoplePay. All rights reserved.
       </footer>
     </div>

@@ -4,6 +4,7 @@ import { useSelector, useDispatch } from 'react-redux';
 import useLogout from '../../hooks/useLogout.js';
 import ChangePasswordModal from '../auth/ChangePasswordModal.jsx';
 import notificationService from '../../services/notificationService.js';
+import socketService from '../../services/socketService.js';
 import {
   setNotifications,
   markAsRead,
@@ -31,21 +32,37 @@ export default function AppHeader({
     (state) => state.notifications || { items: [], unreadCount: 0 }
   );
 
-  // Load real system notifications on mount
+  // Initialize real-time Socket.IO connection
+  useEffect(() => {
+    if (user) {
+      socketService.connect(null, user);
+    }
+  }, [user]);
+
+  // Load real system notifications on mount with 30s fallback polling
   useEffect(() => {
     let active = true;
-    notificationService.loadNotifications(roleSlug).then((alerts) => {
-      if (active && alerts) {
-        dispatch(setNotifications(alerts));
-      }
-    });
+
+    const fetchNotifications = () => {
+      notificationService.loadNotifications(roleSlug).then((alerts) => {
+        if (active && alerts) {
+          dispatch(setNotifications(alerts));
+        }
+      });
+    };
+
+    fetchNotifications();
+    const timer = setInterval(fetchNotifications, 30000);
+
     return () => {
       active = false;
+      clearInterval(timer);
     };
   }, [roleSlug, dispatch]);
 
   const handleNotificationClick = (item) => {
     dispatch(markAsRead(item.id));
+    notificationService.markRead(item.id);
     setNotificationsOpen(false);
     if (item.route) {
       navigate(item.route);
@@ -54,6 +71,7 @@ export default function AppHeader({
 
   const handleMarkAllRead = () => {
     dispatch(markAllAsRead());
+    notificationService.markAllRead();
   };
 
   const getCategoryBadge = (category) => {
@@ -72,9 +90,23 @@ export default function AppHeader({
   };
 
   return (
-    <header className='sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-[#EAE6DF] px-3 sm:px-5 lg:px-6 h-13 flex items-center justify-between transition-all'>
-      {/* Left: Brand & Page Title */}
-      <div className='flex items-center gap-3 min-w-0'>
+    <header className='sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-[#EAE6DF] px-3 sm:px-5 lg:px-6 h-13 flex items-center justify-between transition-all print:hidden'>
+      {/* Left: Hamburger & Brand & Page Title */}
+      <div className='flex items-center gap-2.5 sm:gap-3 min-w-0'>
+        {/* Accessible Hamburger Menu Button (Far Left) */}
+        <button
+          type='button'
+          onClick={onToggleDrawer}
+          className='p-1.5 rounded-lg text-gray-600 hover:text-[#714B67] hover:bg-[#FAF8F5] border border-gray-200 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#714B67] shrink-0'
+          aria-expanded={isDrawerOpen}
+          aria-label='Toggle navigation menu'
+          aria-controls='sidebar-drawer'
+        >
+          <svg className='w-4.5 h-4.5' fill='none' stroke='currentColor' viewBox='0 0 24 24' strokeWidth='2'>
+            <path strokeLinecap='round' strokeLinejoin='round' d='M4 6h16M4 12h16M4 18h16' />
+          </svg>
+        </button>
+
         <Link
           to={`/dashboard/${roleSlug}`}
           className='flex items-center gap-2 group shrink-0'
@@ -145,7 +177,7 @@ export default function AppHeader({
               />
             </svg>
             {unreadCount > 0 && (
-              <span className='absolute -top-1 -right-1 min-w-4 h-4 px-1 rounded-full bg-rose-500 text-white text-[9px] font-black flex items-center justify-center ring-2 ring-white'>
+              <span className='absolute -top-1 -right-1 min-w-4 h-4 px-1 rounded-full bg-rose-500 text-white text-[9px] font-black flex items-center justify-center ring-2 ring-white animate-pulse'>
                 {unreadCount > 9 ? '9+' : unreadCount}
               </span>
             )}
@@ -321,20 +353,6 @@ export default function AppHeader({
             </div>
           )}
         </div>
-
-        {/* Accessible Hamburger Menu Button (Far Right) */}
-        <button
-          type='button'
-          onClick={onToggleDrawer}
-          className='p-1.5 rounded-lg text-gray-600 hover:text-[#714B67] hover:bg-[#FAF8F5] border border-gray-200 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#714B67]'
-          aria-expanded={isDrawerOpen}
-          aria-label='Toggle navigation menu'
-          aria-controls='sidebar-drawer'
-        >
-          <svg className='w-4.5 h-4.5' fill='none' stroke='currentColor' viewBox='0 0 24 24' strokeWidth='2'>
-            <path strokeLinecap='round' strokeLinejoin='round' d='M4 6h16M4 12h16M4 18h16' />
-          </svg>
-        </button>
       </div>
 
       <ChangePasswordModal

@@ -46,7 +46,7 @@ export default function PayslipDetailPage() {
     setIsGeneratingPdf(true);
     try {
       await downloadPayslipPdf(payslip);
-      setActionMessage({ type: 'success', text: 'PDF downloaded successfully.' });
+      setActionMessage({ type: 'success', text: 'Payslip PDF downloaded successfully.' });
       setTimeout(() => setActionMessage(null), 4000);
     } catch (err) {
       setActionMessage({

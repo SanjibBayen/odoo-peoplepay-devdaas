@@ -11,6 +11,7 @@ import TaxSlab from '../models/taxSlab.model.js';
 import PayrollWarning from '../models/payrollWarning.model.js';
 import EmailDeliveryLog from '../models/emailDeliveryLog.model.js';
 import Notification from '../models/notification.model.js';
+import { notifyUser, notifyRole } from '../services/socket.service.js';
 import { AppError, asyncHandler } from '../middleware/error.middleware.js';
 import { sequelize } from '../config/database.js';
 import { sendBulkEmails } from '../utils/sendEmail.js';
@@ -523,6 +524,16 @@ export const validatePayrun = asyncHandler(async(req, res, next) => {
 
     await payrun.validate(req.user.id);
 
+    // Notify HR Payroll Managers in real-time
+    notifyRole('HR_PAYROLL_MANAGER', {
+        title: 'Payrun Validated',
+        message: `Payrun #${payrun.payrunNumber || payrun.id} has been validated and is ready for payment approval.`,
+        type: 'SUCCESS',
+        entityType: 'Payrun',
+        entityId: payrun.id,
+        route: `/payruns/${payrun.id}`,
+    }).catch(() => null);
+
     res.status(200).json({
         success: true,
         message: 'Payrun validated successfully',
@@ -545,7 +556,7 @@ export const markPayrunPaid = asyncHandler(async(req, res, next) => {
 
     await payrun.markPaid(req.user.id);
 
-    // Notify employees
+    // Notify employees in real-time
     const payslips = await Payslip.findAll({
         where: { payrunId: id },
         include: [{ model: Employee, as: 'employee' }],
@@ -554,14 +565,15 @@ export const markPayrunPaid = asyncHandler(async(req, res, next) => {
     for (const payslip of payslips) {
         const employee = payslip.employee;
         if (employee?.userId) {
-            await Notification.createNotification(
-                employee.userId,
-                'Payslip Available',
-                `Your payslip for ${payrun.periodStart} to ${payrun.periodEnd} is now available. Net Salary: ₹${payslip.netSalary}`,
-                'SUCCESS',
-                'payslip',
-                payslip.id
-            );
+            await notifyUser({
+                userId: employee.userId,
+                title: 'Payslip Available',
+                message: `Your payslip for ${payrun.periodStart} to ${payrun.periodEnd} is now available. Net Salary: ₹${payslip.netSalary}`,
+                type: 'SUCCESS',
+                entityType: 'payslip',
+                entityId: payslip.id,
+                route: `/payslips/${payslip.id}`,
+            }).catch(() => null);
         }
     }
 

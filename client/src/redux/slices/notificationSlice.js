@@ -89,10 +89,21 @@ const notificationSlice = createSlice({
         state.unreadCount += 1;
       }
     },
+
+    setUnreadCount(state, action) {
+      if (typeof action.payload === 'number') {
+        state.unreadCount = Math.max(0, action.payload);
+      }
+    },
   },
 });
 
-export const { setNotifications, markAsRead, markAllAsRead, addNotification } =
-  notificationSlice.actions;
+export const {
+  setNotifications,
+  markAsRead,
+  markAllAsRead,
+  addNotification,
+  setUnreadCount,
+} = notificationSlice.actions;
 
 export default notificationSlice.reducer;

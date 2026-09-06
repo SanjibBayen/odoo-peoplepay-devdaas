@@ -5,6 +5,7 @@ import TimeOffAllocation from '../models/timeOffAllocation.model.js';
 import Employee from '../models/employee.model.js';
 import { AppError, asyncHandler } from '../middleware/error.middleware.js';
 import { sequelize } from '../config/database.js';
+import { notifyUser, notifyRole } from '../services/socket.service.js';
 
 const { Op } = Sequelize;
 
@@ -281,6 +282,17 @@ export const createRequest = asyncHandler(async(req, res, next) => {
         await allocation.save();
     }
 
+    if (timeOffType.requiresApproval) {
+        notifyRole('HR_MANAGER', {
+            title: 'New Leave Request',
+            message: `${employee.firstName} ${employee.lastName || ''} submitted a ${timeOffType.name} request.`,
+            type: 'INFO',
+            entityType: 'TimeOffRequest',
+            entityId: request.id,
+            route: '/time-off/requests',
+        }).catch(() => null);
+    }
+
     res.status(201).json({
         success: true,
         message: timeOffType.requiresApproval ? 'Request submitted for approval' : 'Request approved automatically',
@@ -371,6 +383,21 @@ export const approveRequest = asyncHandler(async(req, res, next) => {
 
         await transaction.commit();
 
+        // Notify employee in real-time
+        Employee.findByPk(request.employeeId).then((emp) => {
+            if (emp?.userId) {
+                notifyUser({
+                    userId: emp.userId,
+                    title: 'Leave Request Approved',
+                    message: `Your ${request.duration} ${request.unit?.toLowerCase() || 'day(s)'} leave request has been approved.`,
+                    type: 'SUCCESS',
+                    entityType: 'TimeOffRequest',
+                    entityId: request.id,
+                    route: '/time-off',
+                }).catch(() => null);
+            }
+        }).catch(() => null);
+
         res.status(200).json({
             success: true,
             message: 'Request approved successfully',
@@ -406,6 +433,21 @@ export const refuseRequest = asyncHandler(async(req, res, next) => {
     request.approvedAt = new Date();
 
     await request.save();
+
+    // Notify employee in real-time
+    Employee.findByPk(request.employeeId).then((emp) => {
+        if (emp?.userId) {
+            notifyUser({
+                userId: emp.userId,
+                title: 'Leave Request Refused',
+                message: `Your leave request was refused. Reason: ${request.refusalReason}`,
+                type: 'WARNING',
+                entityType: 'TimeOffRequest',
+                entityId: request.id,
+                route: '/time-off',
+            }).catch(() => null);
+        }
+    }).catch(() => null);
 
     res.status(200).json({
         success: true,

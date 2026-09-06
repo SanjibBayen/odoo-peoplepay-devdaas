@@ -1,7 +1,9 @@
+import http from 'http';
 import dotenv from 'dotenv';
 import app from './src/app.js';
 import { sequelize } from './src/config/database.js';
 import { initializeDatabase } from './src/models/index.js';
+import { initSocket } from './src/services/socket.service.js';
 
 dotenv.config();
 
@@ -16,8 +18,12 @@ const startServer = async () => {
     // Initialize models
     await initializeDatabase();
     
+    // Create HTTP server & attach Socket.IO
+    const server = http.createServer(app);
+    initSocket(server);
+
     // Start server
-    app.listen(PORT, () => {
+    server.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);
       console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
     });

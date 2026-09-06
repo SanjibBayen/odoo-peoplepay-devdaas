@@ -1,18 +1,56 @@
 import dashboardApi from './dashboardApi.js';
+import notificationApi from './notificationApi.js';
 
 /**
  * Service to fetch and normalize real system alerts and status items into user notifications.
- * Extensible for when a dedicated `/api/notifications` route is added to the backend.
+ * Connects to /api/notifications first with graceful fallback to dashboard alert data.
  */
 export const notificationService = {
   /**
-   * Loads real alerts based on role and maps to structured notifications.
+   * Loads real notifications or alerts based on role.
    * @param {string} role - 'admin' | 'hr-manager' | 'hr-payroll-manager' | 'hr-payroll-user' | 'employee'
    * @returns {Promise<Array>}
    */
   async loadNotifications(role = 'employee') {
     const notifications = [];
 
+    // 1. Attempt to fetch from real dedicated /api/notifications endpoint
+    try {
+      const res = await notificationApi.getNotifications().catch(() => null);
+      if (res?.data && Array.isArray(res.data) && res.data.length > 0) {
+        return res.data.map((item) => {
+          let category = 'System';
+          let route = item.route || null;
+
+          if (item.entityType === 'payslip' || item.type === 'SUCCESS') {
+            category = 'Payroll';
+            if (!route && item.entityId) route = `/payslips/${item.entityId}`;
+          } else if (item.entityType === 'TimeOffRequest') {
+            category = 'Time Off';
+            if (!route) route = '/time-off';
+          } else if (item.entityType === 'Payrun') {
+            category = 'Payroll';
+            if (!route && item.entityId) route = `/payruns/${item.entityId}`;
+          }
+
+          return {
+            id: item.id,
+            title: item.title,
+            message: item.message,
+            time: item.createdAt
+              ? new Date(item.createdAt).toLocaleDateString()
+              : 'Recent',
+            category,
+            route,
+            read: !!item.isRead,
+          };
+        });
+      }
+    } catch {
+      // Fall through to dashboard API fallback
+    }
+
+    // 2. Fallback: Extract from real role-specific dashboard endpoints
     try {
       if (role === 'employee') {
         const empRes = await dashboardApi.getEmployeeDashboard().catch(() => null);
@@ -102,6 +140,31 @@ export const notificationService = {
     }
 
     return notifications;
+  },
+
+  /**
+   * Sync read action with backend
+   */
+  async markRead(id) {
+    if (!id || id.startsWith('leave-req-') || id.startsWith('slip-') || id.startsWith('att-') || id.startsWith('alert-')) {
+      return;
+    }
+    try {
+      await notificationApi.markAsRead(id);
+    } catch {
+      // Ignore background sync errors
+    }
+  },
+
+  /**
+   * Sync mark all as read with backend
+   */
+  async markAllRead() {
+    try {
+      await notificationApi.markAllAsRead();
+    } catch {
+      // Ignore background sync errors
+    }
   },
 };
 

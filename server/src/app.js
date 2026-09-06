@@ -21,6 +21,7 @@ import salaryRuleRoutes from './routes/salaryRule.routes.js';
 import payrunRoutes from './routes/payrun.routes.js';
 import payslipRoutes from './routes/payslip.routes.js'; // ADD THIS
 import dashboardRoutes from './routes/dashboard.routes.js';
+import notificationRoutes from './routes/notification.routes.js';
 
 const app = express();
 
@@ -83,6 +84,7 @@ app.use('/api/salary-rules', salaryRuleRoutes);
 app.use('/api/payruns', payrunRoutes);
 app.use('/api/payslips', payslipRoutes); // ADD THIS
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 // 404 handler
 app.use(notFound);
