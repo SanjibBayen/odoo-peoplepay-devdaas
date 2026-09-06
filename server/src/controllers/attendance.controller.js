@@ -210,10 +210,29 @@ export const getAllAttendance = asyncHandler(async (req, res, next) => {
     sortOrder = 'DESC',
   } = req.query;
 
-  // Build where clause
   const where = {};
 
-  if (employeeId) {
+  // FIX: If user only has read_own, filter by their own employee
+  const hasReadAll = await req.user.hasPermission('attendance', 'read_all');
+  const hasReadOwn = await req.user.hasPermission('attendance', 'read_own');
+
+  if (hasReadOwn && !hasReadAll) {
+    // Find employee linked to this user
+    const Employee = (await import('../models/employee.model.js')).default;
+    const employee = await Employee.findOne({ where: { userId: req.user.id } });
+    if (employee) {
+      where.employeeId = employee.id;
+    } else {
+      // No employee record, return empty
+      return res.status(200).json({
+        success: true,
+        data: [],
+        meta: { page: 1, limit: parseInt(limit), total: 0, totalPages: 0 },
+      });
+    }
+  }
+
+  if (employeeId && hasReadAll) {
     where.employeeId = employeeId;
   }
 
@@ -222,17 +241,11 @@ export const getAllAttendance = asyncHandler(async (req, res, next) => {
   }
 
   if (startDate && endDate) {
-    where.workDate = {
-      [Op.between]: [startDate, endDate],
-    };
+    where.workDate = { [Op.between]: [startDate, endDate] };
   } else if (startDate) {
-    where.workDate = {
-      [Op.gte]: startDate,
-    };
+    where.workDate = { [Op.gte]: startDate };
   } else if (endDate) {
-    where.workDate = {
-      [Op.lte]: endDate,
-    };
+    where.workDate = { [Op.lte]: endDate };
   }
 
   const offset = (parseInt(page) - 1) * parseInt(limit);

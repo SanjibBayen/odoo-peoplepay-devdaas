@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import employeeApi from '../../services/employeeApi.js';
 import LoadingState from '../common/LoadingState.jsx';
@@ -7,20 +7,28 @@ import EmptyState from '../common/EmptyState.jsx';
 import { extractErrorMessage } from '../../services/apiClient.js';
 import { formatCurrency } from '../../utils/formatCurrency.js';
 import { formatDate } from '../../utils/formatDate.js';
-import { CONTRACT_STATUS } from '../../utils/constants.js';
+
+const CONTRACT_STATUS = {
+  DRAFT: { label: 'Draft', bg: 'bg-gray-50', text: 'text-gray-700', border: 'border-gray-200' },
+  ACTIVE: { label: 'Active', bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200' },
+  EXPIRED: { label: 'Expired', bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200' },
+  TERMINATED: { label: 'Terminated', bg: 'bg-rose-50', text: 'text-rose-700', border: 'border-rose-200' },
+  CANCELLED: { label: 'Cancelled', bg: 'bg-gray-50', text: 'text-gray-500', border: 'border-gray-200' },
+};
 
 export default function EmployeeContractsTab({ employeeId }) {
   const [contracts, setContracts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const fetchContracts = React.useCallback(async () => {
+  const fetchContracts = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const res = await employeeApi.getEmployeeContracts(employeeId);
-      const list = res.data || (Array.isArray(res) ? res : []);
-      setContracts(list);
+      // FIX: Backend returns { success, count, contracts }
+      const list = res?.contracts || res?.data || [];
+      setContracts(Array.isArray(list) ? list : []);
     } catch (err) {
       setError(extractErrorMessage(err, 'Failed to load employee contracts.'));
     } finally {
@@ -29,24 +37,8 @@ export default function EmployeeContractsTab({ employeeId }) {
   }, [employeeId]);
 
   useEffect(() => {
-    let active = true;
-    (async () => {
-      try {
-        const res = await employeeApi.getEmployeeContracts(employeeId);
-        if (active) {
-          const list = res.data || (Array.isArray(res) ? res : []);
-          setContracts(list);
-        }
-      } catch (err) {
-        if (active) setError(extractErrorMessage(err, 'Failed to load employee contracts.'));
-      } finally {
-        if (active) setLoading(false);
-      }
-    })();
-    return () => {
-      active = false;
-    };
-  }, [employeeId]);
+    fetchContracts();
+  }, [fetchContracts]);
 
   if (loading) return <LoadingState message='Loading employee contracts...' />;
   if (error) return <ErrorState message={error} onRetry={fetchContracts} />;
@@ -60,10 +52,10 @@ export default function EmployeeContractsTab({ employeeId }) {
   }
 
   return (
-    <div className='bg-white rounded-2xl border border-[#EAE6DF] shadow-2xs overflow-hidden'>
+    <div className='bg-white rounded-2xl border overflow-hidden'>
       <div className='overflow-x-auto'>
         <table className='w-full text-left text-xs'>
-          <thead className='bg-[#FAF8F5] border-b border-[#EAE6DF] text-gray-500 font-bold uppercase tracking-wider text-[10px]'>
+          <thead className='bg-[#FAF8F5] border-b text-gray-500 font-bold uppercase text-[10px]'>
             <tr>
               <th className='py-3 px-4'>Contract Code</th>
               <th className='py-3 px-4'>Salary Structure</th>
@@ -76,36 +68,29 @@ export default function EmployeeContractsTab({ employeeId }) {
           </thead>
           <tbody className='divide-y divide-gray-100'>
             {contracts.map((c) => {
-              const code = c.contractNumber || c.contractCode || c.id;
-              const structName = c.salaryStructure?.name || c.structureName || 'Standard Package';
+              const code = c.contractNumber || c.id;
+              const structName = c.salaryStructure?.name || 'Standard';
               const wage = Number(c.wage || 0);
               const st = (c.status || 'ACTIVE').toUpperCase();
               const badge = CONTRACT_STATUS[st] || CONTRACT_STATUS.ACTIVE;
 
               return (
-                <tr key={c.id} className='hover:bg-[#FAF8F5]/60 transition-colors'>
-                  <td className='py-3 px-4 font-mono font-bold text-gray-900'>{code}</td>
-                  <td className='py-3 px-4 font-semibold text-gray-800'>{structName}</td>
-                  <td className='py-3 px-4 font-bold text-gray-900'>{formatCurrency(wage)}</td>
-                  <td className='py-3 px-4 text-gray-600 font-medium'>
-                    {formatDate(c.startDate, 'DD Mon YYYY')}
-                  </td>
-                  <td className='py-3 px-4 text-gray-600 font-medium'>
+                <tr key={c.id} className='hover:bg-[#FAF8F5]/60'>
+                  <td className='py-3 px-4 font-mono font-bold'>{code}</td>
+                  <td className='py-3 px-4'>{structName}</td>
+                  <td className='py-3 px-4 font-bold'>{formatCurrency(wage)}</td>
+                  <td className='py-3 px-4'>{formatDate(c.startDate, 'DD Mon YYYY')}</td>
+                  <td className='py-3 px-4'>
                     {c.endDate ? formatDate(c.endDate, 'DD Mon YYYY') : '(Open-ended)'}
                   </td>
                   <td className='py-3 px-4'>
-                    <span
-                      className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold border ${badge.bg} ${badge.text} ${badge.border}`}
-                    >
+                    <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold border ${badge.bg} ${badge.text} ${badge.border}`}>
                       {badge.label}
                     </span>
                   </td>
                   <td className='py-3 px-4 text-right'>
-                    <Link
-                      to={`/contracts/${c.id}`}
-                      className='text-xs font-bold text-[#714B67] hover:underline cursor-pointer'
-                    >
-                      View Details →
+                    <Link to={`/contracts/${c.id}`} className='text-xs font-bold text-[#714B67] hover:underline'>
+                      View →
                     </Link>
                   </td>
                 </tr>

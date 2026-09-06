@@ -11,8 +11,7 @@ import {
   getEmployeeLeaveBalances,
   getEmployeeActiveContract,
 } from '../controllers/employee.controller.js';
-import { protect } from '../middleware/auth.middleware.js';
-import { requirePermission } from '../middleware/auth.middleware.js';
+import { protect, requirePermission } from '../middleware/auth.middleware.js';
 import { cacheMiddleware } from '../middleware/cache.middleware.js';
 import { deleteCacheByPattern } from '../utils/cache.utils.js';
 
@@ -20,7 +19,7 @@ const router = express.Router();
 
 // ============ EMPLOYEE CRUD ROUTES ============
 
-// Get all employees
+// Get all employees (HR/Admin only)
 router.get(
   '/',
   protect,
@@ -29,16 +28,15 @@ router.get(
   getAllEmployees
 );
 
-// Get single employee - FIX: Use read_all instead of read_one
+// Get single employee - Any authenticated user
 router.get(
   '/:id',
   protect,
-  requirePermission('employees', 'read_all'),
   cacheMiddleware('employees:detail', 300),
   getEmployeeById
 );
 
-// Create employee
+// Create employee (HR/Admin)
 router.post(
   '/',
   protect,
@@ -50,39 +48,36 @@ router.post(
   createEmployee
 );
 
-// Update employee
+// Update employee (HR/Admin)
 router.put(
   '/:id',
   protect,
   requirePermission('employees', 'update'),
   async (req, res, next) => {
-    await deleteCacheByPattern(`employees:*${req.params.id}*`);
-    await deleteCacheByPattern('employees:list*');
+    await deleteCacheByPattern('employees:*');
     next();
   },
   updateEmployee
 );
 
-// Delete employee
+// Delete employee (Admin only)
 router.delete(
   '/:id',
   protect,
   requirePermission('employees', 'delete'),
   async (req, res, next) => {
-    await deleteCacheByPattern(`employees:*${req.params.id}*`);
-    await deleteCacheByPattern('employees:list*');
+    await deleteCacheByPattern('employees:*');
     next();
   },
   deleteEmployee
 );
 
-// ============ EMPLOYEE RELATED RECORDS ============
+// ============ EMPLOYEE RELATED RECORDS (Any authenticated user) ============
 
 // Get employee's contracts
 router.get(
   '/:id/contracts',
   protect,
-  requirePermission('contracts', 'read_all'),
   cacheMiddleware('employee:contracts', 300),
   getEmployeeContracts
 );
@@ -91,7 +86,6 @@ router.get(
 router.get(
   '/:id/attendance',
   protect,
-  requirePermission('attendance', 'read_all'),
   cacheMiddleware('employee:attendance', 300),
   getEmployeeAttendance
 );
@@ -100,7 +94,6 @@ router.get(
 router.get(
   '/:id/time-off-requests',
   protect,
-  requirePermission('time_off_requests', 'read_all'),
   cacheMiddleware('employee:timeoff', 300),
   getEmployeeTimeOffRequests
 );
@@ -109,7 +102,6 @@ router.get(
 router.get(
   '/:id/leave-balances',
   protect,
-  requirePermission('time_off_allocations', 'read_all'),
   cacheMiddleware('employee:leave-balances', 300),
   getEmployeeLeaveBalances
 );
@@ -118,7 +110,6 @@ router.get(
 router.get(
   '/:id/active-contract',
   protect,
-  requirePermission('contracts', 'read_all'),
   cacheMiddleware('employee:active-contract', 300),
   getEmployeeActiveContract
 );

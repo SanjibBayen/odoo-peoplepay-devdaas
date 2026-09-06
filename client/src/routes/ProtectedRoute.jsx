@@ -20,9 +20,17 @@ export default function ProtectedRoute() {
     );
 
   if (!isAuthenticated && !hasStoredToken) {
-    return <Navigate to='/login/employee' state={{ from: location }} replace />;
+    // Redirect to appropriate login based on attempted path
+    const path = location.pathname;
+    let loginPath = '/login/employee';
+
+    if (path.includes('/admin')) loginPath = '/login/admin';
+    else if (path.includes('/hr-payroll-manager')) loginPath = '/login/hr-payroll-manager';
+    else if (path.includes('/hr-payroll-user')) loginPath = '/login/hr-payroll-user';
+    else if (path.includes('/hr-manager')) loginPath = '/login/hr-manager';
+
+    return <Navigate to={loginPath} state={{ from: location }} replace />;
   }
 
   return <Outlet />;
 }
-

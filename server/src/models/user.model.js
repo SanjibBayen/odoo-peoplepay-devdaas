@@ -1,6 +1,6 @@
 import Sequelize from 'sequelize';
 
-const { Model, DataTypes } = Sequelize;
+const { Model, DataTypes, Op } = Sequelize;
 
 export default class User extends Model {
   static init(sequelize) {
@@ -131,85 +131,132 @@ export default class User extends Model {
     });
   }
 
-  // Getters
   get fullName() {
     return `${this.firstName} ${this.lastName || ''}`.trim();
   }
 
-  // Instance methods
+  get initials() {
+    const first = this.firstName?.[0] || '';
+    const last = this.lastName?.[0] || '';
+    return (first + last).toUpperCase();
+  }
+
+  // ============ PERMISSION METHODS ============
+
+  /**
+   * Check if user has specific permission
+   * FIX: Admin role has ALL permissions automatically
+   */
   async hasPermission(module, action) {
-    const { Permission } = this.sequelize.models;
+    try {
+      // FIX: If user has ADMIN role, allow everything
+      const isAdmin = await this.hasRole('ADMIN');
+      if (isAdmin) return true;
 
-    const permission = await Permission.findOne({
-      where: { module, action },
-      attributes: ['id'],
-      include: [
+      const { sequelize } = this.sequelize || {};
+      if (!sequelize) return false;
+
+      const [result] = await sequelize.query(
+        `SELECT COUNT(*) as count
+         FROM permissions p
+         JOIN role_permissions rp ON rp.permission_id = p.id
+         JOIN user_roles ur ON ur.role_id = rp.role_id
+         WHERE ur.user_id = :userId
+           AND p.module = :module
+           AND p.action = :action
+         LIMIT 1`,
         {
-          model: this.sequelize.models.Role,
-          as: 'roles',
-          attributes: ['id'],
-          required: true,
-          through: { attributes: [] },
-          include: [
-            {
-              model: this.sequelize.models.User,
-              as: 'users',
-              attributes: ['id'],
-              required: true,
-              where: { id: this.id },
-              through: { attributes: [] },
-            },
-          ],
-        },
-      ],
-    });
+          replacements: { userId: this.id, module, action },
+          type: sequelize.QueryTypes.SELECT,
+        }
+      );
 
-    return !!permission;
+      return parseInt(result?.count || 0) > 0;
+    } catch (error) {
+      console.error('hasPermission error:', error.message);
+      return false;
+    }
   }
 
+  /**
+   * Check if user has specific role
+   */
   async hasRole(roleCode) {
-    const roles = await this.getRoles({
-      where: { code: roleCode },
-      attributes: ['id'],
-    });
-    return roles.length > 0;
+    try {
+      const roles = await this.getRoles({
+        where: { code: roleCode },
+        attributes: ['id'],
+      });
+      return roles.length > 0;
+    } catch (error) {
+      console.error('hasRole error:', error.message);
+      return false;
+    }
   }
 
+  /**
+   * Get all permissions for user
+   */
   async getAllPermissions() {
-    const permissions = await this.sequelize.models.Permission.findAll({
-      attributes: ['module', 'action'],
-      include: [
-        {
-          model: this.sequelize.models.Role,
-          as: 'roles',
-          attributes: [],
-          required: true,
-          through: { attributes: [] },
-          include: [
-            {
-              model: this.sequelize.models.User,
-              as: 'users',
-              attributes: [],
-              required: true,
-              where: { id: this.id },
-              through: { attributes: [] },
-            },
-          ],
-        },
-      ],
-      raw: true,
-    });
+    try {
+      const isAdmin = await this.hasRole('ADMIN');
+      if (isAdmin) {
+        const { sequelize } = this.sequelize || {};
+        if (!sequelize) return [];
+        const results = await sequelize.query(
+          `SELECT module, action FROM permissions ORDER BY module, action`,
+          { type: sequelize.QueryTypes.SELECT }
+        );
+        return results;
+      }
 
-    return permissions;
+      const { sequelize } = this.sequelize || {};
+      if (!sequelize) return [];
+
+      const results = await sequelize.query(
+        `SELECT DISTINCT p.module, p.action
+         FROM permissions p
+         JOIN role_permissions rp ON rp.permission_id = p.id
+         JOIN user_roles ur ON ur.role_id = rp.role_id
+         WHERE ur.user_id = :userId
+         ORDER BY p.module, p.action`,
+        {
+          replacements: { userId: this.id },
+          type: sequelize.QueryTypes.SELECT,
+        }
+      );
+
+      return results;
+    } catch (error) {
+      console.error('getAllPermissions error:', error.message);
+      return [];
+    }
+  }
+
+  /**
+   * Get role codes for user
+   */
+  async getRoleCodes() {
+    try {
+      const roles = await this.getRoles({ attributes: ['code'] });
+      return roles.map((role) => role.code);
+    } catch (error) {
+      return [];
+    }
   }
 
   async updateLastLogin() {
     this.lastLoginAt = new Date();
     await this.save({ hooks: false });
+    return this.lastLoginAt;
   }
 
   async assignRoles(roleIds) {
     return this.setRoles(roleIds);
+  }
+
+  async isAdmin() {
+    return this.hasRole('ADMIN');
   }
 
   toJSON() {
