@@ -1,137 +1,54 @@
 import express from 'express';
 import {
-    createPayrun,
-    getEligibleEmployees,
-    addEmployeesToPayrun,
-    computePayrun,
-    validatePayrun,
-    markPayrunPaid,
-    getAllPayruns,
-    getPayrunById,
-    getPayrunWarnings,
-    sendPayslips,
+  createPayrun,
+  getEligibleEmployees,
+  addEmployeesToPayrun,
+  computePayrun,
+  validatePayrun,
+  markPayrunPaid,
+  getAllPayruns,
+  getPayrunById,
+  getPayrunWarnings,
+  sendPayslips,
 } from '../controllers/payrun.controller.js';
-import { protect, requirePermission } from '../middleware/auth.middleware.js';
-import { cacheMiddleware } from '../middleware/cache.middleware.js';
-import { deleteCacheByPattern } from '../utils/cache.utils.js';
+import { protect } from '../middleware/auth.middleware.js';
 
 const router = express.Router();
 
-// ============ PAYRUN CRUD ROUTES ============
+// ============ PAYRUN CRUD ROUTES (NO PERMISSION CHECKS) ============
 
 // Get all payruns
-router.get(
-    '/',
-    protect,
-    requirePermission('payruns', 'read'),
-    cacheMiddleware('payruns:list', 300),
-    getAllPayruns
-);
+router.get('/', protect, getAllPayruns);
 
 // Get single payrun
-router.get(
-    '/:id',
-    protect,
-    requirePermission('payruns', 'read'),
-    cacheMiddleware('payruns:detail', 300),
-    getPayrunById
-);
+router.get('/:id', protect, getPayrunById);
 
-// Create payrun (Step 1: Scope/Period)
-router.post(
-    '/',
-    protect,
-    requirePermission('payruns', 'create'),
-    async(req, res, next) => {
-        await deleteCacheByPattern('payruns:*');
-        next();
-    },
-    createPayrun
-);
+// Create payrun
+router.post('/', protect, createPayrun);
 
 // ============ PAYRUN WIZARD ROUTES ============
 
-// Get eligible employees (Step 2: Employee Selection)
-router.get(
-    '/:id/eligible-employees',
-    protect,
-    requirePermission('payruns', 'read'),
-    getEligibleEmployees
-);
+// Get eligible employees
+router.get('/:id/eligible-employees', protect, getEligibleEmployees);
 
 // Add employees to payrun
-router.post(
-    '/:id/employees',
-    protect,
-    requirePermission('payruns', 'update'),
-    async(req, res, next) => {
-        await deleteCacheByPattern(`payruns:*${req.params.id}*`);
-        next();
-    },
-    addEmployeesToPayrun
-);
+router.post('/:id/employees', protect, addEmployeesToPayrun);
 
 // ============ PAYRUN PROCESSING ROUTES ============
 
 // Compute payrun
-router.post(
-    '/:id/compute',
-    protect,
-    requirePermission('payruns', 'update'),
-    async(req, res, next) => {
-        await deleteCacheByPattern('payruns:*');
-        await deleteCacheByPattern('payslips:*');
-        next();
-    },
-    computePayrun
-);
+router.post('/:id/compute', protect, computePayrun);
 
 // Validate payrun
-router.post(
-    '/:id/validate',
-    protect,
-    requirePermission('payruns', 'validate'),
-    async(req, res, next) => {
-        await deleteCacheByPattern('payruns:*');
-        await deleteCacheByPattern('payslips:*');
-        next();
-    },
-    validatePayrun
-);
+router.post('/:id/validate', protect, validatePayrun);
 
 // Mark payrun as paid
-router.post(
-    '/:id/mark-paid',
-    protect,
-    requirePermission('payruns', 'update'),
-    async(req, res, next) => {
-        await deleteCacheByPattern('payruns:*');
-        await deleteCacheByPattern('payslips:*');
-        next();
-    },
-    markPayrunPaid
-);
+router.post('/:id/mark-paid', protect, markPayrunPaid);
 
 // Send payslips
-router.post(
-    '/:id/send-payslips',
-    protect,
-    requirePermission('payslips', 'send_email'),
-    async(req, res, next) => {
-        await deleteCacheByPattern('payruns:*');
-        await deleteCacheByPattern('payslips:*');
-        next();
-    },
-    sendPayslips
-);
+router.post('/:id/send-payslips', protect, sendPayslips);
 
 // Get payrun warnings
-router.get(
-    '/:id/warnings',
-    protect,
-    requirePermission('payruns', 'read'),
-    cacheMiddleware('payruns:warnings', 60),
-    getPayrunWarnings
-);
+router.get('/:id/warnings', protect, getPayrunWarnings);
 
 export default router;

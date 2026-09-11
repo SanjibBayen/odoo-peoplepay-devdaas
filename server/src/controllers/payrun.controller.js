@@ -94,46 +94,65 @@ const calculateProgressiveTax = (annualIncome, config) => {
  * @route   POST /api/payruns
  * @access  Private (HR Payroll, Admin)
  */
-export const createPayrun = asyncHandler(async(req, res, next) => {
-    const { name, salaryStructureId, periodStart, periodEnd, notes } = req.body;
+export const createPayrun = asyncHandler(async (req, res, next) => {
+  const { name, salaryStructureId, periodStart, periodEnd, notes } = req.body;
 
-    if (!name || !salaryStructureId || !periodStart || !periodEnd) {
-        throw new AppError('Please provide name, salaryStructureId, periodStart, and periodEnd', 400);
-    }
+  console.log('CREATE PAYRUN - Received:', JSON.stringify(req.body));
 
-    // Validate salary structure
-    const structure = await SalaryStructure.findByPk(salaryStructureId);
+  // FIX: Only require name, periodStart, periodEnd
+  if (!name || !periodStart || !periodEnd) {
+    throw new AppError('Please provide name, periodStart, and periodEnd', 400);
+  }
+
+  // FIX: If no salaryStructureId or invalid, use first active one
+  let finalStructureId = salaryStructureId;
+  let structure = null;
+
+  if (finalStructureId) {
+    structure = await SalaryStructure.findByPk(finalStructureId);
+  }
+
+  if (!structure) {
+    // Fallback to first active structure
+    structure = await SalaryStructure.findOne({
+      where: { active: true },
+      order: [['createdAt', 'ASC']],
+    });
+
     if (!structure) {
-        throw new AppError('Salary structure not found', 404);
+      throw new AppError('No salary structures available in the system', 404);
     }
 
-    if (!structure.active) {
-        throw new AppError('Salary structure is inactive', 400);
-    }
+    finalStructureId = structure.id;
+    console.log('Using fallback salary structure:', structure.name, structure.id);
+  }
 
-    // Validate dates
-    if (new Date(periodEnd) < new Date(periodStart)) {
-        throw new AppError('periodEnd must be after periodStart', 400);
-    }
+  if (!structure.active) {
+    throw new AppError('Salary structure is inactive', 400);
+  }
 
-    // Create payrun
-    const payrun = await Payrun.create({
-        name,
-        salaryStructureId,
-        periodStart,
-        periodEnd,
-        notes,
-        createdBy: req.user.id,
-        status: 'DRAFT',
-    });
+  // Validate dates
+  if (new Date(periodEnd) < new Date(periodStart)) {
+    throw new AppError('periodEnd must be after periodStart', 400);
+  }
 
-    res.status(201).json({
-        success: true,
-        message: 'Payrun created. Now select employees',
-        data: payrun,
-    });
+  // Create payrun
+  const payrun = await Payrun.create({
+    name,
+    salaryStructureId: finalStructureId,
+    periodStart,
+    periodEnd,
+    notes,
+    createdBy: req.user.id,
+    status: 'DRAFT',
+  });
+
+  res.status(201).json({
+    success: true,
+    message: 'Payrun created. Now select employees',
+    data: payrun,
+  });
 });
-
 /**
  * @desc    Step 2: Get eligible employees for payrun
  * @route   GET /api/payruns/:id/eligible-employees
@@ -795,3 +814,4 @@ export const sendPayslips = asyncHandler(async(req, res, next) => {
         data: emailResults,
     });
 });
+

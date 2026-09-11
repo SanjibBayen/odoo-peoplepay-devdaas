@@ -82,9 +82,10 @@ app.use('/api/time-off-requests', timeOffRequestRoutes);
 app.use('/api/salary-structures', salaryStructureRoutes);
 app.use('/api/salary-rules', salaryRuleRoutes);
 app.use('/api/payruns', payrunRoutes);
-app.use('/api/payslips', payslipRoutes); // ADD THIS
+app.use('/api/payslips', payslipRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/payruns', payrunRoutes);
 
 // 404 handler
 app.use(notFound);
