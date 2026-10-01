@@ -42,23 +42,13 @@ export function mapBackendRole(rolesOrUser) {
 
 function getStoredToken() {
   if (typeof window === 'undefined') return null;
-  return (
-    localStorage.getItem('token') ||
-    localStorage.getItem('peoplepay_token') ||
-    sessionStorage.getItem('token') ||
-    sessionStorage.getItem('peoplepay_token') ||
-    null
-  );
+  return localStorage.getItem('peoplepay_token') || null;
 }
 
 function getStoredUser() {
   if (typeof window === 'undefined') return null;
   try {
-    const raw =
-      localStorage.getItem('user') ||
-      localStorage.getItem('peoplepay_user') ||
-      sessionStorage.getItem('user') ||
-      sessionStorage.getItem('peoplepay_user');
+    const raw = localStorage.getItem('peoplepay_user');
     return raw ? JSON.parse(raw) : null;
   } catch {
     return null;
@@ -67,11 +57,7 @@ function getStoredUser() {
 
 function getStoredRole() {
   if (typeof window === 'undefined') return null;
-  const directRole =
-    localStorage.getItem('role') ||
-    localStorage.getItem('peoplepay_role') ||
-    sessionStorage.getItem('role') ||
-    sessionStorage.getItem('peoplepay_role');
+  const directRole = localStorage.getItem('peoplepay_role');
   if (directRole) return mapBackendRole(directRole);
   const user = getStoredUser();
   return user ? mapBackendRole(user) : null;
@@ -107,22 +93,13 @@ export const authSlice = createSlice({
 
       if (typeof window !== 'undefined') {
         if (token) {
-          localStorage.setItem('token', token);
           localStorage.setItem('peoplepay_token', token);
-          sessionStorage.setItem('token', token);
-          sessionStorage.setItem('peoplepay_token', token);
         }
         if (user) {
-          localStorage.setItem('user', JSON.stringify(user));
           localStorage.setItem('peoplepay_user', JSON.stringify(user));
-          sessionStorage.setItem('user', JSON.stringify(user));
-          sessionStorage.setItem('peoplepay_user', JSON.stringify(user));
         }
         if (mappedRole) {
-          localStorage.setItem('role', mappedRole);
           localStorage.setItem('peoplepay_role', mappedRole);
-          sessionStorage.setItem('role', mappedRole);
-          sessionStorage.setItem('peoplepay_role', mappedRole);
         }
       }
     },
@@ -136,14 +113,8 @@ export const authSlice = createSlice({
       state.isAuthenticated = true;
 
       if (typeof window !== 'undefined') {
-        localStorage.setItem('user', JSON.stringify(state.user));
         localStorage.setItem('peoplepay_user', JSON.stringify(state.user));
-        sessionStorage.setItem('user', JSON.stringify(state.user));
-        sessionStorage.setItem('peoplepay_user', JSON.stringify(state.user));
-        localStorage.setItem('role', mappedRole);
         localStorage.setItem('peoplepay_role', mappedRole);
-        sessionStorage.setItem('role', mappedRole);
-        sessionStorage.setItem('peoplepay_role', mappedRole);
       }
     },
     logout: (state) => {
@@ -155,18 +126,9 @@ export const authSlice = createSlice({
       state.error = null;
 
       if (typeof window !== 'undefined') {
-        localStorage.removeItem('token');
         localStorage.removeItem('peoplepay_token');
-        localStorage.removeItem('user');
         localStorage.removeItem('peoplepay_user');
-        localStorage.removeItem('role');
         localStorage.removeItem('peoplepay_role');
-        sessionStorage.removeItem('token');
-        sessionStorage.removeItem('peoplepay_token');
-        sessionStorage.removeItem('user');
-        sessionStorage.removeItem('peoplepay_user');
-        sessionStorage.removeItem('role');
-        sessionStorage.removeItem('peoplepay_role');
       }
     },
     setLoading: (state, action) => {

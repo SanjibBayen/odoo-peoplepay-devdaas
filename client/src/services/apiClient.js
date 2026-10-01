@@ -21,12 +21,8 @@ apiClient.interceptors.request.use(
     try {
       const state = store.getState();
       const token =
-        state.auth?.token ||
-        (typeof window !== 'undefined' &&
-          (localStorage.getItem('token') ||
-            localStorage.getItem('peoplepay_token') ||
-            sessionStorage.getItem('token') ||
-            sessionStorage.getItem('peoplepay_token')));
+          state.auth?.token ||
+          (typeof window !== 'undefined' && localStorage.getItem('peoplepay_token'));
 
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
@@ -60,14 +56,9 @@ const redirectToLogin = () => {
   store.dispatch(logout());
   if (typeof window !== 'undefined') {
     try {
-      localStorage.removeItem('token');
       localStorage.removeItem('peoplepay_token');
       localStorage.removeItem('peoplepay_user');
       localStorage.removeItem('peoplepay_role');
-      sessionStorage.removeItem('token');
-      sessionStorage.removeItem('peoplepay_token');
-      sessionStorage.removeItem('peoplepay_user');
-      sessionStorage.removeItem('peoplepay_role');
     } catch {
       // Ignore storage errors
     }

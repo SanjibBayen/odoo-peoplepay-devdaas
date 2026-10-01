@@ -1,0 +1,347 @@
+
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>PeoplePay – Project Audit Report</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, "Segoe UI", system-ui, sans-serif; font-size: 14px; line-height: 1.6; background: #ffffff; color: #1f2328; }
+  .page { max-width: 760px; margin: 0 auto; padding: 36px 24px 48px; }
+  h1 { font-size: 22px; font-weight: 700; margin-bottom: 4px; }
+  .subtitle { color: #57606a; font-size: 13px; margin-bottom: 32px; }
+  h2 { font-size: 15px; font-weight: 700; margin: 32px 0 10px; padding-bottom: 6px; border-bottom: 1px solid #e5e7eb; color: #1f2328; }
+  h3 { font-size: 13.5px; font-weight: 600; margin: 18px 0 6px; color: #1f2328; }
+  p { margin-bottom: 8px; }
+  ul, ol { padding-left: 20px; margin-bottom: 8px; }
+  li { margin-bottom: 3px; }
+  .badge { display: inline-block; padding: 1px 8px; border-radius: 20px; font-size: 11px; font-weight: 600; white-space: nowrap; }
+  .badge-green  { background: #dcfce7; color: #15803d; border: 1px solid #bbf7d0; }
+  .badge-red    { background: #fee2e2; color: #b91c1c; border: 1px solid #fecaca; }
+  .badge-yellow { background: #fef9c3; color: #854d0e; border: 1px solid #fde68a; }
+  .badge-blue   { background: #dbeafe; color: #1d4ed8; border: 1px solid #bfdbfe; }
+  .badge-purple { background: #f3e8ff; color: #6d28d9; border: 1px solid #ddd6fe; }
+  table { width: 100%; border-collapse: collapse; margin-bottom: 14px; font-size: 13px; }
+  th { background: #f7f8fa; text-align: left; padding: 6px 10px; border: 1px solid #e5e7eb; font-weight: 600; }
+  td { padding: 6px 10px; border: 1px solid #e5e7eb; vertical-align: top; }
+  tr:nth-child(even) td { background: #fafbfc; }
+  .issue-block { background: #f7f8fa; border: 1px solid #e5e7eb; border-left: 4px solid #ef4444; border-radius: 6px; padding: 12px 14px; margin-bottom: 10px; }
+  .issue-block.warn  { border-left-color: #f59e0b; }
+  .issue-block.info  { border-left-color: #3b82d4; }
+  .issue-block.ok    { border-left-color: #22c55e; }
+  .issue-title { font-weight: 600; font-size: 13.5px; margin-bottom: 4px; }
+  .issue-loc { font-size: 11.5px; color: #57606a; font-family: "SFMono-Regular", Consolas, monospace; margin-bottom: 4px; }
+  .stack-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 10px; }
+  .stack-card { background: #f7f8fa; border: 1px solid #e5e7eb; border-radius: 6px; padding: 12px 14px; }
+  .stack-card h4 { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: #57606a; margin-bottom: 8px; }
+  .stack-card ul { list-style: none; padding: 0; }
+  .stack-card li { font-size: 12.5px; margin-bottom: 2px; display: flex; justify-content: space-between; align-items: center; }
+  .flow-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 8px; }
+  .flow-step { background: #f3e8ff; border: 1px solid #ddd6fe; border-radius: 4px; padding: 3px 10px; font-size: 12px; font-weight: 500; color: #5b21b6; }
+  .flow-arrow { color: #57606a; font-size: 12px; }
+  code { font-family: "SFMono-Regular", Consolas, monospace; font-size: 12px; background: #f3f4f6; border: 1px solid #e5e7eb; border-radius: 3px; padding: 1px 5px; }
+  .summary-bar { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 24px; }
+  .summary-stat { background: #f7f8fa; border: 1px solid #e5e7eb; border-radius: 8px; padding: 10px 16px; text-align: center; min-width: 90px; }
+  .summary-stat .num { font-size: 22px; font-weight: 700; }
+  .summary-stat .lbl { font-size: 11px; color: #57606a; font-weight: 500; margin-top: 2px; }
+  .red { color: #b91c1c; }
+  .yellow { color: #854d0e; }
+  .green { color: #15803d; }
+  .blue { color: #1d4ed8; }
+  footer { margin-top: 40px; padding-top: 16px; border-top: 1px solid #e5e7eb; text-align: center; font-size: 12px; color: #8b949e; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <h1>PeoplePay — Full Project Audit Report</h1>
+  <p class="subtitle">Project: <strong>odoo-peoplepay-devdaas</strong>  ·  Stack: React 19 + Express 5 + PostgreSQL + Redis  ·  Author: Team DevDaas</p>
+
+  
+  <div class="summary-bar">
+    <div class="summary-stat"><div class="num red">6</div><div class="lbl">Critical Issues</div></div>
+    <div class="summary-stat"><div class="num yellow">8</div><div class="lbl">Warnings</div></div>
+    <div class="summary-stat"><div class="num blue">5</div><div class="lbl">Minor / Info</div></div>
+    <div class="summary-stat"><div class="num green">✓</div><div class="lbl">No Build Errors</div></div>
+    <div class="summary-stat"><div class="num">22</div><div class="lbl">Models</div></div>
+    <div class="summary-stat"><div class="num">17</div><div class="lbl">API Modules</div></div>
+    <div class="summary-stat"><div class="num">5</div><div class="lbl">Roles</div></div>
+  </div>
+
+  
+  <h2>1. Project Overview</h2>
+  <p><strong>PeoplePay</strong> is an integrated HR &amp; Payroll Operations Platform. It is a monorepo with two independent apps in <code>/client</code> and <code>/server</code>, communicating over REST + WebSocket.</p>
+  <table>
+    <tr><th>Layer</th><th>Technology</th><th>Purpose</th></tr>
+    <tr><td>Frontend</td><td>React 19, Vite 8, Redux Toolkit, React Router v7, Tailwind CSS v4, Axios, Socket.IO-client</td><td>SPA served on <code>localhost:5173</code></td></tr>
+    <tr><td>Backend</td><td>Node.js, Express 5 (ES Modules), Sequelize 6, PostgreSQL, Redis (ioredis), Socket.IO, Nodemailer, JWT</td><td>REST API on <code>localhost:5000</code></td></tr>
+    <tr><td>Database</td><td>PostgreSQL (primary), Redis (sessions / cache / OTP / blacklist)</td><td>Persistent &amp; ephemeral storage</td></tr>
+  </table>
+
+  
+  <h2>2. Tech Stack Inventory</h2>
+  <div class="stack-grid">
+    <div class="stack-card">
+      <h4>Server Dependencies</h4>
+      <ul>
+        <li>express <span class="badge badge-green">^5.2.1</span></li>
+        <li>sequelize <span class="badge badge-blue">^6.37.8</span></li>
+        <li>pg <span class="badge badge-blue">^8.23.0</span></li>
+        <li>ioredis <span class="badge badge-blue">^6.0.0</span></li>
+        <li>socket.io <span class="badge badge-blue">^4.8.3</span></li>
+        <li>jsonwebtoken <span class="badge badge-blue">^9.0.3</span></li>
+        <li>bcryptjs <span class="badge badge-blue">^3.0.3</span></li>
+        <li>nodemailer <span class="badge badge-blue">^10.0.0</span></li>
+        <li>morgan / cors / dotenv <span class="badge badge-green">OK</span></li>
+      </ul>
+    </div>
+    <div class="stack-card">
+      <h4>Client Dependencies</h4>
+      <ul>
+        <li>react / react-dom <span class="badge badge-green">^19.2</span></li>
+        <li>@reduxjs/toolkit <span class="badge badge-blue">^2.12</span></li>
+        <li>react-router-dom <span class="badge badge-blue">^7.18</span></li>
+        <li>tailwindcss <span class="badge badge-blue">^4.3</span></li>
+        <li>axios <span class="badge badge-blue">^1.20</span></li>
+        <li>socket.io-client <span class="badge badge-blue">^4.8.3</span></li>
+        <li>vite <span class="badge badge-yellow">^8.2.2 (very latest)</span></li>
+        <li>oxlint (linter) <span class="badge badge-blue">^1.79</span></li>
+      </ul>
+    </div>
+  </div>
+
+  
+  <h2>3. Architecture &amp; Module Map</h2>
+  <h3>Authentication Flow</h3>
+  <div class="flow-row">
+    <span class="flow-step">POST /auth/login</span><span class="flow-arrow">→</span>
+    <span class="flow-step">OTP via Email</span><span class="flow-arrow">→</span>
+    <span class="flow-step">POST /auth/verify-login-otp</span><span class="flow-arrow">→</span>
+    <span class="flow-step">JWT Access Token (15m)</span><span class="flow-arrow">+</span>
+    <span class="flow-step">Refresh Token Cookie (7d)</span>
+  </div>
+  <div class="flow-row">
+    <span class="flow-step">Redux authSlice</span><span class="flow-arrow">→</span>
+    <span class="flow-step">localStorage + sessionStorage (mirrored)</span><span class="flow-arrow">→</span>
+    <span class="flow-step">AuthSessionProvider hydrates on reload</span>
+  </div>
+
+  <h3>Server Module Map (17 API groups)</h3>
+  <table>
+    <tr><th>Route Prefix</th><th>Controller</th><th>Access Level</th></tr>
+    <tr><td>/api/auth</td><td>auth.controller</td><td>Public + Protected</td></tr>
+    <tr><td>/api/employees</td><td>employee.controller</td><td>HR / Admin</td></tr>
+    <tr><td>/api/departments</td><td>department.controller</td><td>Admin</td></tr>
+    <tr><td>/api/job-positions</td><td>jobPosition.controller</td><td>HR / Admin</td></tr>
+    <tr><td>/api/employee-types</td><td>employeeType.controller</td><td>HR / Admin</td></tr>
+    <tr><td>/api/work-schedules</td><td>workSchedule.controller</td><td>HR</td></tr>
+    <tr><td>/api/contracts</td><td>contract.controller</td><td>HR / Admin</td></tr>
+    <tr><td>/api/attendance</td><td>attendance.controller</td><td>All roles</td></tr>
+    <tr><td>/api/time-off-*</td><td>timeOff*.controller (3)</td><td>All roles</td></tr>
+    <tr><td>/api/salary-structures</td><td>salaryStructure.controller</td><td>Payroll</td></tr>
+    <tr><td>/api/salary-rules</td><td>salaryRule.controller</td><td>Payroll</td></tr>
+    <tr><td>/api/payruns</td><td>payrun.controller</td><td>Payroll</td></tr>
+    <tr><td>/api/payslips</td><td>payslip.controller</td><td>All roles</td></tr>
+    <tr><td>/api/dashboard</td><td>dashboard.controller</td><td>All roles</td></tr>
+    <tr><td>/api/notifications</td><td>notification.controller</td><td>All roles</td></tr>
+  </table>
+
+  <h3>RBAC Model (5 Roles)</h3>
+  <table>
+    <tr><th>Role</th><th>Code</th><th>Key Access</th></tr>
+    <tr><td>Admin</td><td>ADMIN</td><td>Full system access, user management, departments, audit logs</td></tr>
+    <tr><td>HR Manager</td><td>HR_MANAGER</td><td>Employees, schedules, time-off management</td></tr>
+    <tr><td>HR Payroll Manager</td><td>HR_PAYROLL_MANAGER</td><td>Payrun approval/authorization</td></tr>
+    <tr><td>HR Payroll User</td><td>HR_PAYROLL_USER</td><td>Salary structures, rules, payrun operations</td></tr>
+    <tr><td>Employee</td><td>EMPLOYEE</td><td>Self-service: attendance, time-off, payslips, profile</td></tr>
+  </table>
+
+  
+  <h2>4. 🔴 Critical Issues</h2>
+
+  <div class="issue-block">
+    <div class="issue-title">C1 — Duplicate Route Registration for <code>/api/payruns</code></div>
+    <div class="issue-loc">server/src/app.js — lines 84 &amp; 88</div>
+    <p><code>payrunRoutes</code> is registered <strong>twice</strong> on the same path <code>/api/payruns</code>. Express processes the first match and the second binding shadows it for certain middleware behaviors, creating unexpected behavior for POST/GET chains and wasting a handler slot.</p>
+    <p><strong>Fix:</strong> Remove the duplicate <code>app.use('/api/payruns', payrunRoutes);</code> on line 88.</p>
+  </div>
+
+  <div class="issue-block">
+    <div class="issue-title">C2 — Missing Critical <code>.env</code> Keys in <code>.env.example</code></div>
+    <div class="issue-loc">server/.env.example</div>
+    <p>The <code>.env.example</code> only lists database config. The following required environment variables are used in code but <strong>not documented</strong> in the example file, so any new developer will get runtime crashes:</p>
+    <ul>
+      <li><code>JWT_SECRET</code> — used in auth.middleware, token.utils (hard crash on startup)</li>
+      <li><code>JWT_REFRESH_SECRET</code> — used in token.utils for refresh tokens</li>
+      <li><code>JWT_EXPIRE</code> / <code>JWT_REFRESH_EXPIRE</code></li>
+      <li><code>REDIS_URL</code> / <code>REDIS_HOST</code> / <code>REDIS_PORT</code> / <code>REDIS_PASSWORD</code> — Redis required for auth</li>
+      <li><code>CLIENT_URL</code> — CORS origin (defaults to localhost:5173 but undocumented)</li>
+      <li><code>OTP_SECRET</code> — HMAC key for OTP hashing</li>
+      <li>SMTP keys for Nodemailer (<code>EMAIL_HOST</code>, <code>EMAIL_PORT</code>, <code>EMAIL_USER</code>, <code>EMAIL_PASS</code>, etc.)</li>
+    </ul>
+  </div>
+
+  <div class="issue-block">
+    <div class="issue-title">C3 — Client <code>VITE_API_BASE_URL</code> Points to Wrong Port</div>
+    <div class="issue-loc">client/.env.example — line 1</div>
+    <p><code>VITE_API_BASE_URL=http://localhost:3000/api</code> — but the server runs on port <strong>5000</strong> (per <code>server/.env.example</code> PORT=5000). If no <code>.env</code> is created, <code>apiClient.js</code> defaults to port 3000, and every API call fails with <code>ECONNREFUSED</code>.</p>
+    <p><strong>Fix:</strong> Change <code>.env.example</code> to <code>http://localhost:5000/api</code>.</p>
+  </div>
+
+  <div class="issue-block">
+    <div class="issue-title">C4 — Hardcoded Admin Credentials &amp; Personal Email in <code>seed.js</code></div>
+    <div class="issue-loc">server/seed.js — lines 21, 29, 44</div>
+    <p>The seed file contains a personal email address (<code>sanjibbayen11@gmail.com</code>) and hardcoded password <code>Admin@123</code> committed to the repository. These will persist in git history. Any clone of the repo knows the initial admin credentials.</p>
+    <p><strong>Fix:</strong> Move seed credentials to environment variables (<code>SEED_ADMIN_EMAIL</code>, <code>SEED_ADMIN_PASSWORD</code>).</p>
+  </div>
+
+  <div class="issue-block">
+    <div class="issue-title">C5 — Auth Middleware Uses <code>JWT_SECRET</code> but Refresh Flow Uses Separate <code>JWT_REFRESH_SECRET</code></div>
+    <div class="issue-loc">server/src/middleware/auth.middleware.js — line 32 vs server/src/utils/token.utils.js — line 62</div>
+    <p>The protect middleware verifies tokens with <code>JWT_SECRET</code>, but the refresh token is signed with <code>JWT_REFRESH_SECRET</code>. If <code>JWT_REFRESH_SECRET</code> is undefined (not set), refresh tokens are signed with <code>undefined</code> as secret — which Node's <code>jsonwebtoken</code> library <strong>accepts silently</strong>, making all refresh tokens share the same trivially-guessable secret. This is a <strong>security vulnerability</strong>.</p>
+    <p><strong>Fix:</strong> Validate that both secrets are non-empty strings on server startup; throw an error if either is missing.</p>
+  </div>
+
+  <div class="issue-block">
+    <div class="issue-title">C6 — Token Stored in <strong>Both</strong> localStorage &amp; sessionStorage Simultaneously</div>
+    <div class="issue-loc">client/src/redux/slices/authSlice.js — lines 109–126</div>
+    <p>On every <code>setCredentials</code>, the JWT access token is written to <strong>4 keys</strong> across both <code>localStorage</code> and <code>sessionStorage</code>. This defeats the security benefit of using sessionStorage (tab-scoped). Any XSS attack gets the token from the persistent <code>localStorage</code>. The mirroring also means logout must clear all 4 keys reliably (currently done, but fragile).</p>
+    <p><strong>Fix:</strong> Pick one storage strategy: use <code>sessionStorage</code> only for better security, or <code>localStorage</code> only for UX — not both simultaneously.</p>
+  </div>
+
+  
+  <h2>5. 🟡 Warnings</h2>
+
+  <div class="issue-block warn">
+    <div class="issue-title">W1 — No Rate Limiting on Login Endpoint</div>
+    <div class="issue-loc">server/src/routes/auth.routes.js — line 25</div>
+    <p>The <code>POST /auth/login</code> route is entirely public with no rate limiting applied. The custom <code>rateLimit</code> middleware exists in <code>auth.middleware.js</code> but is not used on the login route. Brute-force attacks on passwords are unrestricted.</p>
+  </div>
+
+  <div class="issue-block warn">
+    <div class="issue-title">W2 — Payrun Routes Missing Role-Based Authorization</div>
+    <div class="issue-loc">server/src/routes/payrun.routes.js — comment line 18</div>
+    <p>The file has a comment saying <em>"NO PERMISSION CHECKS"</em>. All payrun routes only use <code>protect</code> (authentication) but not <code>restrictTo</code> or <code>requirePermission</code>. Any authenticated user, including a basic employee, can create, compute, or mark payruns as paid.</p>
+  </div>
+
+  <div class="issue-block warn">
+    <div class="issue-title">W3 — Redis Key Prefix Collision Risk</div>
+    <div class="issue-loc">server/src/config/redis.config.js — line 61</div>
+    <p>Redis keys use a global prefix <code>peoplepay360:</code>, but token blacklist lookups in <code>auth.middleware.js</code> use <code>redis.get('blacklist:${token}')</code> — <strong>without the prefix</strong>. Because ioredis automatically prepends the keyPrefix to all commands, the actual Redis key becomes <code>peoplepay360:blacklist:{token}</code>. The <code>blacklistToken</code> utility in <code>token.utils.js</code> also uses the same client, so this is actually consistent — but <em>only because both use the same client</em>. If any code ever constructs a raw Redis key manually without going through the ioredis client, the prefix will be missing and tokens will never be found as blacklisted.</p>
+  </div>
+
+  <div class="issue-block warn">
+    <div class="issue-title">W4 — OTP Cooldown Key Path Inconsistency</div>
+    <div class="issue-loc">server/src/utils/otp.utils.js — lines 86 vs 185</div>
+    <p><code>createOTP</code> stores cooldown at key <code>otp:{purpose}:{email}:cooldown</code> (line 86), but <code>checkOTPRateLimit</code> checks for cooldown at <code>otp:{purpose}:{email.toLowerCase()}:cooldown</code> (line 185). These are two different lookups: the cooldown stored by <code>createOTP</code> is <strong>never found</strong> by <code>checkOTPRateLimit</code>, breaking the 1-minute re-send cooldown.</p>
+  </div>
+
+  <div class="issue-block warn">
+    <div class="issue-title">W5 — <code>ScheduleDaysEditor</code> Page Missing from App Routes</div>
+    <div class="issue-loc">client/src/pages/schedules/ScheduleDaysEditor.jsx vs client/src/routes/AppRoutes.jsx</div>
+    <p>The <code>ScheduleDaysEditor</code> page component exists but has no corresponding route defined in <code>AppRoutes.jsx</code>. It is unreachable from the UI.</p>
+  </div>
+
+  <div class="issue-block warn">
+    <div class="issue-title">W6 — <code>SalaryRuleList.jsx</code> is an Orphan Page</div>
+    <div class="issue-loc">client/src/pages/salary/SalaryRuleList.jsx</div>
+    <p>This component exists alongside <code>SalaryRulesPage.jsx</code> but is not imported or used anywhere. Either it duplicates <code>SalaryRulesPage</code> or it is dead code.</p>
+  </div>
+
+  <div class="issue-block warn">
+    <div class="issue-title">W7 — Express 5 in Production Use (Still RC-era Breaking Changes)</div>
+    <div class="issue-loc">server/package.json — "express": "^5.2.1"</div>
+    <p>Express 5 changed error handling for async routes — rejected promises are now automatically forwarded to error middleware (good), but there are breaking changes to <code>req.query</code> parsing and router behavior. Some patterns in the controllers may silently behave differently than intended vs Express 4.</p>
+  </div>
+
+  <div class="issue-block warn">
+    <div class="issue-title">W8 — <code>initializeDatabase</code> Only Runs <code>sync</code> in Development</div>
+    <div class="issue-loc">server/src/models/index.js — lines 76–78</div>
+    <p>Database schema sync (<code>sequelize.sync({ alter: false })</code>) is gated behind <code>NODE_ENV === 'development'</code>. In production, no schema migration runs. If the database schema is out of sync (e.g. new models were added), production will throw SQL errors at runtime with no migration path.</p>
+    <p><strong>Recommendation:</strong> Use a migration tool (Sequelize CLI migrations or Umzug) instead of sync.</p>
+  </div>
+
+  
+  <h2>6. 🔵 Minor / Info</h2>
+
+  <div class="issue-block info">
+    <div class="issue-title">I1 — Tailwind v4 + PostCSS Dual Configuration</div>
+    <div class="issue-loc">client/package.json, client/postcss.config.js, client/vite.config.js</div>
+    <p>Both <code>@tailwindcss/vite</code> (Vite plugin) and <code>@tailwindcss/postcss</code> (PostCSS plugin) are installed. Tailwind v4 recommends using only the Vite plugin when using Vite — running both can cause double-processing. <code>tailwind.config.js</code> is also present, which is the v3 config format and may conflict with v4's CSS-first config.</p>
+  </div>
+
+  <div class="issue-block info">
+    <div class="issue-title">I2 — <code>deleteCacheByPattern</code> Has a Commented-Out Alternative Still in File</div>
+    <div class="issue-loc">server/src/utils/cache.utils.js — lines 38–49</div>
+    <p>The old <code>redis.keys()</code> implementation is left as a comment directly above the new SCAN-based implementation. Clean up the dead code.</p>
+  </div>
+
+  <div class="issue-block info">
+    <div class="issue-title">I3 — <code>activeNav</code> Prop Passed to <code>AppShell</code> But Not Used in <code>AppLayout</code></div>
+    <div class="issue-loc">client/src/routes/AppRoutes.jsx vs client/src/layouts/AppLayout.jsx</div>
+    <p>Every route in <code>AppRoutes.jsx</code> passes an <code>activeNav</code> prop to <code>AppShell</code>, which passes it to <code>AppLayout</code> — but <code>AppLayout</code> does not use or forward the <code>activeNav</code> prop. The sidebar active-state highlighting will not work through this prop chain unless <code>SidebarDrawer</code> reads it from another source.</p>
+  </div>
+
+  <div class="issue-block info">
+    <div class="issue-title">I4 — No Test Suite Configured on Either Side</div>
+    <div class="issue-loc">server/package.json — scripts.test; client/package.json — no test script</div>
+    <p>The server's test script is the placeholder <code>"echo Error: no test specified &amp;&amp; exit 1"</code>. The client has no test script at all. No Jest, Vitest, or Supertest configuration exists in the project.</p>
+  </div>
+
+  <div class="issue-block info">
+    <div class="issue-title">I5 — <code>seed.js</code> Does Not Call <code>initializeDatabase()</code> / <code>sync()</code></div>
+    <div class="issue-loc">server/seed.js</div>
+    <p>The seed script calls <code>sequelize.authenticate()</code> and imports models (which auto-initializes them), but never calls <code>sequelize.sync()</code>. If the database tables do not yet exist, the seed will fail with a table-not-found error. The seed should ensure tables exist before inserting data.</p>
+  </div>
+
+  
+  <h2>7. ✅ What Is Working Well</h2>
+  <div class="issue-block ok">
+    <div class="issue-title">Solid Authorization Architecture</div>
+    <p>JWT + OTP 2FA + Magic Link onboarding + Redis blacklist + refresh token rotation is a well-thought-out security model.</p>
+  </div>
+  <div class="issue-block ok">
+    <div class="issue-title">Clean Separation of Concerns</div>
+    <p>Controllers, models, routes, middleware, utils, and services are cleanly separated. Model <code>associate()</code> patterns are correct for Sequelize.</p>
+  </div>
+  <div class="issue-block ok">
+    <div class="issue-title">Good Error Handling Strategy</div>
+    <p>The global <code>errorHandler</code> middleware correctly categorizes Sequelize, JWT, PostgreSQL, and Redis errors into typed <code>AppError</code> responses. <code>asyncHandler</code> wraps all controllers.</p>
+  </div>
+  <div class="issue-block ok">
+    <div class="issue-title">Real-Time Notifications via Socket.IO</div>
+    <p><code>socket.service.js</code> implements user-specific rooms (<code>user:{id}</code>) and role rooms (<code>role:{name}</code>), allowing targeted real-time events including unread count push.</p>
+  </div>
+  <div class="issue-block ok">
+    <div class="issue-title">Token Refresh &amp; Retry Queue on Client</div>
+    <p><code>apiClient.js</code> implements a proper retry queue that holds concurrent 401 requests until a single token refresh completes, avoiding thundering-herd token refresh storms.</p>
+  </div>
+  <div class="issue-block ok">
+    <div class="issue-title">Progressive Tax Calculation Engine</div>
+    <p>The payrun controller includes a real multi-slab tax engine with surcharge and cess calculations, indicating serious payroll domain modeling.</p>
+  </div>
+
+  
+  <h2>8. Recommended Fix Priority</h2>
+  <table>
+    <tr><th>Priority</th><th>Issue</th><th>Effort</th></tr>
+    <tr><td><span class="badge badge-red">P0 — Now</span></td><td>C3: Fix VITE_API_BASE_URL port mismatch (3000 → 5000)</td><td>1 line</td></tr>
+    <tr><td><span class="badge badge-red">P0 — Now</span></td><td>C1: Remove duplicate payrun route in app.js</td><td>1 line</td></tr>
+    <tr><td><span class="badge badge-red">P0 — Security</span></td><td>C4: Remove hardcoded credentials from seed.js</td><td>~5 lines</td></tr>
+    <tr><td><span class="badge badge-red">P0 — Security</span></td><td>C5: Validate JWT_SECRET &amp; JWT_REFRESH_SECRET on startup</td><td>~10 lines</td></tr>
+    <tr><td><span class="badge badge-yellow">P1 — Soon</span></td><td>C2: Complete .env.example with all required variables</td><td>~15 lines</td></tr>
+    <tr><td><span class="badge badge-yellow">P1 — Soon</span></td><td>W1: Add rate limiting to /auth/login route</td><td>2 lines</td></tr>
+    <tr><td><span class="badge badge-yellow">P1 — Soon</span></td><td>W2: Add role guards to payrun routes</td><td>~10 lines</td></tr>
+    <tr><td><span class="badge badge-yellow">P1 — Soon</span></td><td>W4: Fix OTP cooldown key inconsistency</td><td>2 lines</td></tr>
+    <tr><td><span class="badge badge-yellow">P1 — Soon</span></td><td>C6: Pick one token storage strategy (not both)</td><td>~20 lines</td></tr>
+    <tr><td><span class="badge badge-blue">P2 — Next</span></td><td>W5: Add route for ScheduleDaysEditor</td><td>3 lines</td></tr>
+    <tr><td><span class="badge badge-blue">P2 — Next</span></td><td>I1: Remove duplicate Tailwind config conflict</td><td>~5 lines</td></tr>
+    <tr><td><span class="badge badge-blue">P2 — Next</span></td><td>W8: Introduce Sequelize migrations for production</td><td>Medium</td></tr>
+  </table>
+
+</div>
+<footer>
+  <p>Made with IBM Bob</p>
+</footer>
+</body>
+</html>

@@ -34,22 +34,7 @@ export const deleteCache = async (key) => {
   }
 };
 
-// Delete cache by pattern
-// export const deleteCacheByPattern = async (pattern) => {
-//   try {
-//     const keys = await redis.keys(pattern);
-//     if (keys.length > 0) {
-//       await redis.del(...keys);
-//     }
-//     return true;
-//   } catch (error) {
-//     console.error('Cache pattern delete error:', error.message);
-//     return false;
-//   }
-// };
-
-
-// Delete cache by pattern 
+// Delete cache by pattern (uses SCAN to avoid blocking Redis)
 export const deleteCacheByPattern = async (pattern) => {
   try {
     let cursor = '0';

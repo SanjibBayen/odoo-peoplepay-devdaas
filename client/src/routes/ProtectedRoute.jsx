@@ -13,11 +13,7 @@ export default function ProtectedRoute() {
   );
   const hasStoredToken =
     typeof window !== 'undefined' &&
-    Boolean(
-      localStorage.getItem('peoplepay_token') ||
-        sessionStorage.getItem('peoplepay_token') ||
-        localStorage.getItem('token')
-    );
+    Boolean(localStorage.getItem('peoplepay_token'));
 
   if (!isAuthenticated && !hasStoredToken) {
     // Redirect to appropriate login based on attempted path

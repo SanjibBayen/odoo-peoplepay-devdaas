@@ -78,12 +78,13 @@ export const createOTP = async (email, purpose) => {
   
   // Store hashed OTP with 5 minutes expiry
   await redis.set(key, hashedOTP, 'EX', 300);
-  
+
   // Initialize attempts counter
   await redis.set(`${key}:attempts`, 0, 'EX', 300);
-  
-  // Initialize resend cooldown
-  await redis.set(`${key}:cooldown`, 1, 'EX', 60); // 1 minute cooldown
+
+  // Set resend cooldown (checked by checkOTPRateLimit)
+  const cooldownKey = `otp:${purpose}:${email.toLowerCase()}:cooldown`;
+  await redis.set(cooldownKey, 1, 'EX', 60); // 1 minute cooldown
   
   // Send email with OTP
   try {

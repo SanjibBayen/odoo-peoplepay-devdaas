@@ -7,24 +7,36 @@ dotenv.config();
 
 const { User, Role } = models;
 
-const seedAdmin = async() => {
+const ADMIN_EMAIL = process.env.SEED_ADMIN_EMAIL;
+const ADMIN_PASSWORD = process.env.SEED_ADMIN_PASSWORD;
+
+if (!ADMIN_EMAIL || !ADMIN_PASSWORD) {
+    console.error('ERROR: SEED_ADMIN_EMAIL and SEED_ADMIN_PASSWORD must be set in your .env file');
+    process.exit(1);
+}
+
+const seedAdmin = async () => {
     try {
         await sequelize.authenticate();
         console.log('Database connected');
 
-        const hashedPassword = await hashPassword('Admin@123');
+        // Ensure tables exist
+        await sequelize.sync({ force: false });
+        console.log('Tables synchronized');
+
+        const hashedPassword = await hashPassword(ADMIN_PASSWORD);
         console.log('Password hashed');
 
-        // Delete existing admin
+        // Delete existing admin with this email
         await User.destroy({
-            where: { email: 'sanjibbayen11@gmail.com' },
-            force: true
+            where: { email: ADMIN_EMAIL },
+            force: true,
         });
         console.log('Old admin removed (if existed)');
 
         // Create admin
         const user = await User.create({
-            email: 'sanjibbayen11@gmail.com',
+            email: ADMIN_EMAIL,
             passwordHash: hashedPassword,
             firstName: 'System',
             lastName: 'Administrator',
@@ -37,12 +49,13 @@ const seedAdmin = async() => {
         if (adminRole) {
             await user.addRole(adminRole);
             console.log('ADMIN role assigned');
+        } else {
+            console.warn('WARNING: ADMIN role not found in roles table. Run the full seed (seedData.js) first.');
         }
 
         console.log('-----------------------------------');
         console.log('Admin ready!');
-        console.log('Email: sanjibbayen11@gmail.com');
-        console.log('Password: Admin@123');
+        console.log(`Email: ${ADMIN_EMAIL}`);
         console.log('-----------------------------------');
 
         process.exit(0);

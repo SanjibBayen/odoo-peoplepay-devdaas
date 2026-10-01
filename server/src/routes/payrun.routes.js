@@ -11,44 +11,49 @@ import {
   getPayrunWarnings,
   sendPayslips,
 } from '../controllers/payrun.controller.js';
-import { protect } from '../middleware/auth.middleware.js';
+import { protect, restrictTo } from '../middleware/auth.middleware.js';
+
+// Roles allowed to read payruns (Payroll User, Payroll Manager, Admin)
+const payrollRoles = ['HR_PAYROLL_USER', 'HR_PAYROLL_MANAGER', 'ADMIN'];
+// Roles allowed to mutate payruns (Payroll Manager and Admin only)
+const payrollManagerRoles = ['HR_PAYROLL_MANAGER', 'ADMIN'];
 
 const router = express.Router();
 
-// ============ PAYRUN CRUD ROUTES (NO PERMISSION CHECKS) ============
+// ============ PAYRUN CRUD ROUTES ============
 
 // Get all payruns
-router.get('/', protect, getAllPayruns);
+router.get('/', protect, restrictTo(...payrollRoles), getAllPayruns);
 
 // Get single payrun
-router.get('/:id', protect, getPayrunById);
+router.get('/:id', protect, restrictTo(...payrollRoles), getPayrunById);
 
 // Create payrun
-router.post('/', protect, createPayrun);
+router.post('/', protect, restrictTo(...payrollRoles), createPayrun);
 
 // ============ PAYRUN WIZARD ROUTES ============
 
 // Get eligible employees
-router.get('/:id/eligible-employees', protect, getEligibleEmployees);
+router.get('/:id/eligible-employees', protect, restrictTo(...payrollRoles), getEligibleEmployees);
 
 // Add employees to payrun
-router.post('/:id/employees', protect, addEmployeesToPayrun);
+router.post('/:id/employees', protect, restrictTo(...payrollRoles), addEmployeesToPayrun);
 
 // ============ PAYRUN PROCESSING ROUTES ============
 
 // Compute payrun
-router.post('/:id/compute', protect, computePayrun);
+router.post('/:id/compute', protect, restrictTo(...payrollRoles), computePayrun);
 
-// Validate payrun
-router.post('/:id/validate', protect, validatePayrun);
+// Validate payrun — manager approval required
+router.post('/:id/validate', protect, restrictTo(...payrollManagerRoles), validatePayrun);
 
-// Mark payrun as paid
-router.post('/:id/mark-paid', protect, markPayrunPaid);
+// Mark payrun as paid — manager approval required
+router.post('/:id/mark-paid', protect, restrictTo(...payrollManagerRoles), markPayrunPaid);
 
-// Send payslips
-router.post('/:id/send-payslips', protect, sendPayslips);
+// Send payslips — manager approval required
+router.post('/:id/send-payslips', protect, restrictTo(...payrollManagerRoles), sendPayslips);
 
 // Get payrun warnings
-router.get('/:id/warnings', protect, getPayrunWarnings);
+router.get('/:id/warnings', protect, restrictTo(...payrollRoles), getPayrunWarnings);
 
 export default router;

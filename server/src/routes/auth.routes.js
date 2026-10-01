@@ -15,16 +15,16 @@ import {
   setPasswordViaMagicLink,
   resendMagicLink,
 } from '../controllers/auth.controller.js';
-import { protect, requirePermission } from '../middleware/auth.middleware.js';
+import { protect, requirePermission, rateLimit } from '../middleware/auth.middleware.js';
 
 const router = express.Router();
 
 // ============ PUBLIC ROUTES ============
 
-// Login (2FA)
-router.post('/login', login);
-router.post('/verify-login-otp', verifyLoginOTP);
-router.post('/resend-login-otp', resendLoginOTP);
+// Login (2FA) — rate limited: 10 attempts per 15 minutes per IP
+router.post('/login', rateLimit(10, 900), login);
+router.post('/verify-login-otp', rateLimit(10, 900), verifyLoginOTP);
+router.post('/resend-login-otp', rateLimit(5, 900), resendLoginOTP);
 
 // Forgot/Reset Password
 router.post('/forgot-password', forgotPassword);
